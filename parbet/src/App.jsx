@@ -10,10 +10,10 @@ import Home from './pages/Home';
 import Discovery from './pages/Discovery';
 import TeamFocus from './pages/TeamFocus';
 
-// Auto-imported generated pages
-const pages = import.meta.glob('./pages/*.jsx', { eager: true });
+// Auto-imported generated pages (Updated to search inside subdirectories for index.jsx)
+const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const routes = Object.keys(pages).map((path) => {
-  const name = path.match(/\.\/pages\/(.*)\.jsx$/)[1];
+  const name = path.match(/\.\/pages\/(.*)\/index\.jsx$/)[1];
   return { name, Component: pages[path].default };
 });
 
