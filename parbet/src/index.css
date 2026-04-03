@@ -3,22 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #0A0B0D;
-  color: #FFFFFF;
-  margin: 0;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  overflow-x: hidden;
-}
-
+body { background-color: #0E1015; color: #FFFFFF; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Custom graphics for onboarding rings */
-.ring-graphic {
-  position: absolute;
-  border-radius: 50%;
-  border: 40px solid;
-  opacity: 0.8;
-  filter: blur(2px);
-}
+.odds-btn { @apply bg-[#2A2D35] hover:bg-brand-primary hover:text-white transition-colors rounded text-xs font-bold flex justify-between items-center px-2 py-1.5 w-full; }
+.odds-val { @apply text-brand-neon; }
