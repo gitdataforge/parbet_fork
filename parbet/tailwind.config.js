@@ -8,12 +8,15 @@ export default {
     extend: {
       colors: {
         brand: {
+          primary: '#1A73E8', // Based on the mockup's vibrant blue
+          secondary: '#DCE6F5', // The soft light blue from the UI
           dark: '#111111',
-          card: '#1C1C1E',
-          yellow: '#F4D03F',
-          red: '#A6222C',
-          redDark: '#D32F2F',
+          light: '#F4F7FB', // Soft background tint
+          white: '#FFFFFF',
         }
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'], // Closest web-safe modern alternative to Lufga
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

@@ -1,5 +1,4 @@
 import emailjs from '@emailjs/browser';
-
 export const sendParbetEmail = async (templateParams) => {
     try {
         const response = await emailjs.send(

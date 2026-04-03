@@ -15,15 +15,9 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Core Engine: Real-Time DB Transaction
 export const placeRealBet = async (userId, matchId, amount, odds, type) => {
     const userRef = doc(db, 'users', userId);
     const betsRef = collection(db, 'bets');
-    
     await updateDoc(userRef, { balance: increment(-amount) });
-    await addDoc(betsRef, {
-        userId, matchId, amount, odds, type,
-        status: 'pending',
-        timestamp: serverTimestamp()
-    });
+    await addDoc(betsRef, { userId, matchId, amount, odds, type, status: 'pending', timestamp: serverTimestamp() });
 };

@@ -9,7 +9,7 @@ def write_file(filepath, content):
     print(f"Created: {filepath}")
 
 def main():
-    print("🚀 Generating Parbet React Architecture...")
+    print("🚀 Generating Parbet React Architecture (Light Theme Overhaul)...")
 
     # ==========================================
     # 1. ENV VARIABLES (VITE, FIREBASE, EMAILJS)
@@ -30,7 +30,7 @@ VITE_EMAILJS_TEMPLATE_ID=your_template_id
 VITE_EMAILJS_PUBLIC_KEY=your_public_key
 """
     write_file('.env.example', env_content)
-    write_file('.env.local', env_content) # Create a local dev copy as well
+    write_file('.env.local', env_content)
 
     # ==========================================
     # 2. CONFIGURATION & STYLING
@@ -47,12 +47,15 @@ export default {
     extend: {
       colors: {
         brand: {
+          primary: '#1A73E8', // Based on the mockup's vibrant blue
+          secondary: '#DCE6F5', // The soft light blue from the UI
           dark: '#111111',
-          card: '#1C1C1E',
-          yellow: '#F4D03F',
-          red: '#A6222C',
-          redDark: '#D32F2F',
+          light: '#F4F7FB', // Soft background tint
+          white: '#FFFFFF',
         }
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'], // Closest web-safe modern alternative to Lufga
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
@@ -77,15 +80,16 @@ export default {
     write_file('tailwind.config.js', tailwind_config)
 
     index_css = """
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  background-color: #000000;
-  color: white;
+  background-color: #E5E7EB; /* Desktop background */
+  color: #111111;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   overflow-x: hidden;
 }
 
@@ -100,7 +104,7 @@ body {
     write_file('src/index.css', index_css)
 
     # ==========================================
-    # 3. LIB & UTILS (FIREBASE & EMAILJS STRICTLY ENV)
+    # 3. LIB & UTILS
     # ==========================================
 
     firebase_js = """
@@ -121,24 +125,17 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Core Engine: Real-Time DB Transaction
 export const placeRealBet = async (userId, matchId, amount, odds, type) => {
     const userRef = doc(db, 'users', userId);
     const betsRef = collection(db, 'bets');
-    
     await updateDoc(userRef, { balance: increment(-amount) });
-    await addDoc(betsRef, {
-        userId, matchId, amount, odds, type,
-        status: 'pending',
-        timestamp: serverTimestamp()
-    });
+    await addDoc(betsRef, { userId, matchId, amount, odds, type, status: 'pending', timestamp: serverTimestamp() });
 };
 """
     write_file('src/lib/firebase.js', firebase_js)
 
     email_js = """
 import emailjs from '@emailjs/browser';
-
 export const sendParbetEmail = async (templateParams) => {
     try {
         const response = await emailjs.send(
@@ -158,12 +155,8 @@ export const sendParbetEmail = async (templateParams) => {
 
     store_js = """
 import { create } from 'zustand';
-
 export const useAppStore = create((set) => ({
-    user: null,
-    balance: 0,
-    diamonds: 0,
-    matches: [],
+    user: null, balance: 0, diamonds: 0, matches: [],
     setUser: (user) => set({ user }),
     setWallet: (balance, diamonds) => set({ balance, diamonds }),
     setMatches: (matches) => set({ matches }),
@@ -172,28 +165,62 @@ export const useAppStore = create((set) => ({
     write_file('src/store/useStore.js', store_js)
 
     # ==========================================
-    # 4. APP & ROUTING
+    # 4. APP & ROUTING (With New Floating Nav & Desktop Responsiveness)
     # ==========================================
 
     app_jsx = """
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAppStore } from './store/useStore';
+import { Home as IconHome, Calendar as IconCalendar, Settings as IconSettings } from 'lucide-react';
 
-// Static Core Pages
 import Home from './pages/Home';
 import Discovery from './pages/Discovery';
 import TeamFocus from './pages/TeamFocus';
 
-// Auto-imported generated pages (Updated to search inside subdirectories for index.jsx)
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const routes = Object.keys(pages).map((path) => {
   const name = path.match(/\\.\\/pages\\/(.*)\\/index\\.jsx$/)[1];
   return { name, Component: pages[path].default };
 });
+
+function MainLayout() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    return (
+        <div className="relative w-full h-full md:w-[390px] md:h-[844px] bg-brand-light md:rounded-[40px] shadow-2xl overflow-hidden md:border-[12px] md:border-[#1A1A1A]">
+            <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/discovery" element={<Discovery />} />
+                <Route path="/team" element={<TeamFocus />} />
+                {routes.map(({ name, Component }) => (
+                    name !== 'Home' && name !== 'Discovery' && name !== 'TeamFocus' &&
+                    <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />
+                ))}
+            </Routes>
+            
+            {/* Floating Black Bottom Nav */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#111] rounded-full p-2 flex items-center space-x-2 z-50 shadow-2xl">
+                <button onClick={() => navigate('/')} className={`p-3 rounded-full flex items-center space-x-2 transition-all ${location.pathname === '/' ? 'bg-white text-black' : 'text-white hover:bg-gray-800'}`}>
+                    <IconHome size={20} />
+                    {location.pathname === '/' && <span className="text-xs font-bold pr-2">Schedule</span>}
+                </button>
+                <button onClick={() => navigate('/discovery')} className={`p-3 rounded-full flex items-center space-x-2 transition-all ${location.pathname === '/discovery' ? 'bg-white text-black' : 'text-white hover:bg-gray-800'}`}>
+                    <IconCalendar size={20} />
+                    {location.pathname === '/discovery' && <span className="text-xs font-bold pr-2">Calendar</span>}
+                </button>
+                <button onClick={() => navigate('/settings')} className={`p-3 rounded-full flex items-center space-x-2 transition-all ${location.pathname.startsWith('/settings') ? 'bg-white text-black' : 'text-white hover:bg-gray-800'}`}>
+                    <IconSettings size={20} />
+                    {location.pathname.startsWith('/settings') && <span className="text-xs font-bold pr-2">Settings</span>}
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default function App() {
     const { setUser, setWallet } = useAppStore();
@@ -201,8 +228,7 @@ export default function App() {
 
     useEffect(() => {
         const initAuth = async () => {
-            try { await signInAnonymously(auth); } 
-            catch (e) { console.error("Auth failed", e); }
+            try { await signInAnonymously(auth); } catch (e) { console.error("Auth failed", e); }
         };
         initAuth();
 
@@ -224,22 +250,12 @@ export default function App() {
         return () => unsubAuth();
     }, []);
 
-    if (loading) return <div className="min-h-screen bg-brand-dark text-brand-yellow flex items-center justify-center font-bold animate-pulse-slow">Loading Parbet Engine...</div>;
+    if (loading) return <div className="min-h-screen bg-brand-light text-brand-primary flex items-center justify-center font-bold animate-pulse-slow">Loading Environment...</div>;
 
     return (
         <BrowserRouter>
-            <div className="min-h-screen bg-black flex items-center justify-center p-4">
-                <div className="relative w-full max-w-[390px] h-[844px] bg-brand-dark rounded-[40px] shadow-2xl overflow-hidden border-8 border-[#1A1A1A]">
-                    <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/discovery" element={<Discovery />} />
-                        <Route path="/team" element={<TeamFocus />} />
-                        {routes.map(({ name, Component }) => (
-                            name !== 'Home' && name !== 'Discovery' && name !== 'TeamFocus' &&
-                            <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />
-                        ))}
-                    </Routes>
-                </div>
+            <div className="min-h-screen bg-[#E5E7EB] flex items-center justify-center md:p-8">
+                <MainLayout />
             </div>
         </BrowserRouter>
     );
@@ -253,56 +269,68 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>)
 """
     write_file('src/main.jsx', main_jsx)
 
     # ==========================================
-    # 5. CORE PAGES (Home, Discovery, TeamFocus)
+    # 5. CORE PAGES (Matching New UIs)
     # ==========================================
     
     home_jsx = """
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
-import { Search, Play, User, Share } from 'lucide-react';
+import { Settings, MoreVertical, Calendar } from 'lucide-react';
 
 export default function Home() {
-    const navigate = useNavigate();
-    const { balance, diamonds } = useAppStore();
-
     return (
-        <div className="h-full flex flex-col relative pb-24 overflow-y-auto hide-scrollbar animate-fade-in">
-            <div className="flex justify-between items-center px-6 pt-12 pb-4">
-                <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-800 border border-[#333] flex items-center justify-center"><User className="text-white/50" /></div>
-                    <div className="flex flex-col"><span className="text-xs text-gray-400">Hey,</span><span className="text-lg font-bold">Markus</span></div>
-                </div>
-                <div className="flex items-center bg-brand-card rounded-full px-4 py-2 border border-[#333]">
-                    <span className="text-sm font-bold mr-2">{diamonds}</span><div className="w-3 h-3 bg-brand-yellow rotate-45"></div>
+        <div className="h-full bg-brand-light overflow-y-auto pb-32 hide-scrollbar animate-fade-in">
+            {/* Header */}
+            <div className="px-6 pt-12 pb-6 flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-black">Schedule</h1>
+                <div className="flex space-x-2">
+                    <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><Settings size={14} className="text-gray-500"/></button>
+                    <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><MoreVertical size={14} className="text-gray-500"/></button>
                 </div>
             </div>
-            <div className="px-6 mt-4">
-                <motion.div onClick={() => navigate('/discovery')} className="relative w-full h-[320px] rounded-[32px] overflow-hidden bg-gradient-to-br from-[#2A1B1B] to-brand-dark border border-[#2A2A2A] p-6 cursor-pointer shadow-2xl">
-                     <h1 className="text-3xl font-bold leading-tight relative z-10">Make Your<br/>Bet Special</h1>
-                     <div className="absolute bottom-6 left-6 z-10">
-                         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 w-32 border border-white/20 mb-6">
-                            <div className="text-2xl font-bold">500$</div>
-                            <div className="text-[10px] text-gray-300 mt-1">for first bet<br/>is 70%</div>
+            
+            {/* Month Selector */}
+            <div className="px-6 mb-6 flex justify-between items-center">
+                <h2 className="text-sm font-medium text-gray-500">February</h2>
+                <button className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center bg-white"><Calendar size={14} className="text-gray-500"/></button>
+            </div>
+
+            {/* Date Pill Scroller */}
+            <div className="mb-8 bg-white mx-6 rounded-[32px] p-4 shadow-sm flex justify-between items-center">
+                {['M','T','W','T','F','S','S'].map((day, i) => {
+                    const isActive = i === 3;
+                    return (
+                        <div key={i} className="flex flex-col items-center">
+                            <div className={`w-1 h-1 rounded-full mb-1 ${isActive ? 'bg-brand-primary' : 'bg-transparent'}`}></div>
+                            <span className="text-[10px] text-gray-400 mb-2 font-medium">{day}</span>
+                            <div className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold transition-colors ${isActive ? 'bg-brand-primary text-white shadow-md shadow-blue-500/30' : 'bg-[#F4F7FB] text-gray-600'}`}>
+                                {10 + i}
+                            </div>
                         </div>
-                        <button className="bg-brand-yellow text-black px-5 py-3 rounded-full text-sm font-bold flex items-center space-x-2"><Play size={14} fill="currentColor"/><span>Get Started</span></button>
-                     </div>
-                </motion.div>
-                <div className="mt-8 flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Balance</span>
-                    <span className="text-2xl font-bold text-white">${balance.toFixed(2)}</span>
-                </div>
-                <button onClick={() => navigate('/wallet')} className="w-full mt-4 bg-brand-card py-4 rounded-xl font-bold text-gray-300 border border-[#333]">View All Modules (60+)</button>
+                    )
+                })}
+            </div>
+
+            {/* Tasks List */}
+            <div className="px-6 space-y-6">
+                {[1,2,3].map((item, i) => (
+                    <div key={i}>
+                        <p className="text-[10px] text-center text-gray-400 mb-2 font-medium">08:36</p>
+                        <motion.div whileHover={{ scale: 0.98 }} className={`p-5 rounded-[24px] relative overflow-hidden shadow-sm border border-gray-100 ${i === 0 ? 'bg-brand-secondary' : 'bg-white'}`}>
+                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${i === 0 ? 'bg-brand-primary' : 'bg-brand-secondary'}`}></div>
+                            <div className="flex justify-between items-start mb-2 ml-2">
+                                <h3 className="font-bold text-sm text-black">Student Write Notes :</h3>
+                                <button className="p-1"><MoreVertical size={14} className="text-gray-400"/></button>
+                            </div>
+                            <p className="text-xs text-gray-500 leading-relaxed ml-2 pr-4">We need to coordinate a call with managment to understand how can start wireframes.</p>
+                        </motion.div>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -310,11 +338,78 @@ export default function Home() {
 """
     write_file('src/pages/Home/index.jsx', home_jsx)
 
-    write_file('src/pages/Discovery/index.jsx', "import React from 'react'; export default function Discovery() { return <div className='p-6 text-white'>Discovery Page</div>; }")
-    write_file('src/pages/TeamFocus/index.jsx', "import React from 'react'; export default function TeamFocus() { return <div className='p-6 text-white'>Team Focus Page</div>; }")
+    discovery_jsx = """
+import React from 'react';
+import { ChevronLeft, Bell, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export default function Discovery() {
+    const navigate = useNavigate();
+    return (
+        <div className="h-full bg-brand-light overflow-y-auto pb-32 hide-scrollbar animate-fade-in">
+            {/* Header */}
+            <div className="px-6 pt-12 pb-6 flex justify-between items-center">
+                <button onClick={()=>navigate('/')} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><ChevronLeft size={16} className="text-gray-600"/></button>
+                <h1 className="text-sm font-bold text-black">Calendar</h1>
+                <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><Bell size={14} className="text-gray-500"/></button>
+            </div>
+
+            <div className="px-6 mb-6">
+                <h2 className="text-lg font-bold text-black mb-4">Calendar & Tasks</h2>
+                
+                {/* Legend */}
+                <div className="flex space-x-6 mb-6">
+                    <div className="flex items-center space-x-2"><div className="w-2 h-2 rounded-full bg-black"></div><span className="text-[10px] font-medium text-gray-500">Class Date</span></div>
+                    <div className="flex items-center space-x-2"><div className="w-2 h-2 rounded-full bg-[#82B1FF]"></div><span className="text-[10px] font-medium text-gray-500">Holl Date</span></div>
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-y-4 gap-x-2 text-center mb-8 bg-white p-5 rounded-[32px] shadow-sm border border-gray-100">
+                    {Array.from({length: 31}, (_, i) => i + 1).map(day => {
+                        let isSelected = day >= 1 && day <= 4;
+                        let isHatched = day === 10 || day === 21 || day === 28;
+                        let isCurrent = day === 29;
+                        let bgClass = "bg-transparent text-gray-700 font-medium";
+                        
+                        if (isSelected) bgClass = "bg-brand-secondary text-brand-primary font-bold";
+                        if (isCurrent) bgClass = "bg-brand-primary text-white font-bold shadow-md shadow-blue-500/30";
+                        
+                        return (
+                            <div key={day} className={`w-8 h-8 mx-auto flex items-center justify-center rounded-full text-xs transition-all ${bgClass} ${isHatched ? 'border border-dashed border-gray-300 text-gray-300 bg-gray-50' : ''}`}>
+                                {day.toString().padStart(2, '0')}
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {/* Specials Filter */}
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold text-black">Today Specials</h2>
+                    <button className="text-xs text-brand-primary font-bold flex items-center">See All <ArrowRight size={12} className="ml-1"/></button>
+                </div>
+
+                <div className="flex space-x-3 overflow-x-auto hide-scrollbar mb-6 -mx-6 px-6 pb-2">
+                    <button className="bg-brand-primary text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-md shadow-blue-500/20 whitespace-nowrap">Today</button>
+                    <button className="bg-white text-gray-500 border border-gray-200 px-5 py-2.5 rounded-full text-xs font-medium whitespace-nowrap">Yesterday</button>
+                    <button className="bg-white text-gray-500 border border-gray-200 px-5 py-2.5 rounded-full text-xs font-medium whitespace-nowrap">Next 7 days</button>
+                </div>
+
+                {/* Empty State Banner */}
+                <div className="bg-brand-secondary rounded-[32px] p-8 flex flex-col items-center justify-center text-center shadow-inner relative overflow-hidden">
+                    <div className="absolute top-0 w-8 h-1 bg-gray-300 rounded-b-lg"></div>
+                    <p className="text-brand-primary text-sm font-medium mb-4 mt-2">No tasks for today</p>
+                    <button className="bg-brand-primary text-white px-6 py-3 rounded-full text-xs font-bold shadow-md hover:scale-105 transition-transform">Add tasks</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+"""
+    write_file('src/pages/Discovery/index.jsx', discovery_jsx)
+    write_file('src/pages/TeamFocus/index.jsx', "import React from 'react'; export default function TeamFocus() { return <div className='p-6 text-black bg-brand-light h-full'>Team Focus Page</div>; }")
 
     # ==========================================
-    # 6. DYNAMIC GENERATION OF 50+ PAGES
+    # 6. DYNAMIC GENERATION OF 50+ PAGES (LIGHT THEME)
     # ==========================================
     
     pages_list = [
@@ -330,7 +425,6 @@ export default function Home() {
         "AdminSettings", "AdminRoles", "AdminPerms", "AffiliatePortal", "VIPClub"
     ]
 
-    # Notice the updated import: Settings as SettingsIcon, and the updated usage in Section 8
     page_template = """
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -354,113 +448,119 @@ export default function {{PAGE_NAME}}() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-brand-dark overflow-y-auto hide-scrollbar text-white">
+        <div className="h-full flex flex-col bg-brand-light overflow-y-auto hide-scrollbar text-black font-sans">
             
             {/* SECTION 1: Header & Nav */}
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-between items-center p-6 border-b border-[#2A2A2A] sticky top-0 bg-brand-dark/90 backdrop-blur z-50">
-                <button onClick={() => navigate('/')} className="p-2 bg-brand-card rounded-full border border-[#333]"><ChevronLeft size={20}/></button>
-                <h1 className="font-bold text-lg text-brand-yellow">{{PAGE_NAME}}</h1>
-                <div className="w-10"></div>
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white/90 backdrop-blur z-40 shadow-sm">
+                <button onClick={() => navigate('/')} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><ChevronLeft size={16} className="text-gray-600"/></button>
+                <h1 className="font-bold text-sm text-brand-primary">{{PAGE_NAME}}</h1>
+                <div className="w-8"></div>
             </motion.div>
 
-            <div className="p-6 space-y-6 pb-24">
+            <div className="p-6 space-y-6 pb-32">
                 
                 {/* SECTION 2: Real-time User Stats Block */}
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-2 gap-4">
-                    <div className="bg-brand-card p-4 rounded-2xl border border-[#333]">
-                        <p className="text-xs text-gray-400">Live Balance</p>
-                        <p className="text-xl font-bold text-white">${balance.toFixed(2)}</p>
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm text-center">
+                        <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mb-1">Balance</p>
+                        <p className="text-xl font-black text-black">${balance.toFixed(2)}</p>
                     </div>
-                    <div className="bg-brand-card p-4 rounded-2xl border border-[#333]">
-                        <p className="text-xs text-gray-400">Diamonds</p>
-                        <p className="text-xl font-bold text-brand-yellow">{diamonds}</p>
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm text-center">
+                        <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mb-1">Diamonds</p>
+                        <p className="text-xl font-black text-brand-primary">{diamonds}</p>
                     </div>
                 </motion.div>
 
                 {/* SECTION 3: Hero Action Area */}
-                <motion.div whileHover={{ scale: 0.98 }} className="bg-gradient-to-r from-brand-redDark to-brand-red p-6 rounded-3xl relative overflow-hidden">
-                    <Zap className="absolute right-[-20px] bottom-[-20px] text-white/10 w-32 h-32" />
-                    <h2 className="text-2xl font-black mb-2 relative z-10">Elevate Your Game</h2>
-                    <p className="text-sm text-white/80 mb-4 relative z-10">Exclusive access via the {{PAGE_NAME}} module.</p>
-                    <button className="bg-brand-yellow text-black font-bold py-2 px-6 rounded-full text-sm">Action Required</button>
+                <motion.div whileHover={{ scale: 0.98 }} className="bg-brand-primary p-8 rounded-[32px] relative overflow-hidden shadow-lg shadow-blue-500/30">
+                    <Zap className="absolute right-[-20px] bottom-[-20px] text-white/10 w-40 h-40" />
+                    <h2 className="text-2xl font-black mb-2 relative z-10 text-white leading-tight">Elevate<br/>Your Game</h2>
+                    <p className="text-xs text-brand-secondary mb-6 relative z-10 w-2/3">Exclusive access via the {{PAGE_NAME}} module.</p>
+                    <button className="bg-white text-brand-primary font-bold py-3 px-6 rounded-full text-xs shadow-md">Action Required</button>
                 </motion.div>
 
                 {/* SECTION 4: Real-time Data Feed Placeholder */}
-                <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} className="bg-brand-card rounded-2xl border border-[#333] p-5">
+                <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <div className="flex items-center space-x-2 mb-4">
-                        <Activity className="text-brand-yellow" size={18} />
-                        <h3 className="font-bold">Live Data Sync</h3>
+                        <Activity className="text-brand-primary" size={18} />
+                        <h3 className="font-bold text-sm">Live Data Sync</h3>
                     </div>
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="flex justify-between items-center p-3 bg-[#111] rounded-xl border border-[#222]">
-                                <span className="text-sm text-gray-300">Data Stream {i}</span>
-                                <span className="text-brand-yellow text-xs animate-pulse">Syncing...</span>
+                            <div key={i} className="flex justify-between items-center p-4 bg-brand-light rounded-2xl">
+                                <span className="text-xs font-medium text-gray-600">Data Stream {i}</span>
+                                <span className="text-brand-primary text-[10px] font-bold animate-pulse uppercase tracking-wider">Syncing</span>
                             </div>
                         ))}
                     </div>
                 </motion.div>
 
                 {/* SECTION 5: Analytics & Charts Placeholder */}
-                <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} className="bg-brand-card rounded-2xl border border-[#333] p-5 h-48 flex flex-col">
-                    <div className="flex items-center space-x-2 mb-4">
-                        <BarChart className="text-brand-yellow" size={18} />
-                        <h3 className="font-bold">Module Analytics</h3>
+                <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 h-56 flex flex-col">
+                    <div className="flex items-center space-x-2 mb-6">
+                        <BarChart className="text-brand-primary" size={18} />
+                        <h3 className="font-bold text-sm">Module Analytics</h3>
                     </div>
-                    <div className="flex-1 flex items-end justify-between space-x-2 mt-auto">
+                    <div className="flex-1 flex items-end justify-between space-x-2 mt-auto px-2">
                         {[40, 70, 30, 90, 60, 100, 50].map((h, i) => (
-                            <motion.div key={i} initial={{ height: 0 }} whileInView={{ height: `${h}%` }} className="w-full bg-brand-yellow/80 rounded-t-sm" />
+                            <motion.div key={i} initial={{ height: 0 }} whileInView={{ height: `${h}%` }} className="w-full bg-brand-secondary rounded-t-sm relative">
+                                {i === 3 && <div className="absolute inset-0 bg-brand-primary rounded-t-sm"></div>}
+                            </motion.div>
                         ))}
                     </div>
                 </motion.div>
 
                 {/* SECTION 6: Notifications & Alerts */}
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="bg-brand-card rounded-2xl border border-brand-yellow/30 p-5 flex items-start space-x-4">
-                    <div className="p-2 bg-brand-yellow/10 rounded-full"><Bell className="text-brand-yellow" size={20}/></div>
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="bg-brand-secondary rounded-3xl p-5 flex items-start space-x-4 shadow-inner">
+                    <div className="p-3 bg-white rounded-full shadow-sm"><Bell className="text-brand-primary" size={16}/></div>
                     <div>
-                        <h4 className="font-bold text-sm">System Alert</h4>
-                        <p className="text-xs text-gray-400 mt-1">{{PAGE_NAME}} module is fully active and secured by Firebase.</p>
+                        <h4 className="font-bold text-sm text-brand-primary">System Alert</h4>
+                        <p className="text-xs text-brand-primary/80 mt-1 font-medium">{{PAGE_NAME}} module is fully active and secured.</p>
                     </div>
                 </motion.div>
 
                 {/* SECTION 7: Feature Grid */}
                 <div className="grid grid-cols-2 gap-4">
-                    <motion.div whileHover={{ y: -5 }} className="bg-brand-card p-4 rounded-xl border border-[#333] flex flex-col items-center justify-center text-center">
-                        <Trophy className="text-brand-yellow mb-2" size={24}/>
+                    <motion.div whileHover={{ y: -5 }} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center mb-3">
+                            <Trophy className="text-brand-primary" size={20}/>
+                        </div>
                         <span className="text-xs font-bold">Rewards</span>
                     </motion.div>
-                    <motion.div whileHover={{ y: -5 }} className="bg-brand-card p-4 rounded-xl border border-[#333] flex flex-col items-center justify-center text-center">
-                        <Shield className="text-brand-yellow mb-2" size={24}/>
+                    <motion.div whileHover={{ y: -5 }} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center mb-3">
+                            <Shield className="text-brand-primary" size={20}/>
+                        </div>
                         <span className="text-xs font-bold">Security</span>
                     </motion.div>
                 </div>
 
-                {/* SECTION 8: Module Configuration (Updated icon name) */}
-                <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="bg-brand-card rounded-2xl border border-[#333] p-5">
+                {/* SECTION 8: Module Configuration */}
+                <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center space-x-2">
                             <SettingsIcon size={18} className="text-gray-400"/>
                             <h3 className="font-bold text-sm">Preferences</h3>
                         </div>
-                        <div className="w-10 h-5 bg-brand-yellow rounded-full relative"><div className="absolute right-1 top-1 w-3 h-3 bg-black rounded-full"></div></div>
+                        <div className="w-12 h-6 bg-brand-primary rounded-full relative shadow-inner"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow"></div></div>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">Toggle specific functionalities for the {{PAGE_NAME}} environment here. Preferences sync instantly via Firestore.</p>
+                    <p className="text-[10px] text-gray-400 leading-relaxed font-medium">Toggle specific functionalities for the {{PAGE_NAME}} environment here. Preferences sync instantly via Firestore.</p>
                 </motion.div>
 
                 {/* SECTION 9: EmailJS Contact Integration */}
-                <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="bg-[#111] rounded-2xl border border-[#333] p-5">
-                    <h3 className="font-bold mb-2 flex items-center"><Mail className="mr-2 text-brand-yellow" size={16}/> EmailJS Integration</h3>
-                    <p className="text-xs text-gray-400 mb-4">Send a direct ping using .env configured EmailJS.</p>
-                    <button onClick={handleTestEmail} className="w-full bg-brand-card border border-[#444] text-white py-3 rounded-xl flex items-center justify-center space-x-2 hover:bg-[#222]">
+                <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                    <h3 className="font-bold mb-2 flex items-center text-sm"><Mail className="mr-2 text-brand-primary" size={16}/> API Integration</h3>
+                    <p className="text-[10px] text-gray-400 mb-6 font-medium">Send a direct ping using .env configured EmailJS.</p>
+                    <button onClick={handleTestEmail} className="w-full bg-brand-light text-brand-primary font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 hover:bg-gray-200 transition-colors">
                         <Send size={14} />
-                        <span>{emailStatus || 'Ping Administrator'}</span>
+                        <span className="text-xs">{emailStatus || 'Ping Administrator'}</span>
                     </button>
                 </motion.div>
 
                 {/* SECTION 10: Footer Status */}
-                <div className="text-center pt-6 opacity-50">
-                    <p className="text-[10px] uppercase tracking-widest">Parbet Engine v2.0</p>
-                    <p className="text-[9px] mt-1 text-brand-yellow">Strict Mode Activated</p>
+                <div className="text-center pt-6 opacity-40">
+                    <p className="text-[10px] uppercase tracking-widest font-bold">Parbet Engine v3.0</p>
+                    <p className="text-[9px] mt-1 text-gray-500 font-medium">Light Theme Activated</p>
                 </div>
 
             </div>
@@ -473,10 +573,9 @@ export default function {{PAGE_NAME}}() {
         content = page_template.replace("{{PAGE_NAME}}", page)
         write_file(f'src/pages/{page}/index.jsx', content)
 
-    print("\n✅ GENERATION COMPLETE!")
-    print("✅ Strict .env configurations written (Firebase & EmailJS)")
-    print("✅ 60+ Pages mapped to subdirectories with 10 Functional sections per page")
-    print("✅ Settings Naming Collision Resolved")
+    print("\n✅ LIGHT THEME OVERHAUL COMPLETE!")
+    print("✅ Wide Desktop responsiveness + Floating Nav added.")
+    print("✅ New Color Palette and Typography strictly applied to all 60 pages.")
 
 if __name__ == "__main__":
     main()
