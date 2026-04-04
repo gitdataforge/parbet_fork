@@ -12,7 +12,8 @@ export default function Header() {
         searchQuery, 
         setSearchQuery,
         isSearchExpanded,
-        setSearchExpanded 
+        setSearchExpanded,
+        setExploreCategory
     } = useAppStore();
 
     // Centralized navigation guard for protected routes
@@ -43,9 +44,9 @@ export default function Header() {
                             parbet
                         </h1>
                         <nav className="hidden lg:flex items-center space-x-6 text-sm font-medium text-brand-text">
-                            <button className="hover:text-brand-primary transition-colors cursor-pointer">Sports</button>
-                            <button className="hover:text-brand-primary transition-colors cursor-pointer">Concerts</button>
-                            <button className="hover:text-brand-primary transition-colors cursor-pointer">Theatre</button>
+                            <button onClick={() => { setExploreCategory('Sports'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Sports</button>
+                            <button onClick={() => { setExploreCategory('Concerts'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Concerts</button>
+                            <button onClick={() => { setExploreCategory('Theater'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Theatre</button>
                             <button className="hover:text-brand-primary transition-colors cursor-pointer">Top Cities</button>
                         </nav>
                     </div>
@@ -66,7 +67,7 @@ export default function Header() {
 
                 {/* Right Side Navigation (Desktop) */}
                 <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-brand-text">
-                    <button onClick={() => navigate('/')} className="hover:text-brand-primary transition-colors">Explore</button>
+                    <button onClick={() => navigate('/explore')} className="hover:text-brand-primary transition-colors">Explore</button>
                     
                     <button onClick={() => handleNavigation('/sell')} className="hover:text-brand-primary transition-colors">Sell</button>
                     <button onClick={() => handleNavigation('/dashboard')} className="hover:text-brand-primary transition-colors">Favourites</button>

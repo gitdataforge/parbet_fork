@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import Onboarding from './components/Onboarding';
 import AuthModal from './components/AuthModal';
 import LocationToast from './components/LocationToast';
 import Header from './components/Header';
+import ExploreHeader from './components/ExploreHeader';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 
@@ -20,9 +21,13 @@ const routes = Object.keys(pages).map((path) => {
 });
 
 function MainLayout() {
+    const location = useLocation();
+
     return (
         <div className="flex flex-col w-full min-h-screen bg-brand-bg text-brand-text relative">
-            <Header />
+            {/* Dynamic Header Rendering based on Route */}
+            {location.pathname === '/explore' ? <ExploreHeader /> : <Header />}
+            
             {/* Main scrollable content area wrapper constrained for ultra-wide monitors */}
             <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
                 <Routes>

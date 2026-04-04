@@ -5,18 +5,6 @@ import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode
 import { useAppStore } from '../../store/useStore';
 import LocationDropdown from '../../components/LocationDropdown';
 
-// High-end Unsplash sports/concert images to map dynamically to real API data
-const premiumImages = [
-    "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1514361598106-897108422325?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1518605368461-1e1e10815183?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?auto=format&fit=crop&w=600&q=80",
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80"
-];
-
 export default function Home() {
     const navigate = useNavigate();
     const { 
@@ -62,7 +50,7 @@ export default function Home() {
             query: "Mumbai Indians",
             content: (
                 <div className="absolute inset-0 right-0 pointer-events-none">
-                    <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-70 mix-blend-overlay" alt="MI"/>
+                    <img src="https://media.stubhubstatic.com/stubhub-v2-catalog/d_vgg-defaultLogo.jpg/q_auto:low,f_auto,c_fill,g_face,w_1300,h_650/categories/24966/6397111?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-70 mix-blend-overlay" alt="MI"/>
                 </div>
             )
         },
@@ -226,7 +214,7 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 4. RECENTLY VIEWED RAIL */}
+            {/* 4. RECENTLY VIEWED RAIL (Real API Data with Dynamic Images) */}
             {recents.length > 0 && (
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-6">
@@ -234,10 +222,10 @@ export default function Home() {
                         <button className="border border-gray-300 px-4 py-1.5 rounded-lg text-sm font-bold text-brand-text hover:bg-gray-50 transition-colors">Edit</button>
                     </div>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
-                        {recents.map((item, idx) => (
+                        {recents.map((item) => (
                             <div key={`recent-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[160px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
-                                    <img src={premiumImages[idx % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
@@ -250,15 +238,15 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 5. RECOMMENDED FOR YOU RAIL */}
+            {/* 5. RECOMMENDED FOR YOU RAIL (Real API Data with Dynamic Images) */}
             {recommended.length > 0 && (
                 <div className="mb-12">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Recommended for you</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
-                        {recommended.map((item, idx) => (
+                        {recommended.map((item) => (
                             <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
-                                    <img src={premiumImages[(idx + 2) % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
@@ -272,14 +260,14 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 6. POPULAR CATEGORIES RAIL */}
+            {/* 6. POPULAR CATEGORIES RAIL (Real API Data with Dynamic Images) */}
             {popular.length > 0 && (
                 <div className="mb-12">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Popular categories</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
-                        {popular.map((item, idx) => (
+                        {popular.map((item) => (
                             <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200">
-                                <img src={premiumImages[(idx + 4) % premiumImages.length]} alt={item.league} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.league} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 pointer-events-none">
                                     <h3 className="font-bold text-white text-lg leading-tight drop-shadow-md truncate">{item.league}</h3>
                                 </div>
@@ -293,9 +281,9 @@ export default function Home() {
             <div className="w-full border border-gray-200 rounded-[10px] p-5 mb-12 flex flex-col md:flex-row justify-between items-center bg-white cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-center space-x-6 mb-4 md:mb-0 w-full md:w-auto">
                     <div className="flex -space-x-4">
-                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-200 z-30 overflow-hidden"><img src={premiumImages[1]} className="w-full h-full object-cover" /></div>
-                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-300 z-20 overflow-hidden"><img src={premiumImages[2]} className="w-full h-full object-cover" /></div>
-                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-400 z-10 overflow-hidden"><img src={premiumImages[6]} className="w-full h-full object-cover" /></div>
+                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-200 z-30 overflow-hidden"><img src="https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=100&q=80" className="w-full h-full object-cover" alt="Artist" /></div>
+                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-300 z-20 overflow-hidden"><img src="https://images.unsplash.com/photo-1514361598106-897108422325?auto=format&fit=crop&w=100&q=80" className="w-full h-full object-cover" alt="Artist" /></div>
+                        <div className="w-14 h-14 rounded-full border-2 border-white bg-gray-400 z-10 overflow-hidden"><img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=100&q=80" className="w-full h-full object-cover" alt="Artist" /></div>
                     </div>
                     <h3 className="font-bold text-lg md:text-xl text-brand-text">Discover when your favourite artists are on tour</h3>
                 </div>
@@ -304,15 +292,15 @@ export default function Home() {
                 </button>
             </div>
 
-            {/* 8. UPCOMING NEAR YOU RAIL */}
+            {/* 8. UPCOMING NEAR YOU RAIL (Real API Data with Dynamic Images) */}
             {comedy.length > 0 && (
                 <div className="mb-16">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Upcoming Near You</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
-                        {comedy.map((item, idx) => (
+                        {comedy.map((item) => (
                             <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
-                                    <img src={premiumImages[(idx + 6) % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>

@@ -39,6 +39,11 @@ export const useAppStore = create((set, get) => ({
     locationError: null,
     searchQuery: '',
 
+    // Explore Page Filter States
+    exploreCategory: 'All Events',
+    exploreDateFilter: 'All dates',
+    explorePriceFilter: 'All',
+
     // Basic Setters
     setOnboarded: () => { 
         localStorage.setItem('parbet_onboarded', 'true'); 
@@ -56,6 +61,11 @@ export const useAppStore = create((set, get) => ({
     setLocationError: (errorMsg) => set({ locationError: errorMsg }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setActiveEvent: (event) => set({ activeEvent: event }),
+
+    // Explore Filter Setters
+    setExploreCategory: (category) => set({ exploreCategory: category }),
+    setExploreDateFilter: (dateFilter) => set({ exploreDateFilter: dateFilter }),
+    setExplorePriceFilter: (priceFilter) => set({ explorePriceFilter: priceFilter }),
 
     // Logic to extract unique performers from real API data
     updateTrendingPerformers: (matches) => {
