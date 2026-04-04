@@ -5,7 +5,7 @@ import { useAppStore } from '../store/useStore';
 
 export default function Header() {
     const navigate = useNavigate();
-    const { isAuthenticated, openAuthModal } = useAppStore();
+    const { isAuthenticated, openAuthModal, searchQuery, setSearchQuery } = useAppStore();
 
     return (
         <header className="w-full bg-white border-b border-brand-border sticky top-0 z-40">
@@ -74,12 +74,14 @@ export default function Header() {
                 </nav>
             </div>
 
-            {/* Floating Search Bar Section */}
+            {/* Floating Search Bar Section (Now Fully Functional) */}
             <div className="max-w-3xl mx-auto px-4 pb-6 md:pb-8 relative z-10 w-full">
                 <div className="flex items-center bg-white border border-gray-300 rounded-full px-5 py-3.5 w-full shadow-[0_4px_20px_rgba(0,0,0,0.05)] focus-within:shadow-[0_4px_25px_rgba(17,76,42,0.15)] focus-within:border-[#458731] transition-all">
                     <Search size={22} className="text-[#458731] mr-3 font-bold"/>
                     <input 
                         type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search events, artists, teams and more" 
                         className="bg-transparent outline-none flex-1 text-base text-brand-text placeholder-gray-500 font-medium"
                     />

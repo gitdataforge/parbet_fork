@@ -7,6 +7,7 @@ import { useAppStore } from './store/useStore';
 
 import Onboarding from './components/Onboarding';
 import AuthModal from './components/AuthModal';
+import LocationToast from './components/LocationToast';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -32,8 +33,10 @@ function MainLayout() {
                 </Routes>
             </main>
             <Footer />
-            {/* Global Authentication Interceptor */}
+            
+            {/* Global Overlays & Interceptors */}
             <AuthModal />
+            <LocationToast />
         </div>
     );
 }
@@ -57,7 +60,7 @@ export default function App() {
             }
         });
         return () => unsubAuth();
-    }, []);
+    }, [setAuth, setWallet]);
 
     if (loading) {
         return (
