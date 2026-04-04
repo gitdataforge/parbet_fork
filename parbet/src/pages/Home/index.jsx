@@ -403,7 +403,7 @@ export default function Home() {
             {/* 10. APP DOWNLOAD BANNER */}
             <div className="w-full bg-[#E6F2D9] rounded-[16px] overflow-hidden p-8 md:p-12 flex flex-col md:flex-row justify-between items-center relative min-h-[200px] shadow-sm border border-[#D9EBBF]">
                 <div className="md:w-1/2 z-10 mb-8 md:mb-0 text-center md:text-left">
-                    <h2 className="text-3xl md:text-4xl font-black text-[#114C2A] mb-2 tracking-tight">Download the viagogo app</h2>
+                    <h2 className="text-3xl md:text-4xl font-black text-[#114C2A] mb-2 tracking-tight">Download the parbet app</h2>
                     <p className="text-lg text-[#114C2A]/80 font-medium">Discover your favourite events with ease</p>
                 </div>
                 
