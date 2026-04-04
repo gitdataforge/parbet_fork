@@ -10,7 +10,9 @@ import { ShieldCheck, Mail, Key, Lock, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AuthFlow() {
-    const setAuth = useAppStore(state => state.setAuth);
+    // Extracted closeAuthModal from the store
+    const { setAuth, closeAuthModal } = useAppStore();
+    
     const [step, setStep] = useState('select');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -52,8 +54,12 @@ export default function AuthFlow() {
 
     const handleVerify2FASetup = () => {
         const totp = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(totpSecret) });
-        if (totp.validate({ token: inputCode, window: 1 }) !== null) setAuth(true);
-        else setError('Invalid 2FA code.');
+        if (totp.validate({ token: inputCode, window: 1 }) !== null) {
+            setAuth(true);
+            closeAuthModal(); // Close modal automatically
+        } else {
+            setError('Invalid 2FA code.');
+        }
     };
 
     const handleLogin = async () => {
@@ -71,18 +77,22 @@ export default function AuthFlow() {
 
     const handleVerifyLogin2FA = () => {
         const totp = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(totpSecret) });
-        if (totp.validate({ token: inputCode, window: 1 }) !== null) setAuth(true);
-        else setError('Invalid 2FA code.');
+        if (totp.validate({ token: inputCode, window: 1 }) !== null) {
+            setAuth(true);
+            closeAuthModal(); // Close modal automatically
+        } else {
+            setError('Invalid 2FA code.');
+        }
     };
 
     return (
-        <div className="min-h-screen bg-brand-panel flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-2xl w-full max-w-md shadow-xl border border-brand-border">
-                <div className="flex justify-center mb-6"><ShieldCheck size={48} className="text-brand-primary" /></div>
-                <h2 className="text-2xl font-bold text-center text-brand-text mb-8">Secure Access</h2>
-                
-                {error && <div className="bg-brand-red/10 text-brand-red p-3 rounded-lg text-sm mb-4 text-center">{error}</div>}
+        <div className="w-full bg-white p-6 md:p-8">
+            <div className="flex justify-center mb-6"><ShieldCheck size={48} className="text-brand-primary" /></div>
+            <h2 className="text-2xl font-bold text-center text-brand-text mb-8">Secure Access</h2>
+            
+            {error && <div className="bg-brand-red/10 text-brand-red p-3 rounded-lg text-sm mb-4 text-center">{error}</div>}
 
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} key={step}>
                 {step === 'select' && (
                     <div className="space-y-4">
                         <button onClick={() => setStep('login')} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">Sign In to Account</button>
