@@ -9,11 +9,23 @@ export const fetchUserCity = async () => {
         
         const data = await response.json();
         
-        // Return the exact city name dynamically, or fallback if the API payload is malformed
-        return data.city || "Mumbai"; 
+        // Return the strictly normalized object containing city, country code, and coordinates for the aggregator
+        return {
+            city: data.city || "Mumbai",
+            state: data.region || "Maharashtra",
+            countryCode: data.country_code || "IN",
+            lat: data.latitude || 19.0760,
+            lon: data.longitude || 72.8777
+        };
     } catch (error) {
         console.error("Location API Error:", error);
-        // Graceful fallback ensures the UI doesn't crash if the user's browser blocks the IP request
-        return "All Cities"; 
+        // Graceful fallback object ensures the Store and Aggregator don't crash on network failure
+        return {
+            city: "All Cities",
+            state: "",
+            countryCode: "IN", // Default to India for fallback feed
+            lat: null,
+            lon: null
+        };
     }
 };
