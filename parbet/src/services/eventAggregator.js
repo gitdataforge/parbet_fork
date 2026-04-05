@@ -10,20 +10,37 @@ const CRIC_API_KEY = import.meta.env.VITE_CRIC_API_KEY || '';
 const SEATGEEK_CLIENT_ID = import.meta.env.VITE_SEATGEEK_CLIENT_ID || '';
 
 /**
- * Enhanced fetch with exponential backoff as per environment safety protocols.
+ * Enhanced fetch with exponential backoff and strict early-exit auth checks.
  */
 async function fetchWithRetry(url, options = {}, retries = 5, backoff = 1000) {
+    let response;
+    
     try {
-        const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        return await response.json();
-    } catch (err) {
+        response = await fetch(url, options);
+    } catch (networkError) {
+        // Handle pure network failures (e.g., DNS issues, ERR_CONNECTION_RESET)
         if (retries > 0) {
             await new Promise(resolve => setTimeout(resolve, backoff));
             return fetchWithRetry(url, options, retries - 1, backoff * 2);
         }
-        throw err;
+        throw networkError;
     }
+
+    // Strict early-exit condition: Do not retry if the API explicitly rejects our authentication
+    if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+            throw new Error(`Critical Auth Error (${response.status}): Aborting retry loop for ${url}`);
+        }
+        
+        // For other HTTP errors (like 429 Too Many Requests or 500 Server Error), continue retrying
+        if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    return await response.json();
 }
 
 /**
@@ -106,7 +123,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         promises.push(
             fetchWithRetry(oddsUrl)
                 .then(data => data.map(transformOddsEvent))
-                .catch(() => [])
+                .catch((err) => {
+                    console.warn("OddsAPI Data Dropped:", err.message);
+                    return [];
+                })
         );
     }
 
@@ -116,7 +136,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         promises.push(
             fetchWithRetry(cricUrl)
                 .then(data => (data.data || []).map(transformCricEvent))
-                .catch(() => [])
+                .catch((err) => {
+                    console.warn("CricAPI Data Dropped:", err.message);
+                    return [];
+                })
         );
     }
 
@@ -127,7 +150,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         promises.push(
             fetchWithRetry(sgUrl)
                 .then(data => (data.events || []).map(transformSeatGeekEvent))
-                .catch(() => [])
+                .catch((err) => {
+                    console.warn("SeatGeek Data Dropped:", err.message);
+                    return [];
+                })
         );
     }
 
