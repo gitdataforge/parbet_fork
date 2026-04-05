@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Search, User, Menu, MapPin, Calendar, 
-    ChevronDown, Ticket, Trophy, Mic, Drama, Tent, Tag 
+    ChevronDown, Ticket, Trophy, Mic, Drama, Tent, Tag, Globe 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
 import LocationDropdown from './LocationDropdown';
 import FilterDropdown from './FilterDropdown';
+import NavHoverMenu from './NavHoverMenu';
 
 export default function ExploreHeader() {
     const navigate = useNavigate();
@@ -31,6 +32,7 @@ export default function ExploreHeader() {
     // Local states for dropdown toggles
     const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
     const [priceDropdownOpen, setPriceDropdownOpen] = useState(false);
+    const [hoveredCategory, setHoveredCategory] = useState(null);
 
     // Protected Route Handler
     const handleNavigation = (path) => {
@@ -41,12 +43,14 @@ export default function ExploreHeader() {
         }
     };
 
+    // Integrated 'Top Cities' to maintain parity with the main Header's global routing
     const categories = [
         { name: 'All Events', icon: Ticket },
         { name: 'Sports', icon: Trophy },
         { name: 'Concerts', icon: Mic },
         { name: 'Theater', icon: Drama },
-        { name: 'Festivals', icon: Tent }
+        { name: 'Festivals', icon: Tent },
+        { name: 'Top Cities', icon: Globe }
     ];
 
     return (
@@ -160,29 +164,46 @@ export default function ExploreHeader() {
                 </div>
 
                 {/* Bottom Row: Dynamic Categories & Filters */}
-                <div className="flex flex-col">
+                {/* Fixed Z-Index Context: Prevents hover menus from clipping under lower sections */}
+                <div className="flex flex-col relative z-[200]">
                     {/* Categories Rail */}
-                    <div className="flex items-center space-x-6 md:space-x-10 mb-5 overflow-x-auto hide-scrollbar border-b border-gray-200">
+                    <div className="flex items-center space-x-6 md:space-x-10 mb-5 overflow-x-auto md:overflow-visible hide-scrollbar border-b border-gray-200 relative z-[200]">
                         {categories.map((cat) => {
                             const isActive = exploreCategory === cat.name;
                             const Icon = cat.icon;
                             return (
-                                <button 
+                                <div 
                                     key={cat.name}
-                                    onClick={() => setExploreCategory(cat.name)}
-                                    className={`flex flex-col items-center pb-3 relative min-w-max transition-colors ${isActive ? 'text-[#458731]' : 'text-[#6A7074] hover:text-gray-900'}`}
+                                    className="relative flex flex-col items-center"
+                                    onMouseEnter={() => setHoveredCategory(cat.name)}
+                                    onMouseLeave={() => setHoveredCategory(null)}
                                 >
-                                    <Icon size={22} className="mb-1.5" strokeWidth={isActive ? 2 : 1.5} />
-                                    <span className={`text-[13px] ${isActive ? 'font-bold' : 'font-medium'}`}>
-                                        {cat.name}
-                                    </span>
-                                    {isActive && (
-                                        <motion.div 
-                                            layoutId="exploreHeaderCategoryUnderline"
-                                            className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#458731] rounded-t-full"
+                                    <button 
+                                        onClick={() => setExploreCategory(cat.name)}
+                                        className={`flex flex-col items-center pb-3 relative min-w-max transition-colors ${isActive ? 'text-[#458731]' : 'text-[#6A7074] hover:text-gray-900'}`}
+                                    >
+                                        <Icon size={22} className="mb-1.5" strokeWidth={isActive ? 2 : 1.5} />
+                                        <span className={`text-[13px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+                                            {cat.name}
+                                        </span>
+                                        {isActive && (
+                                            <motion.div 
+                                                layoutId="exploreHeaderCategoryUnderline"
+                                                className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#458731] rounded-t-full"
+                                            />
+                                        )}
+                                    </button>
+                                    
+                                    {/* Mount interactive hover dropdown dynamically */}
+                                    {cat.name !== 'All Events' && cat.name !== 'Festivals' && (
+                                        <NavHoverMenu 
+                                            isOpen={hoveredCategory === cat.name} 
+                                            category={cat.name === 'Theater' ? 'Theatre' : cat.name}
+                                            onMouseEnter={() => setHoveredCategory(cat.name)}
+                                            onMouseLeave={() => setHoveredCategory(null)}
                                         />
                                     )}
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
@@ -199,7 +220,9 @@ export default function ExploreHeader() {
                                 {userCity} 
                                 <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                             </button>
-                            <LocationDropdown />
+                            <div className="absolute left-0 mt-2 z-50">
+                                <LocationDropdown />
+                            </div>
                         </div>
 
                         {/* Dates Dropdown Pill */}

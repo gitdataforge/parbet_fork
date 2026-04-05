@@ -32,7 +32,7 @@ export default function Header() {
         { name: 'Sports', category: 'Sports' },
         { name: 'Concerts', category: 'Concerts' },
         { name: 'Theatre', category: 'Theater' }, // Matches global store category
-        { name: 'Top Cities', category: null }
+        { name: 'Top Cities', category: 'Top Cities' } // Fixed: Triggers global volume aggregation
     ];
 
     return (
@@ -53,7 +53,8 @@ export default function Header() {
                         <h1 onClick={() => navigate('/')} className="text-3xl font-black tracking-tighter text-brand-text cursor-pointer hover:text-brand-primary transition-colors">
                             parbet
                         </h1>
-                        <nav className="hidden lg:flex items-center space-x-6 text-sm font-medium text-brand-text">
+                        {/* Fixed: Enforced strict relative positioning and high z-index stacking context */}
+                        <nav className="hidden lg:flex items-center space-x-6 text-sm font-medium text-brand-text relative z-[200]">
                             {topNavLinks.map((link) => (
                                 <div 
                                     key={link.name}
