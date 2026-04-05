@@ -16,6 +16,23 @@ import EventFilters from '../../components/EventFilters';
 import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
 import ShareEventModal from '../../components/ShareEventModal';
 
+// Utility to strictly label dates based on the real-time API
+const getRelativeDateLabel = (dateStr) => {
+    if (!dateStr) return 'Upcoming';
+    const eventDate = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    
+    if (eventDate.toDateString() === today.toDateString()) return 'Today';
+    if (eventDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 0 && diffDays <= 7) return 'This Week';
+    return 'Upcoming';
+};
+
 export default function Event() {
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get('id');
@@ -152,7 +169,7 @@ export default function Event() {
                         </h1>
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className="bg-[#114C2A] text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
-                                Next weekend
+                                {getRelativeDateLabel(eventData?.commence_time)}
                             </span>
                             <span className="text-[13px] text-gray-800 font-bold">
                                 {eventData?.dow} • {eventData?.day} {eventData?.month} • {eventData?.time}
