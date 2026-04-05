@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, Menu } from 'lucide-react';
+import { Search, User, Menu, MapPin } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
 import NavHoverMenu from './NavHoverMenu';
@@ -14,7 +14,9 @@ export default function Header() {
         setSearchQuery,
         isSearchExpanded,
         setSearchExpanded,
-        setExploreCategory
+        setExploreCategory,
+        manualCity,
+        userCity
     } = useAppStore();
 
     const [hoveredCategory, setHoveredCategory] = useState(null);
@@ -88,6 +90,13 @@ export default function Header() {
                         </nav>
                     </div>
                     <div className="md:hidden flex items-center space-x-4">
+                        {/* Mobile Location Display */}
+                        <div className="flex items-center text-[#114C2A] bg-[#EAF4D9] px-2.5 py-1.5 rounded-full border border-[#C5E1A5] shadow-sm">
+                            <MapPin size={12} className="mr-1.5 opacity-80" />
+                            <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-[70px]">
+                                {manualCity || userCity || 'Loading...'}
+                            </span>
+                        </div>
                         {isAuthenticated ? (
                             <div 
                                 onClick={() => navigate('/dashboard')}
@@ -104,6 +113,14 @@ export default function Header() {
 
                 {/* Right Side Navigation (Desktop) */}
                 <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-brand-text">
+                    {/* Desktop Location Display */}
+                    <div className="flex items-center text-[#114C2A] bg-[#EAF4D9] px-3 py-1.5 rounded-full cursor-default border border-[#C5E1A5] shadow-sm transition-all hover:bg-[#D9EBBF]">
+                        <MapPin size={14} className="mr-2 opacity-80" />
+                        <span className="text-[12px] font-bold uppercase tracking-wide">
+                            {manualCity || userCity || 'Loading...'}
+                        </span>
+                    </div>
+
                     <button onClick={() => navigate('/explore')} className="hover:text-brand-primary transition-colors">Explore</button>
                     
                     <button onClick={() => handleNavigation('/sell')} className="hover:text-brand-primary transition-colors">Sell</button>

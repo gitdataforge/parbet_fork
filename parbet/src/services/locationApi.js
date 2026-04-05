@@ -1,5 +1,17 @@
 export const fetchUserCity = async () => {
     try {
+        // Strict check for manual location persistence to bypass IP geocoding entirely
+        const manualCity = localStorage.getItem('parbet_manual_city');
+        if (manualCity) {
+            return {
+                city: manualCity,
+                state: "",
+                countryCode: "IN", // Defaulting to IN based on primary regional focus
+                lat: null,
+                lon: null
+            };
+        }
+
         // Free, highly resilient IP geolocation endpoint that natively permits cloud IDEs/Codespaces
         const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
         
