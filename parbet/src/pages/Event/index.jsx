@@ -1,15 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, ChevronDown, Zap, Eye, X, AlertCircle, Flame } from 'lucide-react';
+import { MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
 // Modular Component Imports
 import DynamicStadiumMap from '../../components/DynamicStadiumMap';
+import DynamicArenaMap from '../../components/DynamicArenaMap';
+import DynamicTheaterMap from '../../components/DynamicTheaterMap';
+import DynamicFestivalMap from '../../components/DynamicFestivalMap';
 import TicketQuantityModal from '../../components/TicketQuantityModal';
 import EventFilters from '../../components/EventFilters';
+import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
+import ShareEventModal from '../../components/ShareEventModal';
 
 export default function Event() {
     const [searchParams] = useSearchParams();
@@ -22,6 +27,10 @@ export default function Event() {
         isTicketQuantityModalOpen,
         setTicketQuantityModalOpen,
         selectedTicketQuantity,
+        userCurrency,
+        userLanguage,
+        favorites,
+        toggleFavorite
     } = useAppStore();
 
     const [eventData, setEventData] = useState(null);
@@ -30,6 +39,9 @@ export default function Event() {
     
     // Feature UI States
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isLangCurrModalOpen, setIsLangCurrModalOpen] = useState(false);
+    
     const [activeSection, setActiveSection] = useState(null); // Linked to interactive map
     const [sitTogether, setSitTogether] = useState(true); // Linked to quantity modal
     const [instantDownloadOnly, setInstantDownloadOnly] = useState(false); // Linked to sidebar
@@ -74,19 +86,11 @@ export default function Event() {
 
     // Features 1, 3, 6: Master Filtering & Sorting Engine
     const filteredListings = listings.filter(l => {
-        // 1. Quantity check
         if (Number(l.quantity) < selectedTicketQuantity) return false;
-        
-        // 2. Interactive Map Section check
         if (activeSection && (l.section || 'General').toUpperCase().trim() !== activeSection) return false;
-        
-        // 3. Detailed Sidebar Filters check
-        if (instantDownloadOnly && !l.instantDownload) return false; // Requires true if toggle is on
-        if (clearViewOnly && l.obstructedView) return false; // Rejects if view is obstructed
-        
-        // 4. Functional Sit Together logic: filter out explicit split seats if quantity > 1
+        if (instantDownloadOnly && !l.instantDownload) return false;
+        if (clearViewOnly && l.obstructedView) return false;
         if (sitTogether && Number(selectedTicketQuantity) > 1 && l.splitSeats) return false;
-
         return true;
     }).sort((a, b) => {
         return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
@@ -98,48 +102,103 @@ export default function Event() {
         setClearViewOnly(false);
     };
 
-    // Calculate best value (cheapest ticket in the currently filtered array)
     const bestValuePrice = filteredListings.length > 0 ? Math.min(...filteredListings.map(l => Number(l.price))) : null;
+    const isFavorite = favorites?.some(f => f.id === eventData?.id);
+
+    // Dynamic Map Router based on Event League/Type
+    const renderMapComponent = () => {
+        const league = (eventData?.league || '').toLowerCase();
+        
+        if (league.includes('basketball') || league.includes('hockey') || league.includes('indoor')) {
+            return <DynamicArenaMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        }
+        if (league.includes('theater') || league.includes('theatre') || league.includes('broadway') || league.includes('comedy')) {
+            return <DynamicTheaterMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        }
+        if (league.includes('festival') || league.includes('general admission')) {
+            return <DynamicFestivalMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        }
+        // Default to Stadium (Cricket, Football, Baseball, Large Concerts)
+        return <DynamicStadiumMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+    };
 
     return (
-        <div className="w-full animate-fade-in pb-10 pt-4">
+        <div className="w-full animate-fade-in pb-10 bg-[#F8F9FA] min-h-screen">
             
             {/* Extracted Modular Overlays */}
             <TicketQuantityModal sitTogether={sitTogether} setSitTogether={setSitTogether} />
-            
             <EventFilters 
                 isOpen={isFilterSidebarOpen} 
                 onClose={() => setIsFilterSidebarOpen(false)} 
-                instantDownloadOnly={instantDownloadOnly}
-                setInstantDownloadOnly={setInstantDownloadOnly}
-                clearViewOnly={clearViewOnly}
-                setClearViewOnly={setClearViewOnly}
-                sortOrder={sortOrder}
-                setSortOrder={setSortOrder}
+                instantDownloadOnly={instantDownloadOnly} setInstantDownloadOnly={setInstantDownloadOnly}
+                clearViewOnly={clearViewOnly} setClearViewOnly={setClearViewOnly}
+                sortOrder={sortOrder} setSortOrder={setSortOrder}
                 filteredCount={filteredListings.length}
             />
+            <LanguageCurrencyModal isOpen={isLangCurrModalOpen} onClose={() => setIsLangCurrModalOpen(false)} />
+            <ShareEventModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} eventData={eventData} />
+
+            {/* TOP INTERACTION HEADER */}
+            <div className="w-full bg-[#F8F9FA] border-b border-gray-200 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <img 
+                        src={`https://loremflickr.com/150/150/${encodeURIComponent(eventData?.t1.split(' ')[0] || 'event')},sports/all`} 
+                        alt="Event Thumbnail" 
+                        className="w-[60px] h-[60px] rounded-lg object-cover shadow-sm border border-gray-200"
+                    />
+                    <div>
+                        <h1 className="text-[18px] md:text-[20px] font-black text-[#4A329A] leading-tight mb-1 cursor-pointer hover:underline">
+                            {eventData?.t1} vs {eventData?.t2}
+                        </h1>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="bg-[#114C2A] text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                Next weekend
+                            </span>
+                            <span className="text-[13px] text-gray-800 font-bold">
+                                {eventData?.dow} • {eventData?.day} {eventData?.month} • {eventData?.time}
+                            </span>
+                        </div>
+                        <p className="text-[13px] text-gray-700 font-medium underline decoration-gray-400 underline-offset-2 cursor-pointer hover:text-black">
+                            {eventData?.loc}
+                        </p>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-3 self-end md:self-auto">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => toggleFavorite(eventData)} 
+                            className="w-10 h-10 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+                        >
+                            <Heart size={18} className={isFavorite ? "fill-[#E91E63] text-[#E91E63]" : "text-gray-600"} />
+                        </button>
+                        <button 
+                            onClick={() => setIsShareModalOpen(true)} 
+                            className="w-10 h-10 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+                        >
+                            <Upload size={18} className="text-gray-600" />
+                        </button>
+                    </div>
+                    
+                    <div className="h-8 w-px bg-gray-300 mx-1 hidden md:block"></div>
+                    
+                    <button 
+                        onClick={() => setIsLangCurrModalOpen(true)} 
+                        className="flex items-center gap-1.5 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                        <span className="text-[14px] font-bold text-gray-700">{userCurrency}</span>
+                        <span className="text-[14px] font-bold text-gray-700">{userLanguage}</span>
+                        <ChevronDown size={14} className="text-gray-500"/>
+                    </button>
+                </div>
+            </div>
 
             {/* MAIN SPLIT-SCREEN LAYOUT */}
-            <div className="w-full h-[85vh] min-h-[700px] flex flex-col lg:flex-row bg-white rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-gray-200">
+            <div className="w-full h-[85vh] min-h-[700px] flex flex-col lg:flex-row bg-white rounded-none lg:rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-0 lg:border border-gray-200 mt-0 lg:mt-4 lg:mx-4 xl:mx-auto max-w-[1500px]">
                 
-                {/* Left Side: Modular Dynamic Stadium Map */}
+                {/* Left Side: Dynamic Map Router */}
                 <div className="hidden lg:flex flex-1 relative flex-col bg-[#F4F6F8]">
-                    {/* Header Overlay */}
-                    <div className="absolute top-0 left-0 right-0 p-6 z-10 flex justify-between items-start pointer-events-none">
-                        <div>
-                            <h1 className="text-3xl font-black text-[#1D2B36] drop-shadow-sm mb-1">{eventData?.t1} vs {eventData?.t2}</h1>
-                            <p className="text-[15px] text-[#4A5560] font-medium flex items-center">
-                                {eventData?.dow}, {eventData?.day} {eventData?.month} • {eventData?.time} • <MapPin size={14} className="mx-1.5 opacity-60"/> {eventData?.loc}
-                            </p>
-                        </div>
-                        <span className="px-3 py-1.5 bg-[#114C2A] text-white text-[11px] font-bold uppercase tracking-widest rounded-lg shadow-sm">Verified Event</span>
-                    </div>
-
-                    {/* Integrated Dynamic Map Component mapping real sections */}
-                    <DynamicStadiumMap 
-                        activeSection={activeSection} 
-                        onSectionSelect={setActiveSection} 
-                    />
+                    {renderMapComponent()}
                 </div>
 
                 {/* Right Side: P2P Ticket Listings Panel */}
@@ -165,7 +224,6 @@ export default function Event() {
                                     className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all text-brand-text shadow-sm relative"
                                 >
                                     <SlidersHorizontal size={16} />
-                                    {/* Unread filter indicator dot */}
                                     {(instantDownloadOnly || clearViewOnly || sortOrder === 'desc') && (
                                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#E91E63] rounded-full border-2 border-white"></div>
                                     )}
@@ -173,7 +231,7 @@ export default function Event() {
                             </div>
                         </div>
 
-                        {/* Feature 2: Active Filter Chips */}
+                        {/* Active Filter Chips */}
                         <AnimatePresence>
                             {(activeSection || instantDownloadOnly || clearViewOnly) && (
                                 <motion.div 
@@ -235,7 +293,6 @@ export default function Event() {
                                     {filteredListings.length} results sorted by {sortOrder === 'asc' ? 'lowest price' : 'highest price'}
                                 </h4>
                                 
-                                {/* Feature 7: Animated PopLayout Feed Transitions */}
                                 <AnimatePresence mode="popLayout">
                                     {filteredListings.map((list) => {
                                         const isBestValue = Number(list.price) === bestValuePrice && sortOrder === 'asc';
@@ -251,7 +308,6 @@ export default function Event() {
                                                 onClick={() => navigate(`/checkout?listingId=${list.id}`)}
                                                 className={`bg-white rounded-[16px] p-5 cursor-pointer border hover:border-[#114C2A] hover:shadow-[0_0_0_1px_#114C2A] transition-all group relative overflow-hidden flex flex-col ${isBestValue ? 'border-[#114C2A]/30 shadow-sm' : 'border-gray-200'}`}
                                             >
-                                                {/* Exact Viagogo Green Accent Bar */}
                                                 <div className={`absolute top-0 left-0 w-1.5 h-full transition-colors duration-300 ${isBestValue ? 'bg-[#114C2A]' : 'bg-[#114C2A] opacity-0 group-hover:opacity-100'}`}></div>
                                                 
                                                 <div className="flex justify-between items-start mb-4 pl-2">
@@ -260,7 +316,6 @@ export default function Event() {
                                                             <h3 className="font-black text-brand-text text-[18px] leading-tight">
                                                                 Section {list.section || 'General'}
                                                             </h3>
-                                                            {/* Feature 6: Best Value Highlighter */}
                                                             {isBestValue && (
                                                                 <span className="flex items-center bg-[#FFF1F2] text-[#E91E63] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
                                                                     <Flame size={10} className="mr-1"/> Best Value
@@ -272,7 +327,6 @@ export default function Event() {
                                                             <span>•</span>
                                                             <span>{list.quantity} Tickets</span>
                                                             
-                                                            {/* Feature 5: Scarcity Warning Engine */}
                                                             {Number(list.quantity) <= 2 && (
                                                                 <span className="flex items-center text-[#E91E63] font-bold text-[12px] bg-[#FFF1F2] px-1.5 py-0.5 rounded">
                                                                     <AlertCircle size={12} className="mr-1"/> Only {list.quantity} left
@@ -282,7 +336,7 @@ export default function Event() {
                                                     </div>
                                                     <div className="text-right flex-shrink-0">
                                                         <span className="block text-[24px] font-black text-brand-text leading-none mb-1">
-                                                            ₹{Number(list.price).toLocaleString()}
+                                                            {userCurrency === 'USD' ? '$' : userCurrency === 'GBP' ? '£' : userCurrency === 'EUR' ? '€' : userCurrency === 'AUD' ? 'A$' : '₹'}{Number(list.price).toLocaleString()}
                                                         </span>
                                                         <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wide">
                                                             /ea
@@ -290,7 +344,6 @@ export default function Event() {
                                                     </div>
                                                 </div>
                                                 
-                                                {/* Badge Features Row */}
                                                 <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-100 pl-2">
                                                     <span className="flex items-center text-[12px] font-bold text-[#114C2A] bg-[#EAF4D9] px-2.5 py-1.5 rounded-[6px]">
                                                         <Zap size={14} className="mr-1.5 fill-[#114C2A]"/> Instant download
