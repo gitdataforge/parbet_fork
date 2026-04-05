@@ -9,7 +9,8 @@ import {
     getDocs, 
     runTransaction, 
     doc, 
-    addDoc 
+    addDoc,
+    setDoc
 } from 'firebase/firestore';
 
 // Helper to resolve real-world currency from reverse-geocode country codes
@@ -39,16 +40,21 @@ export const useAppStore = create((set, get) => ({
     trendingPerformers: [], // Derived from liveMatches
     isLoadingMatches: true,
     apiError: null,
+    
+    // Location, Language & Currency
     userCity: 'Loading...',
     userCurrency: 'INR', // Dynamic global currency state
+    userLanguage: 'EN', // Default Language
 
-    // Recent Searches (Persisted)
+    // Persisted User Data
     recentSearches: JSON.parse(localStorage.getItem('parbet_recent_searches')) || [],
+    favorites: JSON.parse(localStorage.getItem('parbet_favorites')) || [],
 
     // Marketplace Flow States
     activeEvent: null,
     eventListings: [],
     isCheckingOut: false,
+    checkoutExpiration: null, // 10-minute timer lock
 
     // Ticket Selection States
     isTicketQuantityModalOpen: false,
@@ -91,6 +97,40 @@ export const useAppStore = create((set, get) => ({
     // Ticket Selection Setters
     setTicketQuantityModalOpen: (isOpen) => set({ isTicketQuantityModalOpen: isOpen }),
     setSelectedTicketQuantity: (qty) => set({ selectedTicketQuantity: qty }),
+
+    // Language & Currency Setters
+    setUserLanguage: (lang) => set({ userLanguage: lang }),
+    setUserCurrency: (currency) => set({ userCurrency: currency }),
+
+    // Checkout Timer Actions
+    startCheckoutTimer: () => {
+        const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
+        set({ checkoutExpiration: tenMinutesFromNow });
+    },
+    resetCheckoutTimer: () => set({ checkoutExpiration: null }),
+
+    // Favorites Action (Local Storage + Firebase Sync)
+    toggleFavorite: async (eventObj) => {
+        const state = get();
+        const isFav = state.favorites.some(f => f.id === eventObj.id);
+        const newFavorites = isFav 
+            ? state.favorites.filter(f => f.id !== eventObj.id)
+            : [...state.favorites, eventObj];
+        
+        // Persist locally for immediate UI feedback
+        localStorage.setItem('parbet_favorites', JSON.stringify(newFavorites));
+        set({ favorites: newFavorites });
+
+        // Securely sync to Firebase if user is authenticated
+        if (state.user) {
+            try {
+                const userRef = doc(db, 'users', state.user.uid);
+                await setDoc(userRef, { favorites: newFavorites }, { merge: true });
+            } catch (err) {
+                console.error('Failed to sync favorites to Firebase', err);
+            }
+        }
+    },
 
     // Recent Searches Actions
     addRecentSearch: (searchQuery) => set((state) => {
