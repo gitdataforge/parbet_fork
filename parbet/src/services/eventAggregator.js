@@ -42,7 +42,7 @@ function transformOddsEvent(match) {
         month: date.toLocaleDateString('en-US', { month: 'short' }),
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
         loc: "Verified Venue", // Odds API doesn't provide specific venue without extra calls
-        country: 'Global',
+        country: 'GLOBAL', // Allowed to pass geo-fences for international sports
         source: 'OddsAPI'
     };
 }
@@ -85,7 +85,7 @@ function transformSeatGeekEvent(event) {
         month: date.toLocaleDateString('en-US', { month: 'short' }),
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
         loc: `${event.venue.city}, ${event.venue.name}`,
-        country: event.venue.country,
+        country: event.venue.country || 'US',
         source: 'SeatGeek'
     };
 }
@@ -95,7 +95,6 @@ function transformSeatGeekEvent(event) {
  * @param {Object} location - { city, countryCode }
  */
 export async function aggregateAllEvents(location = { city: 'Mumbai', countryCode: 'IN' }) {
-    const now = new Date();
     const results = [];
     
     // Concurrent fetch promises
@@ -123,7 +122,8 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
 
     // 3. Fetch from SeatGeek (Concerts & Theatre based on user location)
     if (SEATGEEK_CLIENT_ID) {
-        const sgUrl = `https://api.seatgeek.com/2/events?venue.city=${location.city}&client_id=${SEATGEEK_CLIENT_ID}&per_page=50`;
+        // We strictly pass the user's city to SeatGeek to pull local venue data
+        const sgUrl = `https://api.seatgeek.com/2/events?venue.city=${encodeURIComponent(location.city)}&client_id=${SEATGEEK_CLIENT_ID}&per_page=50`;
         promises.push(
             fetchWithRetry(sgUrl)
                 .then(data => (data.events || []).map(transformSeatGeekEvent))
@@ -135,25 +135,36 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         const allFetchedGroups = await Promise.all(promises);
         const flattened = allFetchedGroups.flat();
 
-        // Strict Logic: Deduplicate and Filter
+        // Strict Logic: Deduplicate, Temporal Fencing, and Geo-Fencing
         const seen = new Set();
         const unified = flattened.filter(event => {
-            // Filter 1: Temporal check (Must be upcoming)
-            const startTime = new Date(event.commence_time);
-            if (startTime < now) return false;
+            // Filter 1: Strict Temporal check (Must be upcoming)
+            // Any event from the past is immediately dropped
+            const startTime = new Date(event.commence_time).getTime();
+            if (startTime < Date.now()) return false;
 
             // Filter 2: Deduplication based on teams and date
             const slug = `${event.t1}-${event.t2}-${event.day}-${event.month}`.toLowerCase();
             if (seen.has(slug)) return false;
             seen.add(slug);
 
-            // Filter 3: Location sanity (Optional strict check)
-            // If location is provided, we prioritize results matching city/country
+            // Filter 3: Strict Location/Country Payload Filtering
+            // Discard foreign events (e.g., USA/UK events) if the user is in a different country (e.g., India)
+            if (location && location.countryCode) {
+                const userCountry = location.countryCode.toUpperCase();
+                const eventCountry = (event.country || '').toUpperCase();
+                
+                // Allow 'GLOBAL' tagged international events, but strictly filter local venue events
+                if (eventCountry && eventCountry !== 'GLOBAL' && eventCountry !== userCountry) {
+                    return false;
+                }
+            }
+
             return true;
         });
 
-        // Final Logic: Chronological Sort
-        return unified.sort((a, b) => new Date(a.commence_time) - new Date(b.commence_time));
+        // Final Logic: Chronological Sort to surface the most immediate events first
+        return unified.sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
 
     } catch (error) {
         console.error("Aggregation Critical Failure:", error);

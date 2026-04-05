@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode, Navigation, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode, Navigation, ChevronDown, Clock } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
 import LocationDropdown from '../../components/LocationDropdown';
 
@@ -16,9 +16,9 @@ const getRelativeDateLabel = (dateStr) => {
     if (eventDate.toDateString() === today.toDateString()) return 'Today';
     if (eventDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
     
-    const diffTime = Math.abs(eventDate - today);
+    const diffTime = eventDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays <= 7) return 'This Week';
+    if (diffDays > 0 && diffDays <= 7) return 'This Week';
     return 'Upcoming';
 };
 
@@ -36,7 +36,8 @@ export default function Home() {
         searchQuery,
         setSearchQuery,
         isLocationDropdownOpen,
-        setLocationDropdownOpen
+        setLocationDropdownOpen,
+        toggleFavorite
     } = useAppStore();
 
     const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
@@ -100,9 +101,14 @@ export default function Home() {
         }
     }, [fetchLocationAndMatches, liveMatches.length]);
 
-    const handleRestrictedAction = (actionName) => {
-        if (!isAuthenticated) openAuthModal();
-        else console.log(`Executing secure real-time action: ${actionName}`);
+    const handleRestrictedAction = (actionName, eventObj = null) => {
+        if (!isAuthenticated) {
+            openAuthModal();
+        } else {
+            if (eventObj && actionName.includes('Favourite')) {
+                toggleFavorite(eventObj);
+            }
+        }
     };
 
     const goToEvent = (id) => {
@@ -110,13 +116,15 @@ export default function Home() {
     };
 
     // --- REAL-TIME FUNCTIONAL FILTERING ---
-    const filteredMatches = liveMatches.filter(m => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        return m.t1.toLowerCase().includes(q) || 
-               m.t2?.toLowerCase().includes(q) || 
-               m.league.toLowerCase().includes(q);
-    });
+    const filteredMatches = useMemo(() => {
+        return liveMatches.filter(m => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return m.t1.toLowerCase().includes(q) || 
+                   m.t2?.toLowerCase().includes(q) || 
+                   m.league.toLowerCase().includes(q);
+        });
+    }, [liveMatches, searchQuery]);
 
     const recents = filteredMatches.slice(0, 4);
     const recommended = filteredMatches.slice(1, 5);
@@ -250,7 +258,7 @@ export default function Home() {
                             <div key={`recent-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[160px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
+                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite`, item); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
@@ -271,12 +279,12 @@ export default function Home() {
                             <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
+                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite`, item); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
                                 <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
-                                <p className="text-[13px] text-brand-muted">{item.dow}, {item.day} {item.month} • {item.time}</p>
+                                <p className="text-[13px] text-brand-muted font-medium">{item.dow}, {item.day} {item.month} • {item.time}</p>
                                 <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
                             </div>
                         ))}
@@ -287,7 +295,7 @@ export default function Home() {
             {/* 6. POPULAR CATEGORIES RAIL */}
             {popular.length > 0 && (
                 <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Popular in {userCountry}</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">Popular in {userCountry || 'India'}</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {popular.map((item) => (
                             <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200 shadow-sm">
@@ -325,12 +333,12 @@ export default function Home() {
                             <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
+                                    <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite`, item); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
                                 <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
-                                <p className="text-[13px] text-brand-muted">{item.dow}, {item.day} {item.month} • {item.time}</p>
+                                <p className="text-[13px] text-brand-muted font-medium">{item.dow}, {item.day} {item.month} • {item.time}</p>
                                 <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
                             </div>
                         ))}
