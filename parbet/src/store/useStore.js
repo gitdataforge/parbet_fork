@@ -50,19 +50,20 @@ export const useAppStore = create((set, get) => ({
     userLanguage: 'EN',
     strictLocation: {
         city: '',
+        state: '',
         countryCode: '',
         lat: null,
         lon: null
     },
 
     // ------------------------------------------------------------------
-    // NEW: Performer Page Deep Filters (image_f557a3 - image_f55b61)
+    // NEW: Performer Page Deep Filters
     // ------------------------------------------------------------------
     performerFilters: {
         dateRange: { from: null, to: null },
-        activeOpponent: null, // For image_f55804.png
-        priceBuckets: [],    // For image_f55863.png ('$', '$$', etc)
-        homeAway: 'All',     // For image_f55b61.png ('All', 'Home', 'Away')
+        activeOpponent: null,
+        priceBuckets: [],
+        homeAway: 'All games',
         searchQuery: ''
     },
 
@@ -77,9 +78,26 @@ export const useAppStore = create((set, get) => ({
     payuTransactionId: '',
     
     checkoutFormData: {
-        contact: { email: '', firstName: '', lastName: '', phone: '', countryCode: '+91' },
-        delivery: { method: 'Mobile Transfer', fullName: '', phone: '' },
-        address: { country: 'India', line1: '', line2: '', city: '', state: '', zip: '' }
+        contact: {
+            email: '',
+            firstName: '',
+            lastName: '',
+            phone: '',
+            countryCode: '+91'
+        },
+        delivery: {
+            method: 'Mobile Transfer',
+            fullName: '',
+            phone: ''
+        },
+        address: {
+            country: 'India',
+            line1: '',
+            line2: '',
+            city: '',
+            state: '',
+            zip: ''
+        }
     },
 
     // Marketplace Flow States
@@ -135,7 +153,7 @@ export const useAppStore = create((set, get) => ({
             dateRange: { from: null, to: null },
             activeOpponent: null,
             priceBuckets: [],
-            homeAway: 'All',
+            homeAway: 'All games',
             searchQuery: ''
         }
     }),
@@ -153,7 +171,7 @@ export const useAppStore = create((set, get) => ({
     setUserLanguage: (lang) => set({ userLanguage: lang }),
     setUserCurrency: (currency) => set({ userCurrency: currency }),
 
-    // Checkout Actions
+    // Checkout Step & Form Setters
     setCheckoutStep: (step) => set({ checkoutStep: step }),
     updateCheckoutFormData: (section, data) => set((state) => ({
         checkoutFormData: {
@@ -163,13 +181,14 @@ export const useAppStore = create((set, get) => ({
     })),
     setPayuStates: (hash, txnId) => set({ payuHash: hash, payuTransactionId: txnId }),
 
+    // Checkout Timer Actions
     startCheckoutTimer: () => {
         const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
         set({ checkoutExpiration: tenMinutesFromNow });
     },
     resetCheckoutTimer: () => set({ checkoutExpiration: null, checkoutStep: 1 }),
 
-    // Favorites Action
+    // Favorites Action (Local Storage + Firebase Sync)
     toggleFavorite: async (eventObj) => {
         const state = get();
         const isFav = state.favorites.some(f => f.id === eventObj.id);
@@ -190,38 +209,24 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // ------------------------------------------------------------------
-    // CORE LOGIC: Multi-API Orchestration & Strict Location
-    // ------------------------------------------------------------------
-    fetchLocationAndMatches: async (manualCity = null) => {
-        set({ isLoadingMatches: true, apiError: null });
-        try {
-            // 1. Resolve Location Strictly
-            const geo = await fetchUserCity(); // Returns { city, countryCode, lat, lon }
-            const city = manualCity || geo.city;
-            const country = geo.countryCode || 'IN';
+    // Recent Searches Actions
+    addRecentSearch: (searchQuery) => set((state) => {
+        if (!searchQuery || !searchQuery.trim()) return state;
+        const updatedSearches = [searchQuery, ...state.recentSearches.filter(q => q.toLowerCase() !== searchQuery.toLowerCase())].slice(0, 5);
+        localStorage.setItem('parbet_recent_searches', JSON.stringify(updatedSearches));
+        return { recentSearches: updatedSearches };
+    }),
+    clearRecentSearches: () => set(() => {
+        localStorage.removeItem('parbet_recent_searches');
+        return { recentSearches: [] };
+    }),
 
-            // 2. Fetch from Aggregator brain (Concurrent fetch from 4+ APIs)
-            const matches = await aggregateAllEvents({ city, countryCode: country });
-            
-            // 3. Extract Performers for Search/Trending
-            const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
-                .filter(p => p) // Remove nulls
-                .map(name => ({ name }));
-
-            set({ 
-                userCity: city, 
-                userCountry: country,
-                strictLocation: { ...geo, city },
-                userCurrency: getCurrencyFromCountry(country),
-                liveMatches: matches, 
-                trendingPerformers: performers,
-                isLoadingMatches: false 
-            });
-        } catch (error) {
-            console.error("Critical State Failure:", error);
-            set({ apiError: error.message, isLoadingMatches: false, userCity: manualCity || "Global" });
-        }
+    // Logic to extract unique performers from real API data
+    updateTrendingPerformers: (matches) => {
+        const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
+            .filter(Boolean)
+            .map(name => ({ name }));
+        set({ trendingPerformers: performers });
     },
 
     getSectionAggregates: () => {
@@ -242,6 +247,37 @@ export const useAppStore = create((set, get) => ({
         return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
+    // ------------------------------------------------------------------
+    // CORE LOGIC: Multi-API Orchestration & Strict Location Fetch
+    // ------------------------------------------------------------------
+    fetchLocationAndMatches: async (manualCity = null) => {
+        set({ isLoadingMatches: true, apiError: null });
+        try {
+            const geo = await fetchUserCity();
+            const city = manualCity || geo.city || 'Mumbai';
+            const country = geo.countryCode || 'IN';
+
+            // Pass the strict location directly into the Aggregator
+            const matches = await aggregateAllEvents({ city, countryCode: country });
+            const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
+                .filter(Boolean)
+                .map(name => ({ name }));
+            
+            set({ 
+                userCity: city, 
+                userCountry: country,
+                userCurrency: getCurrencyFromCountry(country),
+                strictLocation: { ...geo, city },
+                liveMatches: matches, 
+                trendingPerformers: performers, 
+                isLoadingMatches: false 
+            });
+        } catch (error) {
+            console.error("Critical State Failure:", error);
+            set({ apiError: error.message, isLoadingMatches: false, userCity: manualCity || "Global" });
+        }
+    },
+
     fetchEventListings: async (eventId) => {
         try {
             const q = query(collection(db, 'listings'), where('eventId', '==', eventId), where('status', '==', 'active'));
@@ -251,5 +287,77 @@ export const useAppStore = create((set, get) => ({
         } catch (error) {
             console.error("Marketplace fetch error:", error);
         }
+    },
+
+    executePurchase: async (listingId, buyerId, amount) => {
+        set({ isCheckingOut: true });
+        try {
+            await runTransaction(db, async (transaction) => {
+                const listingRef = doc(db, 'listings', listingId);
+                const buyerRef = doc(db, 'users', buyerId);
+                const listingSnap = await transaction.get(listingRef);
+                const buyerSnap = await transaction.get(buyerRef);
+                if (!listingSnap.exists() || listingSnap.data().status !== 'active') throw new Error("Listing is no longer available.");
+                if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
+                const sellerId = listingSnap.data().sellerId;
+                const sellerRef = doc(db, 'users', sellerId);
+                const sellerSnap = await transaction.get(sellerRef);
+                transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
+                const currentSellerBalance = sellerSnap.exists() ? (sellerSnap.data().balance || 0) : 0;
+                transaction.update(sellerRef, { balance: currentSellerBalance + amount });
+                transaction.update(listingRef, { status: 'sold' });
+                const orderRef = doc(collection(db, 'orders'));
+                transaction.set(orderRef, { listingId, buyerId, sellerId, amount, eventName: listingSnap.data().eventName, createdAt: new Date().toISOString() });
+            });
+            set({ isCheckingOut: false });
+            return { success: true };
+        } catch (error) {
+            set({ isCheckingOut: false });
+            throw error;
+        }
+    },
+
+    requestDeviceLocation: async () => {
+        set({ isLocationDropdownOpen: false, locationError: null });
+        if (!navigator.geolocation) {
+            set({ locationError: 'There is no location support on this device or it is disabled.' });
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                    const data = await response.json();
+                    
+                    const resolvedCity = data.city || data.locality || "Current Location";
+                    const resolvedState = data.principalSubdivision || '';
+                    const resolvedCountry = data.countryCode || 'IN';
+                    const resolvedCurrency = getCurrencyFromCountry(data.countryCode); 
+                    
+                    set({ 
+                        userCity: resolvedCity, 
+                        userCountry: resolvedCountry,
+                        userCurrency: resolvedCurrency,
+                        strictLocation: { 
+                            city: resolvedCity, 
+                            state: resolvedState, 
+                            countryCode: resolvedCountry, 
+                            lat: latitude, 
+                            lon: longitude 
+                        }
+                    });
+                    
+                    get().fetchLocationAndMatches(resolvedCity);
+                } catch (err) {
+                    console.error("Reverse geocode failed:", err);
+                    set({ userCity: "Precise Location Found" });
+                }
+            },
+            (error) => {
+                set({ locationError: 'Location access disabled.' });
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
     }
 }));
