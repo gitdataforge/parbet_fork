@@ -13,40 +13,60 @@ import ExploreHeader from './components/ExploreHeader';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 
-// Dynamic module imports
+// Dynamic module imports for all sub-pages
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const routes = Object.keys(pages).map((path) => {
   const name = path.match(/\.\/pages\/(.*)\/index\.jsx$/)[1];
   return { name, Component: pages[path].default };
 });
 
+/**
+ * MainLayout handles conditional rendering of navigation elements 
+ * based on the 2026 strict routing requirements.
+ */
 function MainLayout() {
     const location = useLocation();
+    
+    // Logic 1: Strictly hide global header on all Event detail pages (starts with /event)
+    const isEventPage = location.pathname.startsWith('/event');
+    const isExplorePage = location.pathname === '/explore';
+    
+    // Logic 2: Determine which header (if any) to render
+    let headerToRender = null;
+    if (!isEventPage) {
+        headerToRender = isExplorePage ? <ExploreHeader /> : <Header />;
+    }
 
     return (
         <div className="flex flex-col w-full min-h-screen bg-brand-bg text-brand-text relative">
-            {/* Dynamic Header Rendering based on Route */}
-            {location.pathname === '/explore' ? <ExploreHeader /> : <Header />}
+            {/* Global Header Mounting with Visibility Logic */}
+            {headerToRender}
             
-            {/* Main scrollable content area wrapper constrained for ultra-wide monitors */}
-            <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
+            {/* Main Content Container: 
+                - Standard max-width & padding for Home/Explore/Performer
+                - Edge-to-edge layout for Event view to accommodate the immersive Map UI
+            */}
+            <main className={`flex-1 w-full mx-auto ${!isEventPage ? 'max-w-[1400px] p-4 md:p-8' : ''}`}>
                 <Routes>
                     <Route path="/" element={<Home />} />
                     {routes.map(({ name, Component }) => {
                         if (name === 'Home') return null;
                         
-                        // Inject dynamic route parameter strictly for the Performer/League grouping page
+                        // Performer Deep-Dive Route with ID Parameter
                         if (name === 'Performer') {
                             return <Route key={name} path={`/performer/:id`} element={<Component />} />;
                         }
                         
+                        // Standard dynamic routing
                         return <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />;
                     })}
                 </Routes>
             </main>
-            <Footer />
             
-            {/* Global Overlays & Interceptors */}
+            {/* Hide footer on Event pages to maximize map focus and performance */}
+            {!isEventPage && <Footer />}
+            
+            {/* Global Context Overlays */}
             <AuthModal />
             <LocationToast />
         </div>
@@ -60,9 +80,12 @@ export default function App() {
     useEffect(() => {
         const unsubAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
+                setAuth(true);
                 const userRef = doc(db, 'users', user.uid);
                 const unsubWallet = onSnapshot(userRef, (docSnap) => {
-                    if (docSnap.exists()) setWallet(docSnap.data().balance, 0);
+                    if (docSnap.exists()) {
+                        setWallet(docSnap.data().balance || 0, 0);
+                    }
                 });
                 setLoading(false);
                 return () => unsubWallet();
@@ -84,7 +107,7 @@ export default function App() {
     
     return (
         <BrowserRouter>
-            {/* Onboarding shows first. Once dismissed, the full site is browsable. Auth required for actions. */}
+            {/* Strict Onboarding Flow -> Main Application Shell */}
             {!hasOnboarded ? <Onboarding /> : <MainLayout />}
         </BrowserRouter>
     );
