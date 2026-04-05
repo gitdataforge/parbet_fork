@@ -32,9 +32,16 @@ function MainLayout() {
             <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    {routes.map(({ name, Component }) => (
-                        name !== 'Home' && <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />
-                    ))}
+                    {routes.map(({ name, Component }) => {
+                        if (name === 'Home') return null;
+                        
+                        // Inject dynamic route parameter strictly for the Performer/League grouping page
+                        if (name === 'Performer') {
+                            return <Route key={name} path={`/performer/:id`} element={<Component />} />;
+                        }
+                        
+                        return <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />;
+                    })}
                 </Routes>
             </main>
             <Footer />
