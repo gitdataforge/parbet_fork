@@ -1,18 +1,44 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // 1. site_assets Collection (The CMS Bridge)
+    // Allows Main site to display banners while restricting edits to authenticated sellers
+    match /site_assets/{assetId} {
+      allow read: if true; 
+      allow write: if request.auth != null;
+    }
+
+    // 2. listings Collection (P2P Tickets)
+    // Public can view tickets; only the owner can modify their specific listing
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.sellerId;
+    }
+
+    // 3. users & wallets Collections (Private Data)
+    // Strict ID matching: Users can only see/edit their own profile and balance
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /wallets/{walletId} {
+      allow read, write: if request.auth != null && request.auth.uid == walletId;
+    }
+
+    // 4. orders Collection (Transaction History)
+    // Access restricted to the specific buyer or the seller involved in the transaction
+    match /orders/{orderId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+    }
+
+    // Default deny for any other collection to ensure "Secure by Default" posture
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 5, 3);
+      allow read, write: if false;
     }
   }
 }
