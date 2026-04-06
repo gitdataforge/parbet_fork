@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, MapPin, Calendar, X } from 'lucide-react';
+import { 
+    Clock, MapPin, Calendar, X, Search, 
+    TrendingUp, Music, Trophy, ArrowRight, Flame 
+} from 'lucide-react';
 import { useAppStore } from '../store/useStore';
+
+// FEATURE 1: Real-Time Text Highlighting Logic
+const HighlightText = ({ text, query }) => {
+    if (!query) return <span>{text}</span>;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === query.toLowerCase() ? (
+                    <strong key={i} className="text-[#114C2A] font-black">{part}</strong>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
 
 export default function SearchDropdown() {
     const navigate = useNavigate();
@@ -15,45 +35,67 @@ export default function SearchDropdown() {
         liveMatches,
         recentSearches,
         addRecentSearch,
-        clearRecentSearches
+        clearRecentSearches,
+        userCity
     } = useAppStore();
 
-    // Handle clicking a performer/trending item or a recent search string
-    const handlePerformerClick = (searchString) => {
+    // Handle clicking a generic search string or category
+    const handleGenericSearch = (searchString) => {
         setSearchQuery(searchString);
-        addRecentSearch(searchString); // Save to persisted history
+        addRecentSearch(searchString);
         setSearchExpanded(false);
-        
-        // Find direct match or route to explore page as a general search
-        const directMatch = liveMatches.find(m => 
-            m.t1.toLowerCase() === searchString.toLowerCase() || 
-            m.t2.toLowerCase() === searchString.toLowerCase() ||
-            m.league.toLowerCase() === searchString.toLowerCase()
-        );
-
-        if (directMatch) {
-            navigate(`/event?id=${directMatch.id}`);
-        } else {
-            navigate('/explore');
-        }
+        navigate('/explore');
     };
 
-    // Handle clicking a specific event from live suggestions
+    // Handle clicking a specific event
     const handleEventClick = (event) => {
         addRecentSearch(`${event.t1} vs ${event.t2}`);
         setSearchExpanded(false);
         navigate(`/event?id=${event.id}`);
     };
 
-    // Filter real-time API data based on current active typing
     const query = searchQuery.trim().toLowerCase();
-    const liveSuggestions = query 
-        ? liveMatches.filter(m => 
-            m.t1.toLowerCase().includes(query) || 
-            m.t2.toLowerCase().includes(query) ||
-            m.league.toLowerCase().includes(query)
-          ).slice(0, 8) // Limit to top 8 suggestions to maintain UI cleanliness
-        : [];
+
+    // ------------------------------------------------------------------
+    // NEW LOGIC & SECTIONS (Derived strictly from real API data)
+    // ------------------------------------------------------------------
+
+    // SECTION 1 & FEATURE 2: Smart Date Context - Happening Today
+    const todayEvents = useMemo(() => {
+        const today = new Date().toDateString();
+        return liveMatches
+            .filter(m => new Date(m.commence_time).toDateString() === today)
+            .slice(0, 2);
+    }, [liveMatches]);
+
+    // SECTION 2: Regional Popular Venues
+    const popularVenues = useMemo(() => {
+        const venues = new Set();
+        liveMatches.forEach(m => { if(m.loc) venues.add(m.loc) });
+        return Array.from(venues).slice(0, 4);
+    }, [liveMatches]);
+
+    // SECTION 3 & FEATURE 3: Dynamic Array Grouping (Events vs Venues)
+    const { eventMatches, venueMatches } = useMemo(() => {
+        if (!query) return { eventMatches: [], venueMatches: [] };
+        
+        const events = [];
+        const venuesSet = new Set();
+        const venues = [];
+
+        liveMatches.forEach(m => {
+            const matchesEvent = m.t1.toLowerCase().includes(query) || m.t2?.toLowerCase().includes(query) || m.league.toLowerCase().includes(query);
+            const matchesVenue = m.loc?.toLowerCase().includes(query);
+
+            if (matchesEvent && events.length < 5) events.push(m);
+            if (matchesVenue && !venuesSet.has(m.loc) && venues.length < 3) {
+                venuesSet.add(m.loc);
+                venues.push(m);
+            }
+        });
+
+        return { eventMatches: events, venueMatches: venues };
+    }, [liveMatches, query]);
 
     return (
         <AnimatePresence>
@@ -63,121 +105,193 @@ export default function SearchDropdown() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.98 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute top-[110%] left-0 right-0 bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 z-[100] overflow-hidden p-2"
+                    className="absolute top-[110%] left-0 right-0 bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 z-[100] overflow-hidden flex flex-col"
                     onMouseDown={(e) => e.preventDefault()} // Prevent blur from closing before click registers
                 >
-                    <div className="px-3 md:px-5 pt-4 pb-3 max-h-[450px] overflow-y-auto hide-scrollbar">
+                    <div className="px-3 md:px-5 pt-5 pb-3 max-h-[60vh] overflow-y-auto hide-scrollbar flex-1">
                         
-                        {/* STATE 1: EMPTY QUERY -> SHOW RECENTS & TRENDING */}
+                        {/* -------------------------------------------------------- */}
+                        {/* IDLE STATE: EXPLORATION (No active query)                */}
+                        {/* -------------------------------------------------------- */}
                         {!query ? (
-                            <>
-                                {/* Recent Searches Section */}
+                            <div className="space-y-6">
+                                
+                                {/* SECTION 4: Top Categories (Quick Links) */}
+                                <div>
+                                    <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-3">Browse by Category</h4>
+                                    <div className="flex flex-wrap gap-2 px-2">
+                                        <button onClick={() => handleGenericSearch('Sports')} className="flex items-center bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full text-[13px] font-bold hover:bg-[#EAF4D9] hover:text-[#114C2A] hover:border-[#C5E1A5] transition-colors">
+                                            <Trophy size={14} className="mr-1.5" /> Sports
+                                        </button>
+                                        <button onClick={() => handleGenericSearch('Concerts')} className="flex items-center bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full text-[13px] font-bold hover:bg-[#EAF4D9] hover:text-[#114C2A] hover:border-[#C5E1A5] transition-colors">
+                                            <Music size={14} className="mr-1.5" /> Concerts
+                                        </button>
+                                        <button onClick={() => handleGenericSearch('Festival')} className="flex items-center bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full text-[13px] font-bold hover:bg-[#EAF4D9] hover:text-[#114C2A] hover:border-[#C5E1A5] transition-colors">
+                                            <Flame size={14} className="mr-1.5" /> Festivals
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* SECTION 5: Recent Searches */}
                                 {recentSearches && recentSearches.length > 0 && (
-                                    <div className="mb-6">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <h4 className="text-[13px] font-bold text-gray-500 uppercase tracking-widest px-2">
-                                                Recent Searches
-                                            </h4>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); clearRecentSearches(); }}
-                                                className="text-[12px] font-bold text-brand-primary hover:text-[#2d5c20] transition-colors px-2"
-                                            >
-                                                Clear
-                                            </button>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest px-2">Recent Searches</h4>
+                                            <button onClick={(e) => { e.stopPropagation(); clearRecentSearches(); }} className="text-[11px] font-bold text-[#458731] hover:underline px-2">Clear</button>
                                         </div>
                                         <div className="flex flex-col">
                                             {recentSearches.map((item, idx) => (
                                                 <button
                                                     key={`recent-${idx}`}
-                                                    onClick={() => handlePerformerClick(item)}
-                                                    className="flex items-center px-2 py-3 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left"
+                                                    onClick={() => handleGenericSearch(item)}
+                                                    className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left"
                                                 >
-                                                    <Clock size={18} className="text-gray-400 mr-3 group-hover:text-brand-primary transition-colors flex-shrink-0" />
-                                                    <span className="text-[15px] font-medium text-brand-text truncate">
-                                                        {item}
-                                                    </span>
+                                                    <Clock size={16} className="text-gray-400 mr-3 group-hover:text-[#458731] transition-colors shrink-0" />
+                                                    <span className="text-[14px] font-medium text-gray-800 truncate">{item}</span>
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Trending Performers Section */}
-                                <div>
-                                    <h4 className="text-[13px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-2">
-                                        Trending Performers
-                                    </h4>
-                                    <div className="flex flex-col space-y-1">
-                                        {trendingPerformers.length > 0 ? (
-                                            trendingPerformers.slice(0, 6).map((performer, idx) => (
+                                {/* SECTION 6: Happening Today (Smart Context) */}
+                                {todayEvents.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[12px] font-bold text-[#E91E63] uppercase tracking-widest px-2 mb-3 flex items-center">
+                                            <Flame size={14} className="mr-1" /> Happening Today
+                                        </h4>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {todayEvents.map((event, idx) => (
                                                 <button
-                                                    key={`performer-${idx}`}
-                                                    onClick={() => handlePerformerClick(performer.name)}
-                                                    className="flex items-center p-2 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left"
+                                                    key={`today-${idx}`}
+                                                    onClick={() => handleEventClick(event)}
+                                                    className="flex items-center p-3 border border-gray-100 rounded-xl hover:border-[#114C2A] hover:bg-[#F2F8ED] transition-all text-left group"
                                                 >
-                                                    {/* Dynamic Rounded Square Thumbnail */}
-                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 mr-4 flex-shrink-0 border border-gray-200 shadow-sm">
-                                                        <img 
-                                                            src={`https://loremflickr.com/100/100/${encodeURIComponent(performer.name.split(' ')[0])},sports/all`} 
-                                                            alt={performer.name}
-                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                            onError={(e) => {
-                                                                e.target.src = "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=100&q=80";
-                                                            }}
-                                                        />
+                                                    <div className="bg-white border border-gray-200 rounded-lg flex flex-col items-center justify-center w-12 h-12 shrink-0 mr-3 shadow-sm group-hover:border-[#114C2A]">
+                                                        <span className="text-[9px] font-black text-[#114C2A] uppercase">{event.month}</span>
+                                                        <span className="text-[16px] font-black text-gray-900 leading-none">{event.day}</span>
                                                     </div>
-                                                    <span className="text-[16px] font-bold text-brand-text group-hover:text-brand-primary transition-colors truncate">
-                                                        {performer.name}
-                                                    </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h5 className="font-bold text-[14px] text-gray-900 truncate">{event.t1} {event.t2 ? `vs ${event.t2}` : ''}</h5>
+                                                        <p className="text-[12px] text-gray-500 truncate flex items-center mt-0.5">
+                                                            <MapPin size={10} className="mr-1 opacity-70"/> {event.loc}
+                                                        </p>
+                                                    </div>
                                                 </button>
-                                            ))
-                                        ) : (
-                                            <div className="p-6 text-center">
-                                                <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                                                <p className="text-sm text-brand-muted font-medium">Scanning live performers...</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            /* STATE 2: ACTIVE TYPING -> SHOW REAL-TIME API SUGGESTIONS */
-                            <div>
-                                <h4 className="text-[13px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-2">
-                                    Event Suggestions
-                                </h4>
-                                <div className="flex flex-col space-y-1">
-                                    {liveSuggestions.length > 0 ? (
-                                        liveSuggestions.map((event, idx) => (
-                                            <button
-                                                key={`suggestion-${idx}`}
-                                                onClick={() => handleEventClick(event)}
-                                                className="flex flex-col p-3 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left border border-transparent hover:border-gray-200"
-                                            >
-                                                <span className="text-[15px] font-bold text-brand-text group-hover:text-brand-primary transition-colors truncate w-full mb-1">
-                                                    {event.t1} vs {event.t2}
-                                                </span>
-                                                <div className="flex items-center text-[12px] text-brand-muted">
-                                                    <Calendar size={12} className="mr-1.5 flex-shrink-0" />
-                                                    <span className="mr-3 whitespace-nowrap">{event.dow}, {event.day} {event.month}</span>
-                                                    <MapPin size={12} className="mr-1.5 flex-shrink-0" />
-                                                    <span className="truncate">{event.loc}</span>
-                                                </div>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="p-8 text-center">
-                                            <p className="text-[15px] text-brand-text font-medium mb-1">No events found matching "{searchQuery}"</p>
-                                            <p className="text-[13px] text-brand-muted">Try checking for typos or searching a different team/city.</p>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
+
+                                {/* SECTION 7: Popular Venues */}
+                                {popularVenues.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Venues near {userCity !== 'Loading...' ? userCity : 'you'}</h4>
+                                        <div className="flex flex-col">
+                                            {popularVenues.map((venue, idx) => (
+                                                <button
+                                                    key={`venue-${idx}`}
+                                                    onClick={() => handleGenericSearch(venue)}
+                                                    className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#EAF4D9] transition-colors shrink-0">
+                                                        <MapPin size={14} className="text-gray-500 group-hover:text-[#114C2A]" />
+                                                    </div>
+                                                    <span className="text-[14px] font-bold text-gray-800 truncate">{venue}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                            </div>
+                        ) : (
+                            /* -------------------------------------------------------- */
+                            /* ACTIVE STATE: LIVE API SUGGESTIONS (With Highlighting)   */
+                            /* -------------------------------------------------------- */
+                            <div className="space-y-6">
+                                
+                                {/* SECTION 8: Direct Event Matches */}
+                                {eventMatches.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Events</h4>
+                                        <div className="flex flex-col">
+                                            {eventMatches.map((event, idx) => (
+                                                <button
+                                                    key={`event-match-${idx}`}
+                                                    onClick={() => handleEventClick(event)}
+                                                    className="flex items-start px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left border border-transparent hover:border-gray-200"
+                                                >
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 mr-3 shrink-0 border border-gray-200">
+                                                        <img src={`https://loremflickr.com/100/100/${encodeURIComponent(event.league.split(' ')[0])},sports/all`} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                                    </div>
+                                                    <div className="flex flex-col flex-1 min-w-0">
+                                                        <span className="text-[15px] font-medium text-gray-800 truncate leading-tight mb-1">
+                                                            <HighlightText text={`${event.t1} ${event.t2 ? `vs ${event.t2}` : ''}`} query={query} />
+                                                        </span>
+                                                        <div className="flex items-center text-[12px] text-gray-500 font-medium">
+                                                            <Calendar size={12} className="mr-1 shrink-0" />
+                                                            <span className="mr-3 whitespace-nowrap">{event.dow}, {event.day} {event.month}</span>
+                                                            <MapPin size={12} className="mr-1 shrink-0" />
+                                                            <span className="truncate">{event.loc}</span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* SECTION 9: Direct Venue Matches */}
+                                {venueMatches.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Venues</h4>
+                                        <div className="flex flex-col">
+                                            {venueMatches.map((venue, idx) => (
+                                                <button
+                                                    key={`venue-match-${idx}`}
+                                                    onClick={() => handleGenericSearch(venue.loc)}
+                                                    className="flex items-center px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group w-full text-left"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3 shrink-0 group-hover:bg-[#EAF4D9]">
+                                                        <MapPin size={14} className="text-gray-500 group-hover:text-[#114C2A]" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[14px] font-bold text-gray-800 truncate">
+                                                            <HighlightText text={venue.loc} query={query} />
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Empty State for Active Query */}
+                                {eventMatches.length === 0 && venueMatches.length === 0 && (
+                                    <div className="p-8 text-center">
+                                        <Search size={32} className="mx-auto text-gray-300 mb-3" />
+                                        <p className="text-[15px] text-gray-800 font-bold mb-1">No exact matches for "{searchQuery}"</p>
+                                        <p className="text-[13px] text-gray-500 font-medium">Try checking for typos or searching a broader term.</p>
+                                    </div>
+                                )}
                             </div>
                         )}
-
                     </div>
-                    {/* Subtle footer indicator if list is long */}
-                    <div className="h-4 bg-gradient-to-t from-white to-transparent absolute bottom-0 left-0 right-0 pointer-events-none" />
+
+                    {/* FEATURE 4: Global Routing Footer */}
+                    {query && (
+                        <div className="border-t border-gray-100 p-2 bg-gray-50/50 mt-auto">
+                            <button 
+                                onClick={() => handleGenericSearch(searchQuery)}
+                                className="w-full flex items-center justify-center p-3 rounded-xl hover:bg-[#114C2A] hover:text-white transition-colors text-[#114C2A] font-bold text-[14px] group shadow-sm bg-white border border-[#114C2A]/20"
+                            >
+                                <Search size={16} className="mr-2 opacity-70 group-hover:opacity-100" />
+                                See all results for "{searchQuery}"
+                                <ArrowRight size={16} className="ml-2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                            </button>
+                        </div>
+                    )}
                 </motion.div>
             )}
         </AnimatePresence>
