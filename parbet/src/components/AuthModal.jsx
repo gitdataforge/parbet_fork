@@ -123,7 +123,7 @@ export default function AuthModal() {
             });
             setOnboarded();
             closeAuthModal();
-            navigate('/');
+            navigate('/dashboard');
         } catch (err) {
             console.error("Google Auth Error:", err);
             setError(err.message || 'Failed to authenticate with Google. Please try again.');
@@ -154,7 +154,7 @@ export default function AuthModal() {
                 });
                 setOnboarded();
                 closeAuthModal();
-                navigate('/');
+                navigate('/dashboard');
             } else {
                 // Halting Firebase -> Trigger EmailJS OTP Pipeline
                 const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -222,7 +222,7 @@ export default function AuthModal() {
                 });
                 setOnboarded();
                 closeAuthModal();
-                navigate('/');
+                navigate('/dashboard');
             } catch (err) {
                 setError(err.message);
                 setAuthStep('credentials');
@@ -281,6 +281,7 @@ export default function AuthModal() {
             });
             setOnboarded();
             closeAuthModal();
+            navigate('/dashboard');
         } catch (err) {
             console.error("Profile Setup Error:", err);
             setError('Failed to upload profile picture or save details.');

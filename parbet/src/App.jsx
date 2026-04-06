@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -23,6 +23,7 @@ const routes = Object.keys(pages).map((path) => {
 
 function MainLayout() {
     const location = useLocation();
+    const { isAuthenticated } = useAppStore();
     
     // Strict route-matching to detect immersive Event pages
     const isEventPage = location.pathname.includes('/event');
@@ -45,6 +46,11 @@ function MainLayout() {
                         // Inject dynamic route parameter strictly for the Performer/League grouping page
                         if (name === 'Performer') {
                             return <Route key={name} path={`/performer/:id`} element={<Component />} />;
+                        }
+
+                        // STRICT DASHBOARD ACCESS GATING
+                        if (name === 'Dashboard') {
+                            return <Route key={name} path={`/dashboard`} element={isAuthenticated ? <Component /> : <Navigate to="/" replace />} />;
                         }
                         
                         return <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />;

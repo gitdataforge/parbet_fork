@@ -127,7 +127,7 @@ export default function Header() {
                     <div className="flex items-center space-x-4">
                         <UserProfileIcon 
                             isAuthenticated={isAuthenticated} 
-                            onClick={() => handleNavigation('/dashboard')} 
+                            onClick={() => isAuthenticated ? navigate('/dashboard') : openAuthModal()} 
                         />
                         
                         {/* Mobile Hamburger */}
