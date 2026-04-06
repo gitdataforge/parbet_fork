@@ -306,7 +306,7 @@ export default function Checkout() {
                                 description="Secure via PayU India" active
                             />
                             <PaymentOption 
-                                icon={<img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" className="h-5" />} 
+                                icon={<img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" className="h-5" alt="PayPal" />} 
                                 label="PayPal" description="Fast and secure global payment"
                             />
                             <div className="p-6 bg-gray-50 rounded-2xl border border-gray-200 text-center">
