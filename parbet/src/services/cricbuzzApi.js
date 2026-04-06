@@ -21,6 +21,12 @@ export const fetchLiveCommentary = async (matchId) => {
             return [];
         }
 
+        // Strictly intercept 404 Not Found
+        if (res.status === 404) {
+            console.warn("Cricbuzz API 404 Not Found: Match data missing. Returning safe fallback.");
+            return [];
+        }
+
         if (!res.ok) return [];
 
         const data = await res.json();
@@ -49,6 +55,12 @@ export const fetchPlayerStats = async (playerId) => {
         if (res.status === 403) {
             console.warn("Cricbuzz API 403 Forbidden: Subscription required. Returning fallback stats.");
             return { batting: { runs: 'Locked', average: '403' } }; 
+        }
+
+        // Strictly intercept 404 Not Found and return safe fallback stats to prevent React tree crash
+        if (res.status === 404) {
+            console.warn("Cricbuzz API 404 Not Found: Endpoint or player missing. Returning safe fallback stats.");
+            return { batting: { runs: 'N/A', average: 'N/A' } }; 
         }
 
         if (!res.ok) return { batting: { runs: 'N/A', average: 'N/A' } };
