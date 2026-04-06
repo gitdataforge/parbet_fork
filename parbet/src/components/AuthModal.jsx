@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, AlertCircle, Eye, EyeOff, Camera, User, UploadCloud, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { X, Mail, Lock, AlertCircle, Eye, EyeOff, Camera, User, UploadCloud, ChevronRight, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import { auth, db } from '../lib/firebase';
 import { 
@@ -12,12 +12,13 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { uploadUserAvatar } from '../services/cloudinaryApi';
+import { sendVerificationEmail } from '../services/emailJsApi';
 
 export default function AuthModal() {
     const { isAuthModalOpen, closeAuthModal, setUser, setOnboarded } = useAppStore();
     
-    // Auth Flow States
-    const [authStep, setAuthStep] = useState('credentials'); // 'credentials' | 'profile_setup'
+    // Auth Flow States (FEATURE 1: Complex Multi-Step State Machine)
+    const [authStep, setAuthStep] = useState('credentials'); // 'credentials' | 'otp_verification' | 'profile_setup'
     const [isLogin, setIsLogin] = useState(true);
     const [pendingUser, setPendingUser] = useState(null);
     
@@ -29,12 +30,17 @@ export default function AuthModal() {
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState('');
     
+    // FEATURE 2: OTP Engine States
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const [expectedOtp, setExpectedOtp] = useState('');
+    const [cooldown, setCooldown] = useState(0);
+
     // Feedback States
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [passwordStrength, setPasswordStrength] = useState(0);
 
-    // FEATURE 1: Prevent body scrolling & Reset states on close
+    // Prevent body scrolling & Reset states on close
     useEffect(() => {
         if (isAuthModalOpen) {
             document.body.style.overflow = 'hidden';
@@ -50,12 +56,13 @@ export default function AuthModal() {
                 setIsLogin(true);
                 setAuthStep('credentials');
                 setPendingUser(null);
+                setOtp(['', '', '', '', '', '']);
             }, 300);
         }
         return () => { document.body.style.overflow = 'auto'; };
     }, [isAuthModalOpen]);
 
-    // FEATURE 2: Real-time Password Strength Validation
+    // Real-time Password Strength Validation
     useEffect(() => {
         if (!password) {
             setPasswordStrength(0);
@@ -68,6 +75,14 @@ export default function AuthModal() {
         if (/[^A-Za-z0-9]/.test(password)) score += 1;
         setPasswordStrength(score);
     }, [password]);
+
+    // Cooldown Timer for OTP Resend
+    useEffect(() => {
+        if (cooldown > 0) {
+            const timer = setInterval(() => setCooldown(prev => prev - 1), 1000);
+            return () => clearInterval(timer);
+        }
+    }, [cooldown]);
 
     // Firestore Document Sync
     const syncUserToFirestore = async (user, additionalData = {}) => {
@@ -114,7 +129,7 @@ export default function AuthModal() {
         }
     };
 
-    // Email/Password Step 1
+    // SECTION 1: Credentials Dispatch (Halts Firebase for OTP on Sign Up)
     const handleEmailAuth = async (e) => {
         e.preventDefault();
         if (!email || !password) return setError('Please fill in all fields.');
@@ -125,6 +140,7 @@ export default function AuthModal() {
 
         try {
             if (isLogin) {
+                // Direct Login
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 await syncUserToFirestore(userCredential.user);
                 setUser({
@@ -136,13 +152,20 @@ export default function AuthModal() {
                 setOnboarded();
                 closeAuthModal();
             } else {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await syncUserToFirestore(userCredential.user); // Initial sync
-                setPendingUser(userCredential.user);
-                setAuthStep('profile_setup'); // Transition to Cloudinary Setup
+                // Halting Firebase -> Trigger EmailJS OTP Pipeline
+                const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+                const res = await sendVerificationEmail(email, generatedCode);
+                
+                if (res.success) {
+                    setExpectedOtp(generatedCode);
+                    setCooldown(60);
+                    setAuthStep('otp_verification');
+                } else {
+                    setError('Failed to send verification email. Check your connection.');
+                }
             }
         } catch (err) {
-            console.error("Email Auth Error:", err);
+            console.error("Auth Error:", err);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') setError('Invalid email or password.');
             else if (err.code === 'auth/email-already-in-use') setError('An account with this email already exists.');
             else setError('An error occurred. Please try again.');
@@ -151,7 +174,68 @@ export default function AuthModal() {
         }
     };
 
-    // FEATURE 3: Cloudinary Profile Picture & Name Setup
+    // FEATURE 3: Smart Grid OTP Parsers
+    const handleOtpChange = (index, value) => {
+        if (!/^[0-9]*$/.test(value)) return;
+        const newOtp = [...otp];
+        newOtp[index] = value;
+        setOtp(newOtp);
+        if (value && index < 5) {
+            document.getElementById(`otp-${index + 1}`).focus();
+        }
+    };
+
+    const handleOtpKeyDown = (index, e) => {
+        if (e.key === 'Backspace' && !otp[index] && index > 0) {
+            document.getElementById(`otp-${index - 1}`).focus();
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        const enteredCode = otp.join('');
+        if (enteredCode.length !== 6) return setError("Please enter the complete 6-digit code.");
+        
+        setLoading(true);
+        setError(null);
+
+        // Simulate network confirmation
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        if (enteredCode === expectedOtp) {
+            try {
+                // Verification Passed -> Officially Create Firebase User
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await syncUserToFirestore(userCredential.user);
+                setPendingUser(userCredential.user);
+                setAuthStep('profile_setup');
+            } catch (err) {
+                setError(err.message);
+                setAuthStep('credentials');
+            }
+        } else {
+            setError("Invalid verification code. Please try again.");
+            setOtp(['', '', '', '', '', '']);
+            document.getElementById('otp-0').focus();
+        }
+        setLoading(false);
+    };
+
+    const handleResendOtp = async () => {
+        if (cooldown > 0) return;
+        setError(null);
+        setLoading(true);
+        const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const res = await sendVerificationEmail(email, generatedCode);
+        if (res.success) {
+            setExpectedOtp(generatedCode);
+            setCooldown(60);
+        } else {
+            setError('Failed to resend code.');
+        }
+        setLoading(false);
+    };
+
+    // FEATURE 4: Cloudinary Profile Setup
     const handleProfileSetup = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -159,20 +243,16 @@ export default function AuthModal() {
 
         try {
             let photoUrl = '';
-
-            // Strictly using the new Cloudinary API Service
             if (avatarFile && pendingUser) {
                 const uploadResult = await uploadUserAvatar(avatarFile, pendingUser.uid);
                 photoUrl = uploadResult.url;
             }
 
-            // Update Firebase Auth Profile
             await updateProfile(pendingUser, {
                 displayName: displayName || email.split('@')[0],
                 photoURL: photoUrl || ''
             });
 
-            // Update Firestore Profile
             await syncUserToFirestore(pendingUser, {
                 displayName: displayName || email.split('@')[0],
                 photoURL: photoUrl || ''
@@ -205,7 +285,6 @@ export default function AuthModal() {
     return (
         <AnimatePresence>
             {isAuthModalOpen && (
-                // FEATURE 4: Full-Screen Modal Architecture
                 <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -220,16 +299,19 @@ export default function AuthModal() {
                         <X size={24} />
                     </button>
 
-                    {/* Left Panel: Dynamic Auth Forms */}
+                    {/* Left Panel: Dynamic Multi-Step Wizard */}
                     <div className="w-full md:w-[45%] lg:w-[35%] h-full flex flex-col justify-center px-8 sm:px-16 overflow-y-auto hide-scrollbar bg-white relative z-10">
                         <div className="max-w-[400px] w-full mx-auto py-12">
+                            
                             <h2 className="text-[32px] font-black leading-tight tracking-tight text-gray-900 mb-2">
-                                {authStep === 'profile_setup' ? 'Complete Profile' : isLogin ? 'Welcome back.' : 'Join Parbet.'}
+                                {authStep === 'profile_setup' ? 'Complete Profile' : 
+                                 authStep === 'otp_verification' ? 'Verify Email' : 
+                                 isLogin ? 'Welcome back.' : 'Join Parbet.'}
                             </h2>
                             <p className="text-[15px] font-medium text-gray-500 mb-8">
-                                {authStep === 'profile_setup' 
-                                    ? 'Personalize your account to get started.' 
-                                    : 'The worlds most secure secondary ticket marketplace.'}
+                                {authStep === 'profile_setup' ? 'Personalize your account to get started.' : 
+                                 authStep === 'otp_verification' ? `We've sent a 6-digit code to ${email}` : 
+                                 'The worlds most secure secondary ticket marketplace.'}
                             </p>
 
                             <AnimatePresence mode="wait">
@@ -245,12 +327,12 @@ export default function AuthModal() {
                             </AnimatePresence>
 
                             <AnimatePresence mode="wait">
+                                
                                 {/* SECTION 1: Credentials Portal */}
                                 {authStep === 'credentials' && (
                                     <motion.div key="credentials" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
                                         <button 
-                                            onClick={handleGoogleAuth}
-                                            disabled={loading}
+                                            onClick={handleGoogleAuth} disabled={loading}
                                             className="w-full flex items-center justify-center space-x-3 bg-white border-2 border-gray-200 text-gray-800 font-bold py-4 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50 mb-6"
                                         >
                                             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -296,9 +378,7 @@ export default function AuthModal() {
                                                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-1 pt-2">
                                                         <div className="flex gap-1.5 mb-2">
                                                             {[1, 2, 3, 4].map((level) => (
-                                                                <div key={level} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                                                                    passwordStrength >= level ? (passwordStrength < 2 ? 'bg-red-400' : passwordStrength < 4 ? 'bg-yellow-400' : 'bg-[#458731]') : 'bg-gray-100'
-                                                                }`}/>
+                                                                <div key={level} className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${passwordStrength >= level ? (passwordStrength < 2 ? 'bg-red-400' : passwordStrength < 4 ? 'bg-yellow-400' : 'bg-[#458731]') : 'bg-gray-100'}`}/>
                                                             ))}
                                                         </div>
                                                         <p className={`text-[12px] font-bold text-right ${passwordStrength < 2 ? 'text-red-500' : passwordStrength < 4 ? 'text-yellow-600' : 'text-[#458731]'}`}>
@@ -324,17 +404,62 @@ export default function AuthModal() {
                                     </motion.div>
                                 )}
 
-                                {/* SECTION 2 & 3: Profile Setup & Cloudinary Dropzone */}
+                                {/* SECTION 2: OTP Verification Terminal */}
+                                {authStep === 'otp_verification' && (
+                                    <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                                        <div className="flex justify-between space-x-2 mb-8">
+                                            {otp.map((digit, i) => (
+                                                <input
+                                                    key={i}
+                                                    id={`otp-${i}`}
+                                                    type="text"
+                                                    maxLength="1"
+                                                    value={digit}
+                                                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                                                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                                    disabled={loading}
+                                                    className="w-12 h-14 md:w-14 md:h-16 border-2 border-gray-200 rounded-[12px] text-center text-2xl font-black text-gray-900 outline-none focus:border-[#114C2A] focus:ring-4 focus:ring-[#114C2A]/10 transition-all bg-white shadow-sm disabled:opacity-50"
+                                                />
+                                            ))}
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={handleVerifyOtp}
+                                            disabled={loading || otp.join('').length !== 6}
+                                            className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl shadow-lg hover:bg-[#0c361d] transition-all disabled:opacity-50 flex justify-center items-center mb-6"
+                                        >
+                                            {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Verify & Continue'}
+                                        </button>
+
+                                        <div className="flex flex-col items-center justify-center space-y-4 pt-6 border-t border-gray-100">
+                                            <button 
+                                                onClick={handleResendOtp}
+                                                disabled={cooldown > 0 || loading}
+                                                className="text-[14px] font-bold text-gray-600 hover:text-[#114C2A] transition-colors disabled:text-gray-400 flex items-center"
+                                            >
+                                                <RefreshCw size={14} className={`mr-2 ${cooldown > 0 ? 'opacity-50' : ''}`} />
+                                                {cooldown > 0 ? `Resend code available in ${cooldown}s` : 'Resend Code'}
+                                            </button>
+
+                                            <button 
+                                                onClick={() => { setAuthStep('credentials'); setOtp(['','','','','','']); setError(null); }}
+                                                disabled={loading}
+                                                className="text-[13px] font-bold text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                Back to Sign Up
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* SECTION 3: Profile Setup Cloudinary Dropzone */}
                                 {authStep === 'profile_setup' && (
                                     <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                                         <form onSubmit={handleProfileSetup} className="space-y-6">
-                                            
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="relative group cursor-pointer">
                                                     <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        onChange={handleAvatarSelect}
+                                                        type="file" accept="image/*" onChange={handleAvatarSelect}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                     />
                                                     <div className="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 group-hover:border-[#114C2A] group-hover:bg-[#114C2A]/5 transition-all relative">
@@ -346,7 +471,6 @@ export default function AuthModal() {
                                                                 <span className="text-[10px] font-bold uppercase tracking-wider">Upload</span>
                                                             </div>
                                                         )}
-                                                        {/* Hover Overlay */}
                                                         {avatarPreview && (
                                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                 <UploadCloud size={24} className="text-white" />
@@ -354,9 +478,7 @@ export default function AuthModal() {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <p className="text-[12px] font-medium text-gray-400 mt-3 text-center">
-                                                    Powered by Cloudinary CDN
-                                                </p>
+                                                <p className="text-[12px] font-medium text-gray-400 mt-3 text-center">Powered by Cloudinary CDN</p>
                                             </div>
 
                                             <div className="relative mt-6">
@@ -370,16 +492,12 @@ export default function AuthModal() {
 
                                             <button 
                                                 type="submit" disabled={loading}
-                                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl shadow-lg hover:bg-[#0c361d] hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
+                                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl shadow-lg hover:bg-[#0c361d] transition-all disabled:opacity-70 flex justify-center items-center"
                                             >
                                                 {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Complete Setup'}
                                             </button>
                                             
-                                            <button 
-                                                type="button" 
-                                                onClick={handleProfileSetup} // Can skip the avatar and just proceed
-                                                className="w-full py-4 text-[14px] font-bold text-gray-500 hover:text-gray-800 transition-colors"
-                                            >
+                                            <button type="button" onClick={handleProfileSetup} className="w-full py-4 text-[14px] font-bold text-gray-500 hover:text-gray-800 transition-colors">
                                                 Skip for now
                                             </button>
                                         </form>
@@ -398,13 +516,9 @@ export default function AuthModal() {
 
                     {/* SECTION 4: Full-Screen Animated Topography Canvas (Right Side) */}
                     <div className="hidden md:flex flex-1 bg-[#114C2A] relative overflow-hidden items-center justify-center">
-                        {/* High-End Animated SVG Background */}
                         <motion.svg 
-                            initial={{ scale: 1.1, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: 2, ease: "easeOut" }}
-                            className="absolute inset-0 w-full h-full opacity-30" 
-                            xmlns="http://www.w3.org/2000/svg"
+                            initial={{ scale: 1.1, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 2, ease: "easeOut" }}
+                            className="absolute inset-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg"
                         >
                             <defs>
                                 <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -412,12 +526,9 @@ export default function AuthModal() {
                                     <stop offset="100%" style={{ stopColor: '#114C2A', stopOpacity: 1 }} />
                                 </linearGradient>
                             </defs>
-                            {/* Animated Topography Lines */}
                             {[...Array(15)].map((_, i) => (
                                 <motion.path
-                                    key={i}
-                                    initial={{ pathLength: 0, opacity: 0 }}
-                                    animate={{ pathLength: 1, opacity: 0.5 + (Math.random() * 0.5) }}
+                                    key={i} initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.5 + (Math.random() * 0.5) }}
                                     transition={{ duration: 3 + i * 0.2, ease: "easeInOut", delay: 0.2 }}
                                     d={`M-100 ${100 + i * 60} Q 300 ${-100 + i * 100} 700 ${300 + i * 40} T 1500 ${100 + i * 80}`}
                                     fill="none" stroke="url(#grad1)" strokeWidth={1 + (i % 2)}
@@ -425,27 +536,28 @@ export default function AuthModal() {
                             ))}
                         </motion.svg>
                         
-                        {/* Interactive Parallax Glassmorphic Floating Cards */}
                         <div className="relative z-10 p-12 max-w-xl text-center">
-                            <motion.div 
-                                initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5, duration: 0.8 }}
-                                className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-full text-white text-[12px] font-bold uppercase tracking-widest mb-8"
-                            >
-                                <CheckCircle2 size={16} className="text-[#81C76B]" />
-                                <span>Verified Secondary Market</span>
-                            </motion.div>
-                            <motion.h1 
-                                initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7, duration: 0.8 }}
-                                className="text-5xl lg:text-7xl font-black text-white leading-tight tracking-tighter mb-6"
-                            >
-                                Access the inaccessible.
-                            </motion.h1>
-                            <motion.p 
-                                initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.9, duration: 0.8 }}
-                                className="text-lg text-green-100/80 font-medium max-w-md mx-auto leading-relaxed"
-                            >
-                                Over 5 million authentic tickets sold. Global sports, massive concerts, and exclusive theater events all backed by our 100% Buyer Guarantee.
-                            </motion.p>
+                            {authStep === 'otp_verification' ? (
+                                <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col items-center">
+                                    <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mb-8 border border-white/20 backdrop-blur-sm">
+                                        <ShieldCheck size={40} className="text-white" />
+                                    </div>
+                                    <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight tracking-tighter mb-6">Identity Protected.</h1>
+                                    <p className="text-lg text-green-100/80 font-medium max-w-md mx-auto leading-relaxed">To ensure marketplace integrity and eliminate bot scalping, every user is verified before entry.</p>
+                                </motion.div>
+                            ) : (
+                                <>
+                                    <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-full text-white text-[12px] font-bold uppercase tracking-widest mb-8">
+                                        <CheckCircle2 size={16} className="text-[#81C76B]" /> <span>Verified Secondary Market</span>
+                                    </motion.div>
+                                    <motion.h1 initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }} className="text-5xl lg:text-7xl font-black text-white leading-tight tracking-tighter mb-6">
+                                        Access the inaccessible.
+                                    </motion.h1>
+                                    <motion.p initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.9 }} className="text-lg text-green-100/80 font-medium max-w-md mx-auto leading-relaxed">
+                                        Over 5 million authentic tickets sold. Global sports, massive concerts, and exclusive theater events all backed by our 100% Buyer Guarantee.
+                                    </motion.p>
+                                </>
+                            )}
                         </div>
                     </div>
                 </motion.div>
