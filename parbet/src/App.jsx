@@ -83,7 +83,8 @@ export default function App() {
 
         const unsubAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
+                // FIXED: 6-segment path (Collection/Doc/Collection/Doc/Collection/Doc)
+                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
                 const unsubWallet = onSnapshot(userRef, (docSnap) => {
                     if (docSnap.exists()) setWallet(docSnap.data().balance, 0);
                 });
