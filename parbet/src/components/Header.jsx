@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, Menu, MapPin } from 'lucide-react';
+import { Search, User, MapPin } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
 import NavHoverMenu from './NavHoverMenu';
+
+// Strict 2-line animated hamburger component
+const Hamburger = ({ isOpen, toggle }) => (
+    <button onClick={toggle} className="relative w-6 h-5 flex flex-col justify-between items-center focus:outline-none z-50">
+        <span className={`block h-0.5 w-full bg-brand-text transition-all duration-300 ease-in-out ${isOpen ? 'rotate-45 translate-y-2.5' : ''}`} />
+        <span className={`block h-0.5 w-full bg-brand-text transition-all duration-300 ease-in-out ${isOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+    </button>
+);
 
 export default function Header() {
     const navigate = useNavigate();
@@ -20,9 +28,11 @@ export default function Header() {
     } = useAppStore();
 
     const [hoveredCategory, setHoveredCategory] = useState(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Centralized navigation guard for protected routes
     const handleNavigation = (path) => {
+        setMobileMenuOpen(false); // Close mobile menu on redirect
         if (isAuthenticated) {
             navigate(path);
         } else {
@@ -47,7 +57,7 @@ export default function Header() {
             </div>
 
             {/* Main Navigation Row */}
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between relative">
                 
                 {/* Mobile Top Row (Logo + Hamburger) */}
                 <div className="w-full md:w-auto flex justify-between items-center mb-4 md:mb-0">
@@ -99,7 +109,7 @@ export default function Header() {
                         </div>
                         {isAuthenticated ? (
                             <div 
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => handleNavigation('/dashboard')}
                                 className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center cursor-pointer"
                             >
                                 <User size={16} className="text-white"/>
@@ -107,7 +117,7 @@ export default function Header() {
                         ) : (
                             <button onClick={openAuthModal} className="text-sm font-bold text-brand-primary">Sign In</button>
                         )}
-                        <Menu size={24} className="text-brand-text cursor-pointer"/>
+                        <Hamburger isOpen={mobileMenuOpen} toggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
                     </div>
                 </div>
 
@@ -130,7 +140,7 @@ export default function Header() {
                     <div className="flex items-center space-x-4 pl-2">
                         {isAuthenticated ? (
                             <div 
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => handleNavigation('/dashboard')}
                                 className="flex items-center space-x-3 cursor-pointer"
                             >
                                 <span className="font-bold">Profile</span>
@@ -148,6 +158,16 @@ export default function Header() {
                         )}
                     </div>
                 </nav>
+            </div>
+
+            {/* Mobile Animated Dropdown */}
+            <div className={`md:hidden absolute w-full bg-white border-b overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? 'max-h-96 shadow-lg border-brand-border' : 'max-h-0 border-transparent'}`}>
+                <div className="flex flex-col p-4 space-y-4 font-semibold text-brand-text text-center">
+                    <button onClick={() => { setMobileMenuOpen(false); navigate('/explore'); }}>Explore</button>
+                    <button onClick={() => handleNavigation('/sell')}>Sell</button>
+                    <button onClick={() => handleNavigation('/dashboard')}>My Tickets</button>
+                    <button onClick={() => handleNavigation('/dashboard')}>Profile</button>
+                </div>
             </div>
 
             {/* Floating Search Bar Section with Real-Time Dropdown */}

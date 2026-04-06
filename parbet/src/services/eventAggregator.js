@@ -9,9 +9,15 @@ import { fetchTicketmasterEvents } from './ticketmasterApi';
 import { fetchBandsintownEvents } from './bandsintownApi';
 import { fetchTheSportsDbEvents } from './theSportsDbApi';
 
-const ODDS_API_KEY = import.meta.env.VITE_ODDS_API_KEY || '';
-const CRIC_API_KEY = import.meta.env.VITE_CRIC_API_KEY || '';
-const SEATGEEK_CLIENT_ID = import.meta.env.VITE_SEATGEEK_CLIENT_ID || '';
+// Strict Sanitization: If the .env file contains dummy strings, explicitly convert them to empty strings
+const rawOdds = import.meta.env.VITE_ODDS_API_KEY || '';
+const ODDS_API_KEY = rawOdds.includes('your_') ? '' : rawOdds;
+
+const rawCric = import.meta.env.VITE_CRIC_API_KEY || '';
+const CRIC_API_KEY = (rawCric.includes('your_') || rawCric === '641ae896-419d-444a-a2fd-f0ecc4a2aeba') ? '' : rawCric;
+
+const rawSeatGeek = import.meta.env.VITE_SEATGEEK_CLIENT_ID || '';
+const SEATGEEK_CLIENT_ID = rawSeatGeek.includes('your_') ? '' : rawSeatGeek;
 
 /**
  * Enhanced fetch with exponential backoff and strict early-exit auth/network checks.

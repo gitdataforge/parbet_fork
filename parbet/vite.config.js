@@ -21,7 +21,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/seatgeek/, '')
       },
       '/api/cricapi': {
-        target: 'https://api.cricketdata.org',
+        target: 'https://api.cricapi.com', // Strictly fixed domain to resolve 502 Bad Gateway
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/cricapi/, '')
       }
