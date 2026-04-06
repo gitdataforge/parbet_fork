@@ -13,7 +13,7 @@ import RegionalMap from '../../components/RegionalMap';
 import LeaguePortal from '../../components/LeaguePortal';
 import VenueCard from '../../components/VenueCard';
 
-// 10+ NEW High-End Logic Components
+// 10+ Existing High-End Logic Components
 import CricketTicker from '../../components/CricketTicker';
 import WeatherWidget from '../../components/WeatherWidget';
 import NewsMarquee from '../../components/NewsMarquee';
@@ -24,6 +24,26 @@ import SafetyPanel from '../../components/SafetyPanel';
 import LivePulseGlobe from '../../components/LivePulseGlobe';
 import PurchaseToast from '../../components/PurchaseToast';
 import TransitLogic from '../../components/TransitLogic';
+
+// 20+ NEW High-End Logic Components
+import PlayerStats from '../../components/PlayerStats';
+import AudioPreview from '../../components/AudioPreview';
+import RelatedArtists from '../../components/RelatedArtists';
+import ScarcityMeter from '../../components/ScarcityMeter';
+import DiscountWheel from '../../components/DiscountWheel';
+import SellPrompt from '../../components/SellPrompt';
+import WhosGoing from '../../components/WhosGoing';
+import HypeScore from '../../components/HypeScore';
+import BuyerReviews from '../../components/BuyerReviews';
+import DriveTime from '../../components/DriveTime';
+import HotelRail from '../../components/HotelRail';
+import FlightDeals from '../../components/FlightDeals';
+import TimezoneClock from '../../components/TimezoneClock';
+import DailyTrivia from '../../components/DailyTrivia';
+import VIPPortal from '../../components/VIPPortal';
+import SoldOutGraveyard from '../../components/SoldOutGraveyard';
+import AccessibilityFilter from '../../components/AccessibilityFilter';
+import ThemePreview from '../../components/ThemePreview';
 
 // Utility to strictly label dates based on the real-time API
 const getRelativeDateLabel = (dateStr) => {
@@ -395,80 +415,162 @@ export default function Home() {
             <EventRail title="Comedy" groups={comedyGroups} />
 
             {/* ========================================================= */}
-            {/* 10+ NEW HIGH-END SECTIONS (Appended & Real-Time)          */}
+            {/* INJECTED 10: 20+ EXTRA HIGH-END COMPONENTS APPENDED HERE  */}
             {/* ========================================================= */}
-            <div className="w-full mt-16 pt-16 border-t border-gray-100">
-                
-                {/* INJECTED 4: PRICE GRAPH, SAFETY PANEL, & CURRENCY CONVERTER */}
-                <div className="px-4 mb-16 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1">
-                        <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Market Intelligence</h2>
-                        <PriceGraph />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Venue Protocol</h2>
-                        <SafetyPanel type="stadium" />
-                    </div>
-                    
-                    {/* INJECTED 5: REAL-TIME CURRENCY CONVERTER */}
-                    <div className="lg:col-span-1">
-                        <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Global Exchange</h2>
-                        <div className="w-full bg-white rounded-[24px] p-6 border border-gray-200 shadow-sm flex flex-col h-full hover:shadow-md transition-all">
-                            <div className="flex justify-between items-center mb-6">
-                                <span className="text-sm font-black text-[#1a1a1a] uppercase tracking-widest flex items-center">
-                                    <RefreshCw size={16} className="text-[#458731] mr-2" /> Live Rates
-                                </span>
+            <div className="w-full border-t border-gray-100 pt-16">
+                <div className="px-4 mb-16">
+                    <DiscountWheel />
+                    <SellPrompt />
+                </div>
+
+                {/* Travel Intelligence */}
+                <div className="px-4 mb-16">
+                    <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Travel & Logistics Intelligence</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="bg-white p-6 rounded-[24px] shadow-sm border border-gray-100">
+                            <FlightDeals destination={userCity !== 'Loading...' ? userCity : 'Mumbai'} />
+                            <div className="mt-6">
+                                <h3 className="font-bold text-sm mb-4">Drive Time to Top Venue</h3>
+                                {venues.length > 0 && <DriveTime venueLon={venues[0].lon} venueLat={venues[0].lat} />}
                             </div>
-                            <div className="flex space-x-4 mb-4">
-                                <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-500 mb-2 block">From</label>
-                                    <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 bg-gray-50 outline-none focus:border-[#458731] text-sm font-bold text-[#1a1a1a]">
-                                        {['USD', 'EUR', 'GBP', 'INR', 'AUD', 'CAD', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-500 mb-2 block">To</label>
-                                    <select value={targetCurrency} onChange={(e) => setTargetCurrency(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 bg-gray-50 outline-none focus:border-[#458731] text-sm font-bold text-[#1a1a1a]">
-                                        {['INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
+                            <div className="mt-6">
+                                <TimezoneClock eventTime={majorMatch?.commence_time || new Date().toISOString()} />
                             </div>
-                            <div className="mb-6">
-                                <label className="text-xs font-bold text-gray-500 mb-2 block">Amount</label>
-                                <input type="number" value={convertAmount} onChange={(e) => setConvertAmount(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-[#458731] text-lg font-black text-[#1a1a1a]" />
-                            </div>
-                            <div className="mt-auto bg-[#E6F2D9] rounded-xl p-5 flex justify-between items-center border border-[#C5E1A5]">
-                                <span className="text-[#114C2A] font-bold text-sm">Converted</span>
-                                <span className="text-[#114C2A] font-black text-2xl truncate ml-4">
-                                    {exchangeRates[targetCurrency] ? `${(convertAmount * exchangeRates[targetCurrency]).toLocaleString('en-US', {maximumFractionDigits:2})}` : '...'} {targetCurrency}
-                                </span>
-                            </div>
+                        </div>
+                        <div>
+                            {venues.length > 0 && <HotelRail lat={venues[0].lat} lon={venues[0].lon} />}
                         </div>
                     </div>
                 </div>
 
-                {/* INJECTED 6: SERIES RAIL */}
-                <SeriesRail />
+                {/* Social & Event Intelligence */}
+                {majorMatch && (
+                     <div className="px-4 mb-16 grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col justify-center">
+                               <h3 className="font-black text-lg mb-2">Social Proof</h3>
+                               <WhosGoing eventId={majorMatch.id} />
+                          </div>
+                          <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col justify-center">
+                               <h3 className="font-black text-lg mb-2">Hype Rating</h3>
+                               <HypeScore favoritesCount={1245} />
+                          </div>
+                          <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col justify-center">
+                               <h3 className="font-black text-lg mb-2">Inventory Status</h3>
+                               <ScarcityMeter totalCapacity={50000} activeListings={124} />
+                          </div>
+                     </div>
+                )}
 
-                {/* INJECTED 7: VENUE SPOTLIGHT WITH WEATHER WIDGET */}
-                <div className="mb-16 px-4">
-                    <h2 className="text-2xl font-black text-[#1a1a1a] mb-8">Top Venues in {userCity}</h2>
-                    <div className="space-y-4">
-                        {venues.map((v, i) => (
-                            <div key={i} className="relative group">
-                                <VenueCard venue={v} />
-                                <div className="absolute top-4 right-4 md:right-20">
-                                    <WeatherWidget lat={v.lat} lon={v.lon} />
-                                </div>
+                {/* Performer Intelligence */}
+                <div className="px-4 mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div className="flex flex-col space-y-6">
+                          <RelatedArtists baseArtist={trending.length > 0 ? trending[0] : 'Coldplay'} />
+                          <div className="bg-gradient-to-r from-gray-900 to-black p-8 rounded-[24px] text-white flex items-center justify-between shadow-xl">
+                              <div>
+                                  <h3 className="text-xl font-bold mb-2">Hear the Vibe</h3>
+                                  <p className="text-gray-400 text-sm">Preview top tracks from trending artists before you buy.</p>
+                              </div>
+                              <div className="relative w-16 h-16">
+                                  <AudioPreview artistName={concertGroups.length > 0 ? concertGroups[0].name : "Coldplay"} />
+                              </div>
+                          </div>
+                     </div>
+                     <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[24px] p-6 border border-gray-200">
+                          <h3 className="font-black text-lg mb-6 text-center w-full">Top Athlete Stats</h3>
+                          <PlayerStats playerId="1413" name={sportsGroups.length > 0 ? sportsGroups[0].name : "Virat Kohli"} />
+                     </div>
+                </div>
+
+                <VIPPortal />
+
+                <div className="px-4 mb-16">
+                     <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Missed Out?</h2>
+                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
+                          {liveMatches.slice(10, 16).map(m => <SoldOutGraveyard key={m.id} event={m} />)}
+                     </div>
+                </div>
+
+                <div className="px-4 mb-16 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <DailyTrivia />
+                     <div className="flex flex-col items-center justify-center bg-blue-50/50 rounded-[24px] border border-blue-100 p-8 text-center">
+                          <h3 className="font-black text-lg mb-2 text-blue-900">Accessibility First</h3>
+                          <p className="text-sm font-medium text-blue-700 mb-6">We ensure a seamless experience for all fans. Filter for sensory-friendly and ADA compliant venues.</p>
+                          <AccessibilityFilter />
+                     </div>
+                </div>
+
+                <BuyerReviews />
+            </div>
+
+            {/* INJECTED 4: PRICE GRAPH, SAFETY PANEL, & CURRENCY CONVERTER */}
+            <div className="px-4 mb-16 grid grid-cols-1 lg:grid-cols-3 gap-8 mt-16">
+                <div className="lg:col-span-1">
+                    <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Market Intelligence</h2>
+                    <PriceGraph />
+                </div>
+                <div className="lg:col-span-1">
+                    <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Venue Protocol</h2>
+                    <SafetyPanel type="stadium" />
+                </div>
+                
+                {/* INJECTED 5: REAL-TIME CURRENCY CONVERTER */}
+                <div className="lg:col-span-1">
+                    <h2 className="text-[22px] font-bold mb-6 text-[#1a1a1a] tracking-tight">Global Exchange</h2>
+                    <div className="w-full bg-white rounded-[24px] p-6 border border-gray-200 shadow-sm flex flex-col h-full hover:shadow-md transition-all">
+                        <div className="flex justify-between items-center mb-6">
+                            <span className="text-sm font-black text-[#1a1a1a] uppercase tracking-widest flex items-center">
+                                <RefreshCw size={16} className="text-[#458731] mr-2" /> Live Rates
+                            </span>
+                        </div>
+                        <div className="flex space-x-4 mb-4">
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-gray-500 mb-2 block">From</label>
+                                <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 bg-gray-50 outline-none focus:border-[#458731] text-sm font-bold text-[#1a1a1a]">
+                                    {['USD', 'EUR', 'GBP', 'INR', 'AUD', 'CAD', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
                             </div>
-                        ))}
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-gray-500 mb-2 block">To</label>
+                                <select value={targetCurrency} onChange={(e) => setTargetCurrency(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 bg-gray-50 outline-none focus:border-[#458731] text-sm font-bold text-[#1a1a1a]">
+                                    {['INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="mb-6">
+                            <label className="text-xs font-bold text-gray-500 mb-2 block">Amount</label>
+                            <input type="number" value={convertAmount} onChange={(e) => setConvertAmount(e.target.value)} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-[#458731] text-lg font-black text-[#1a1a1a]" />
+                        </div>
+                        <div className="mt-auto bg-[#E6F2D9] rounded-xl p-5 flex justify-between items-center border border-[#C5E1A5]">
+                            <span className="text-[#114C2A] font-bold text-sm">Converted</span>
+                            <span className="text-[#114C2A] font-black text-2xl truncate ml-4">
+                                {exchangeRates[targetCurrency] ? `${(convertAmount * exchangeRates[targetCurrency]).toLocaleString('en-US', {maximumFractionDigits:2})}` : '...'} {targetCurrency}
+                            </span>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* INJECTED 8: LIVE PULSE GLOBE */}
-                <div className="px-4 mb-16">
-                    <LivePulseGlobe />
+            {/* INJECTED 6: SERIES RAIL */}
+            <SeriesRail />
+
+            {/* INJECTED 7: VENUE SPOTLIGHT WITH WEATHER WIDGET */}
+            <div className="mb-16 px-4">
+                <h2 className="text-2xl font-black text-[#1a1a1a] mb-8">Top Venues in {userCity}</h2>
+                <div className="space-y-4">
+                    {venues.map((v, i) => (
+                        <div key={i} className="relative group">
+                            <VenueCard venue={v} />
+                            <div className="absolute top-4 right-4 md:right-20">
+                                <WeatherWidget lat={v.lat} lon={v.lon} />
+                            </div>
+                        </div>
+                    ))}
                 </div>
+            </div>
+
+            {/* INJECTED 8: LIVE PULSE GLOBE */}
+            <div className="px-4 mb-16">
+                <LivePulseGlobe />
             </div>
 
             {/* STRICT NEWSLETTER SUBSCRIPTION BLOCK (Existing UI Untouched) */}
@@ -485,7 +587,8 @@ export default function Home() {
                 </p>
             </div>
 
-            {/* INJECTED 9: PURCHASE TOAST (Absolute bottom left) */}
+            {/* Floating Global Widgets */}
+            <ThemePreview />
             <PurchaseToast />
 
         </div>
