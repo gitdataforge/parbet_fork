@@ -58,13 +58,6 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // NEW: Extra Features State (Spotify, Theme)
-    // ------------------------------------------------------------------
-    spotifyToken: null,
-    spotifyTokenExp: null,
-    theme: localStorage.getItem('parbet_theme') || 'light',
-
-    // ------------------------------------------------------------------
     // NEW: Performer Page Deep Filters
     // ------------------------------------------------------------------
     performerFilters: {
@@ -145,31 +138,6 @@ export const useAppStore = create((set, get) => ({
     setLocationError: (errorMsg) => set({ locationError: errorMsg }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setActiveEvent: (event) => set({ activeEvent: event }),
-
-    // ------------------------------------------------------------------
-    // NEW: Extra Features Setters (Trivia, Spotify, Theme)
-    // ------------------------------------------------------------------
-    addDiamonds: (amount) => set((state) => ({ diamonds: state.diamonds + amount })),
-    
-    setSpotifyToken: (token, expiresIn) => set({ 
-        spotifyToken: token, 
-        // Calculate exact expiration timestamp to prevent unnecessary re-auths
-        spotifyTokenExp: Date.now() + (expiresIn * 1000) 
-    }),
-    
-    toggleTheme: () => set((state) => {
-        const newTheme = state.theme === 'light' ? 'dark' : 'light';
-        localStorage.setItem('parbet_theme', newTheme);
-        
-        // Actively manipulate the DOM for immediate global visual feedback
-        if (newTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-        
-        return { theme: newTheme };
-    }),
 
     // ------------------------------------------------------------------
     // NEW: Manual Location Strict Setter
