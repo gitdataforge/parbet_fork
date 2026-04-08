@@ -10,7 +10,8 @@ import {
     runTransaction, 
     doc, 
     addDoc,
-    setDoc
+    setDoc,
+    onSnapshot
 } from 'firebase/firestore';
 
 // Helper to resolve real-world currency from reverse-geocode country codes
@@ -36,13 +37,16 @@ export const useAppStore = create((set, get) => ({
     isAuthModalOpen: false,
     
     // Real-Time API Data (Aggregated 2026 Feed)
+    apiMatches: [],
+    sellerMatches: [],
     liveMatches: [],
     trendingPerformers: [], 
     isLoadingMatches: true,
     apiError: null,
+    unsubscribeSellerTickets: null,
     
     // ------------------------------------------------------------------
-    // NEW: Strict Location & Internationalization
+    // Strict Location & Internationalization
     // ------------------------------------------------------------------
     manualCity: localStorage.getItem('parbet_manual_city') || null,
     userCity: 'Loading...',
@@ -58,7 +62,7 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // NEW: Performer Page Deep Filters
+    // Performer Page Deep Filters
     // ------------------------------------------------------------------
     performerFilters: {
         dateRange: { from: null, to: null },
@@ -140,7 +144,7 @@ export const useAppStore = create((set, get) => ({
     setActiveEvent: (event) => set({ activeEvent: event }),
 
     // ------------------------------------------------------------------
-    // NEW: Manual Location Strict Setter
+    // Manual Location Strict Setter
     // ------------------------------------------------------------------
     setManualLocation: (city) => {
         localStorage.setItem('parbet_manual_city', city);
@@ -148,6 +152,7 @@ export const useAppStore = create((set, get) => ({
             manualCity: city,
             userCity: city,
             liveMatches: [], // Instantly purge old data to prevent UI bleed
+            apiMatches: [],
             trendingPerformers: [],
             isLocationDropdownOpen: false,
             isLoadingMatches: true
@@ -156,7 +161,7 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // NEW: Performer Filter Setters
+    // Performer Filter Setters
     // ------------------------------------------------------------------
     setPerformerFilter: (filterType, value) => set((state) => ({
         performerFilters: {
@@ -205,7 +210,7 @@ export const useAppStore = create((set, get) => ({
     },
     resetCheckoutTimer: () => set({ checkoutExpiration: null, checkoutStep: 1 }),
 
-    // Favorites Action (Local Storage + Firebase Sync)
+    // Favorites Action (Strict Artifact Path Security)
     toggleFavorite: async (eventObj) => {
         const state = get();
         const isFav = state.favorites.some(f => f.id === eventObj.id);
@@ -217,8 +222,10 @@ export const useAppStore = create((set, get) => ({
         set({ favorites: newFavorites });
 
         if (state.user) {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             try {
-                const userRef = doc(db, 'users', state.user.uid);
+                // STRICT RULE 1: Mandated 6-segment path for private data
+                const userRef = doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data');
                 await setDoc(userRef, { favorites: newFavorites }, { merge: true });
             } catch (err) {
                 console.error('Failed to sync favorites to Firebase', err);
@@ -237,14 +244,6 @@ export const useAppStore = create((set, get) => ({
         localStorage.removeItem('parbet_recent_searches');
         return { recentSearches: [] };
     }),
-
-    // Logic to extract unique performers from real API data
-    updateTrendingPerformers: (matches) => {
-        const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
-            .filter(Boolean)
-            .map(name => ({ name }));
-        set({ trendingPerformers: performers });
-    },
 
     getSectionAggregates: () => {
         const listings = get().eventListings;
@@ -265,19 +264,85 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
+    // LIVE SELLER TICKET LISTENER & MULTI-API MERGER
+    // ------------------------------------------------------------------
+    initSellerTicketsListener: () => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // STRICT RULE 1: Mandated path for public shared application data
+        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+
+        const unsub = onSnapshot(ticketsRef, (snapshot) => {
+            const sellerEvents = [];
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                if (data.status !== 'active' && data.status !== undefined) return;
+                
+                const eventDate = new Date(data.date || data.commence_time || Date.now());
+                const teams = (data.eventName || data.t1 || '').split(' vs ');
+                
+                sellerEvents.push({
+                    id: docSnap.id,
+                    t1: teams[0] || data.t1 || data.eventName || 'TBA',
+                    t2: teams[1] || data.t2 || '',
+                    league: data.league || 'Indian Premier League',
+                    commence_time: data.date || data.commence_time || eventDate.toISOString(),
+                    dow: eventDate.toLocaleDateString('en-US', { weekday: 'short' }),
+                    day: eventDate.getDate(),
+                    month: eventDate.toLocaleDateString('en-US', { month: 'short' }),
+                    time: data.time || eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    loc: data.venue || data.loc || `${data.city || 'Local Stadium'}, India`,
+                    country: data.country || 'IN',
+                    source: 'ParbetSeller',
+                    proximityScore: 4, // Heavily weight local seller tickets over API generics
+                    ...data
+                });
+            });
+
+            set(state => {
+                const combined = [...state.apiMatches, ...sellerEvents];
+                // Mathematical sorting to enforce relevancy and chronology
+                const sorted = combined.sort((a, b) => {
+                    if (b.proximityScore !== a.proximityScore) {
+                        return (b.proximityScore || 1) - (a.proximityScore || 1);
+                    }
+                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
+                });
+                
+                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
+                    .filter(Boolean)
+                    .map(name => ({ name }));
+
+                return {
+                    sellerMatches: sellerEvents,
+                    liveMatches: sorted,
+                    trendingPerformers: performers
+                };
+            });
+        }, (error) => {
+            console.error("Failed to sync live seller tickets:", error);
+        });
+
+        set({ unsubscribeSellerTickets: unsub });
+    },
+
+    // ------------------------------------------------------------------
     // CORE LOGIC: Multi-API Orchestration & Strict Location Fetch
     // ------------------------------------------------------------------
     fetchLocationAndMatches: async (cityOverride = null) => {
         set({ isLoadingMatches: true, apiError: null });
+
+        // Spin up the real-time seller ticket connection if not active
+        if (!get().unsubscribeSellerTickets) {
+            get().initSellerTicketsListener();
+        }
+
         try {
-            // Strictly check for manual location persistence first
             const manualCity = localStorage.getItem('parbet_manual_city');
             const targetCity = cityOverride || manualCity;
 
             let geo, city, country;
 
             if (targetCity) {
-                // If a manual city is provided/stored, map it strictly to its state for cascading logic
                 const cityToStateMap = {
                     'mumbai': 'Maharashtra', 'pune': 'Maharashtra', 'nagpur': 'Maharashtra', 'thane': 'Maharashtra',
                     'delhi': 'Delhi', 'new delhi': 'Delhi',
@@ -299,34 +364,44 @@ export const useAppStore = create((set, get) => ({
                 const mappedState = cityToStateMap[targetCity.toLowerCase()] || '';
 
                 city = targetCity;
-                country = 'IN'; // Assuming India context for manual selections currently
+                country = 'IN'; 
                 geo = { city: targetCity, state: mappedState, countryCode: 'IN', lat: null, lon: null };
             } else {
-                // Only fall back to auto-detection if no manual preference exists
                 geo = await fetchUserCity();
                 city = geo.city || 'Mumbai';
                 country = geo.countryCode || 'IN';
             }
 
-            // Pass the strict location directly into the Aggregator including the state for cascading fallback
             const matches = await aggregateAllEvents({ 
                 city: city, 
                 state: geo.state || geo.region || '', 
                 countryCode: country 
             });
             
-            const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
-                .filter(Boolean)
-                .map(name => ({ name }));
-            
-            set({ 
-                userCity: city, 
-                userCountry: country,
-                userCurrency: getCurrencyFromCountry(country),
-                strictLocation: { ...geo, city },
-                liveMatches: matches, 
-                trendingPerformers: performers, 
-                isLoadingMatches: false 
+            // Mathematically merge freshly fetched API feeds with the live seller state
+            set(state => {
+                const combined = [...matches, ...state.sellerMatches];
+                const sorted = combined.sort((a, b) => {
+                    if (b.proximityScore !== a.proximityScore) {
+                        return (b.proximityScore || 1) - (a.proximityScore || 1);
+                    }
+                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
+                });
+
+                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
+                    .filter(Boolean)
+                    .map(name => ({ name }));
+                
+                return { 
+                    userCity: city, 
+                    userCountry: country,
+                    userCurrency: getCurrencyFromCountry(country),
+                    strictLocation: { ...geo, city },
+                    apiMatches: matches,
+                    liveMatches: sorted, 
+                    trendingPerformers: performers, 
+                    isLoadingMatches: false 
+                };
             });
         } catch (error) {
             console.error("Critical State Failure:", error);
@@ -335,9 +410,11 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
+    // STRICT PATH FIX: Use correct 6-segment public artifact path
     fetchEventListings: async (eventId) => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         try {
-            const q = query(collection(db, 'listings'), where('eventId', '==', eventId), where('status', '==', 'active'));
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tickets'), where('eventId', '==', eventId), where('status', '==', 'active'));
             const snapshot = await getDocs(q);
             const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             set({ eventListings: listings });
@@ -346,24 +423,31 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
+    // STRICT PATH FIX: Secure multi-tier transaction processing with correct pathing
     executePurchase: async (listingId, buyerId, amount) => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         set({ isCheckingOut: true });
         try {
             await runTransaction(db, async (transaction) => {
-                const listingRef = doc(db, 'listings', listingId);
-                const buyerRef = doc(db, 'users', buyerId);
+                const listingRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', listingId);
+                const buyerRef = doc(db, 'artifacts', appId, 'users', buyerId, 'profile', 'data');
+                
                 const listingSnap = await transaction.get(listingRef);
                 const buyerSnap = await transaction.get(buyerRef);
+                
                 if (!listingSnap.exists() || listingSnap.data().status !== 'active') throw new Error("Listing is no longer available.");
                 if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
+                
                 const sellerId = listingSnap.data().sellerId;
-                const sellerRef = doc(db, 'users', sellerId);
+                const sellerRef = doc(db, 'artifacts', appId, 'users', sellerId, 'profile', 'data');
                 const sellerSnap = await transaction.get(sellerRef);
+                
                 transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
                 const currentSellerBalance = sellerSnap.exists() ? (sellerSnap.data().balance || 0) : 0;
                 transaction.update(sellerRef, { balance: currentSellerBalance + amount });
                 transaction.update(listingRef, { status: 'sold' });
-                const orderRef = doc(collection(db, 'orders'));
+                
+                const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                 transaction.set(orderRef, { listingId, buyerId, sellerId, amount, eventName: listingSnap.data().eventName, createdAt: new Date().toISOString() });
             });
             set({ isCheckingOut: false });
@@ -392,7 +476,6 @@ export const useAppStore = create((set, get) => ({
                     const resolvedCountry = data.countryCode || 'IN';
                     const resolvedCurrency = getCurrencyFromCountry(data.countryCode); 
                     
-                    // Hard clear the manual override so strict GPS overrides the user's past selections
                     localStorage.removeItem('parbet_manual_city');
 
                     set({ 
