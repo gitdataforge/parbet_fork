@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
+import { useSellerStore } from '../../store/useSellerStore';
+import SearchDropdown from '../../components/SearchDropdown';
 
 export default function Home() {
-    const [searchQuery, setSearchQuery] = useState('');
+    const { searchQuery, setSearchQuery, fetchLiveEvents } = useSellerStore();
     const navigate = useNavigate();
+
+    // Fetch real-world ESPN API data the moment the seller lands on the page
+    useEffect(() => {
+        fetchLiveEvents();
+    }, [fetchLiveEvents]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -59,20 +66,25 @@ export default function Home() {
                     parbet is the world's largest secondary marketplace for tickets to live events
                 </p>
 
-                {/* Central Search Bar */}
-                <form 
-                    onSubmit={handleSearch}
-                    className="w-full max-w-[800px] bg-white border border-[#cccccc] rounded-[8px] h-[56px] flex items-center px-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-gray-400 transition-all focus-within:border-[#458731] focus-within:ring-1 focus-within:ring-[#458731] group"
-                >
-                    <Search size={20} className="text-gray-500 shrink-0 group-focus-within:text-[#458731]" />
-                    <input 
-                        type="text" 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search your event and start selling" 
-                        className="flex-1 h-full outline-none text-[16px] text-[#1a1a1a] ml-3 placeholder-gray-500 bg-transparent"
-                    />
-                </form>
+                {/* Central Search Bar & Real-Time Dropdown Container */}
+                <div className="relative w-full max-w-[800px]">
+                    <form 
+                        onSubmit={handleSearch}
+                        className="w-full bg-white border border-[#cccccc] rounded-[8px] h-[56px] flex items-center px-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-gray-400 transition-all focus-within:border-[#458731] focus-within:ring-1 focus-within:ring-[#458731] group"
+                    >
+                        <Search size={20} className="text-gray-500 shrink-0 group-focus-within:text-[#458731]" />
+                        <input 
+                            type="text" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search your event and start selling" 
+                            className="flex-1 h-full outline-none text-[16px] text-[#1a1a1a] ml-3 placeholder-gray-500 bg-transparent"
+                        />
+                    </form>
+
+                    {/* LIVE API SEARCH DROPDOWN */}
+                    <SearchDropdown />
+                </div>
 
                 {/* 3. READY TO LIST CTA BLOCK */}
                 <div className="mt-28 flex flex-col items-center text-center">

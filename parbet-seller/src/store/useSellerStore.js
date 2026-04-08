@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
+import { aggregateAllEvents } from '../services/eventAggregator';
 
 export const useSellerStore = create((set, get) => ({
     // Seller Authentication State
@@ -9,9 +10,78 @@ export const useSellerStore = create((set, get) => ({
     isSubmitting: false,
     submitError: null,
 
+    // Live API State (For Search & Listing Creation)
+    liveMatches: [],
+    searchQuery: '',
+    isLoadingEvents: false,
+
+    // Seller Dashboard State (For Tracking Active Tickets)
+    myListings: [],
+    isLoadingListings: false,
+    unsubscribeListings: null,
+
     // Auth Setters
     setUser: (user) => set({ user, isAuthenticated: !!user }),
-    logout: () => set({ user: null, isAuthenticated: false }),
+    logout: () => {
+        const { unsubscribeListings } = get();
+        if (unsubscribeListings) unsubscribeListings(); // Clean up listener to prevent memory leaks
+        set({ user: null, isAuthenticated: false, myListings: [], unsubscribeListings: null });
+    },
+
+    // API & Search Setters
+    setSearchQuery: (query) => set({ searchQuery: query }),
+
+    // ------------------------------------------------------------------
+    // LIVE SPORTS API PIPELINE
+    // ------------------------------------------------------------------
+    fetchLiveEvents: async () => {
+        set({ isLoadingEvents: true });
+        try {
+            // Fetch 100% real-world events via our custom ESPN aggregator
+            const events = await aggregateAllEvents({ city: '', state: '', countryCode: 'IN' });
+            set({ liveMatches: events, isLoadingEvents: false });
+        } catch (error) {
+            console.error("Failed to fetch live events from API network:", error);
+            set({ isLoadingEvents: false });
+        }
+    },
+
+    // ------------------------------------------------------------------
+    // REAL-TIME DASHBOARD TRACKING (Buyer-Seller Sync)
+    // ------------------------------------------------------------------
+    fetchMyListings: () => {
+        const state = get();
+        if (!state.user) return;
+
+        set({ isLoadingListings: true });
+
+        // CRITICAL PATH: Dynamically resolve the environment App ID
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // STRICT RULE 1: Target the exact public shared path the buyer site listens to
+        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+        
+        // Strictly filter to ONLY show tickets created by the logged-in seller
+        const q = query(ticketsRef, where('sellerId', '==', state.user.uid));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const listings = [];
+            snapshot.forEach(doc => {
+                listings.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // Chronological sort: newest events first
+            listings.sort((a, b) => new Date(b.commence_time) - new Date(a.commence_time));
+            
+            set({ myListings: listings, isLoadingListings: false });
+        }, (error) => {
+            console.error("Failed to fetch seller listings from shared network:", error);
+            set({ isLoadingListings: false });
+        });
+
+        // Store the unsubscribe function to clean up when the user logs out
+        set({ unsubscribeListings: unsubscribe });
+    },
 
     // ------------------------------------------------------------------
     // CORE LOGIC: Strict Cross-App Data Bridge
