@@ -6,7 +6,6 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useAppStore } from './store/useStore';
 
 import Onboarding from './components/Onboarding';
-import AuthModal from './components/AuthModal';
 import LocationToast from './components/LocationToast';
 import Header from './components/Header';
 import ExploreHeader from './components/ExploreHeader';
@@ -17,26 +16,26 @@ import Maintenance from './pages/Maintenance';
 // Dynamic module imports
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const routes = Object.keys(pages).map((path) => {
-  const name = path.match(/\.\/pages\/(.*)\/index\.jsx$/)[1];
-  return { name, Component: pages[path].default };
+    const name = path.match(/\.\/pages\/(.*)\/index\.jsx$/)[1];
+    return { name, Component: pages[path].default };
 });
 
 function MainLayout() {
     const location = useLocation();
     const { isAuthenticated } = useAppStore();
     
-    // Strict route-matching to detect immersive Event pages
-    const isEventPage = location.pathname.includes('/event');
+    // Strict route-matching to detect immersive/standalone pages (Event, Login, Signup)
+    const isIsolatedPage = ['/event', '/login', '/signup'].some(path => location.pathname.toLowerCase().startsWith(path));
 
     return (
-        <div className="flex flex-col w-full min-h-screen bg-brand-bg text-brand-text relative">
-            {/* Dynamic Header Rendering based on Route. Forcefully unmounted on Event pages. */}
-            {!isEventPage && (
+        <div className="flex flex-col w-full min-h-screen bg-white text-brand-text relative">
+            {/* Dynamic Header Rendering based on Route. Forcefully unmounted on isolated pages. */}
+            {!isIsolatedPage && (
                 location.pathname === '/explore' ? <ExploreHeader /> : <Header />
             )}
             
-            {/* Main scrollable content area. Removes constraints on Event pages for edge-to-edge maps. */}
-            <main className={`flex-1 w-full mx-auto ${isEventPage ? '' : 'max-w-[1400px] p-4 md:p-8'}`}>
+            {/* Main scrollable content area. Removes constraints on isolated pages for edge-to-edge layouts. */}
+            <main className={`flex-1 w-full mx-auto ${isIsolatedPage ? '' : 'max-w-[1400px] p-4 md:p-8'}`}>
                 <Routes>
                     <Route path="/" element={<Home />} />
                     {routes.map(({ name, Component }) => {
@@ -50,7 +49,7 @@ function MainLayout() {
 
                         // STRICT DASHBOARD ACCESS GATING
                         if (name === 'Dashboard') {
-                            return <Route key={name} path={`/dashboard`} element={isAuthenticated ? <Component /> : <Navigate to="/" replace />} />;
+                            return <Route key={name} path={`/dashboard`} element={isAuthenticated ? <Component /> : <Navigate to="/login" replace />} />;
                         }
                         
                         return <Route key={name} path={`/${name.toLowerCase()}`} element={<Component />} />;
@@ -58,11 +57,10 @@ function MainLayout() {
                 </Routes>
             </main>
             
-            {/* Forcefully unmount Footer on Event pages to maximize ticket feed height */}
-            {!isEventPage && <Footer />}
+            {/* Forcefully unmount Footer on isolated pages to maximize immersive height */}
+            {!isIsolatedPage && <Footer />}
             
             {/* Global Overlays & Interceptors */}
-            <AuthModal />
             <LocationToast />
         </div>
     );

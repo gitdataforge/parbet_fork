@@ -9,14 +9,24 @@ import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 import ViagogoEventCard from '../../components/ViagogoEventCard';
 import ViagogoCategoryCard from '../../components/ViagogoCategoryCard';
 
+// Real-time Cloudinary Auto-Optimization Utility
+const optimizeImage = (url, width = 1200) => {
+    if (!url) return '';
+    if (url.includes('res.cloudinary.com')) return url;
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
+    return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,w_${width}/${encodeURIComponent(url)}`;
+};
+
 export default function Home() {
     const navigate = useNavigate();
     const { 
+        isAuthenticated,
         liveMatches,
         fetchLocationAndMatches,
         searchQuery,
         setLocationDropdownOpen,
-        setSearchQuery
+        setSearchQuery,
+        toggleFavorite
     } = useAppStore();
 
     // Initial Data Fetch
@@ -61,6 +71,16 @@ export default function Home() {
     const kabaddiGroups = useMemo(() => {
         return groupedEvents.filter(g => g.name.toLowerCase().includes('kabaddi') || g.name.toLowerCase().includes('pkl'));
     }, [groupedEvents]);
+
+    // STRICT ROUTING GUARD: Redirects to /login instead of triggering a modal
+    const handleRestrictedAction = (e, obj) => {
+        e.stopPropagation();
+        if (!isAuthenticated) {
+            navigate('/login');
+        } else {
+            toggleFavorite(obj);
+        }
+    };
 
     // Exactly replicated Viagogo Event Rail utilizing the new ViagogoEventCard Component
     const EventRail = ({ title, groups }) => {

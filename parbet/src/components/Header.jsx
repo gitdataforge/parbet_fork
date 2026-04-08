@@ -27,7 +27,6 @@ export default function Header() {
     const navigate = useNavigate();
     const { 
         isAuthenticated, 
-        openAuthModal, 
         searchQuery, 
         setSearchQuery,
         isSearchExpanded,
@@ -38,13 +37,16 @@ export default function Header() {
     const [hoveredCategory, setHoveredCategory] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    // Centralized navigation guard for protected routes
+    /**
+     * STRICT NAVIGATION GUARD
+     * Redirects to standalone /login page for all unauthenticated requests.
+     */
     const handleNavigation = (path) => {
         setMobileMenuOpen(false); 
         if (isAuthenticated) {
             navigate(path);
         } else {
-            openAuthModal();
+            navigate('/login');
         }
     };
 
@@ -77,7 +79,8 @@ export default function Header() {
                         {topNavLinks.map((link) => (
                             <div 
                                 key={link.name}
-                                className="relative py-2"
+                                // HITBOX OPTIMIZATION: py-3 provides the physical bridge to the dropdown
+                                className="relative py-3 cursor-pointer"
                                 onMouseEnter={() => setHoveredCategory(link.category)}
                                 onMouseLeave={() => setHoveredCategory(null)}
                             >
@@ -88,7 +91,7 @@ export default function Header() {
                                             navigate('/explore'); 
                                         }
                                     }} 
-                                    className={`transition-colors cursor-pointer ${hoveredCategory === link.category ? 'text-[#458731]' : 'hover:text-[#458731]'}`}
+                                    className={`transition-colors pointer-events-none ${hoveredCategory === link.category ? 'text-[#458731]' : 'hover:text-[#458731]'}`}
                                 >
                                     {link.name}
                                 </button>
@@ -114,7 +117,7 @@ export default function Header() {
                         <button onClick={() => handleNavigation('/dashboard')} className="hover:text-[#458731] transition-colors">Favorites</button>
                         <button onClick={() => handleNavigation('/dashboard')} className="hover:text-[#458731] transition-colors whitespace-nowrap">My Tickets</button>
                         {!isAuthenticated && (
-                            <button onClick={openAuthModal} className="hover:text-[#458731] transition-colors whitespace-nowrap">Sign In</button>
+                            <button onClick={() => navigate('/login')} className="hover:text-[#458731] transition-colors whitespace-nowrap">Sign In</button>
                         )}
                     </nav>
 
@@ -122,7 +125,7 @@ export default function Header() {
                     <div className="flex items-center space-x-4">
                         <UserProfileIcon 
                             isAuthenticated={isAuthenticated} 
-                            onClick={() => isAuthenticated ? navigate('/dashboard') : openAuthModal()} 
+                            onClick={() => isAuthenticated ? navigate('/dashboard') : navigate('/login')} 
                         />
                         
                         {/* Mobile Hamburger */}
@@ -150,10 +153,9 @@ export default function Header() {
                 </div>
             </div>
 
-            {/* Mobile Menu Overlay - Strictly z-[100] to cover search bar */}
+            {/* Mobile Menu Overlay - Isolated Standalone Experience */}
             <div className={`lg:hidden fixed inset-0 bg-white transition-transform duration-300 ease-in-out z-[100] ${mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
                 <div className="flex flex-col h-full pt-24 px-6 pb-10 overflow-y-auto">
-                    {/* Custom Close Button in Mobile Overlay Top Right */}
                     <button onClick={() => setMobileMenuOpen(false)} className="absolute top-6 right-6 p-2">
                         <X size={28} className="text-[#1a1a1a]" />
                     </button>
@@ -168,7 +170,7 @@ export default function Header() {
                         
                         {!isAuthenticated && (
                             <button 
-                                onClick={openAuthModal}
+                                onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}
                                 className="mt-4 bg-[#458731] text-white py-4 rounded-xl font-bold text-lg shadow-md"
                             >
                                 Sign In / Register
