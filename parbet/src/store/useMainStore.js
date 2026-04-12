@@ -2,12 +2,11 @@ import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
 import { 
     collection, 
-    query, 
     onSnapshot, 
     doc, 
     setDoc, 
     serverTimestamp,
-    orderBy
+    query
 } from 'firebase/firestore';
 import { 
     signInAnonymously, 
@@ -22,7 +21,7 @@ export const useMainStore = create((set, get) => ({
     // --- STATE ---
     user: null,
     isAuthenticated: false,
-    authLoading: true,
+    authLoading: true, // Gatekeeper starts in locked mode
 
     // Real-time Data
     orders: [],
@@ -31,32 +30,36 @@ export const useMainStore = create((set, get) => ({
     wallet: { balance: 0, currency: 'INR' },
     isLoadingWallet: false,
 
-    // Internal listener cleanup
+    // Internal listener cleanup registry
     activeListeners: [],
 
     // --- ACTIONS ---
 
     /**
-     * FEATURE 1: Secure Authentication Initialization
-     * Negotiates a real cryptographic identity with Firebase.
+     * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
+     * This is the master lock. It prevents any data sync until a valid UID is granted.
      */
     initAuth: async () => {
         set({ authLoading: true });
         
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                // LOCK RELEASED: Valid identity confirmed
                 set({ user, isAuthenticated: true, authLoading: false });
-                // RULE 3: Start data queries only after authentication is confirmed
+                
+                // TRIGGER: Start data pipeline now that permissions are granted
                 get().startDataListeners(user.uid);
             } else {
+                // If no user, perform auto-login to get a UID
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
+                    // onAuthStateChanged will fire again with the new user
                 } catch (error) {
-                    console.error("Critical Auth Error:", error);
+                    console.error("Critical Auth Handshake Error:", error);
                     set({ authLoading: false });
                 }
             }
@@ -64,33 +67,39 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 2 & 3: Real-Time Data Synchronization
-     * Establishes persistent websocket connections to Firestore for instant updates.
+     * FEATURE 2 & 3: Real-Time Data Synchronization (Guarded)
+     * RULE: Strictly returns immediately if userId is missing.
      */
     startDataListeners: (userId) => {
-        // Stop any existing listeners to prevent memory leaks
+        // SECURITY GATEKEEPER: Prevent premature Firestore access
+        if (!userId) {
+            console.warn("Gatekeeper: Blocked Firestore access - User ID missing.");
+            return;
+        }
+
+        // Stop any existing listeners to prevent memory leaks or duplicate streams
         get().stopListeners();
 
         const listeners = [];
 
-        // 1. ORDERS LISTENER
-        // RULE 1: Strict User-Specific Pathing
+        // 1. ORDERS LISTENER (Private Path)
         set({ isLoadingOrders: true });
         const ordersRef = collection(db, 'artifacts', appId, 'users', userId, 'orders');
         
-        // RULE 2: Simple query to avoid index requirements
         const unsubOrders = onSnapshot(ordersRef, (snapshot) => {
             const ordersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            // Client-side sorting for production performance
             ordersList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             set({ orders: ordersList, isLoadingOrders: false });
         }, (error) => {
-            console.error("Orders sync failed:", error);
+            // Silently handle auth-transition errors during re-auth
+            if (error.code !== 'permission-denied') {
+                console.error("Orders sync failed:", error);
+            }
             set({ isLoadingOrders: false });
         });
         listeners.push(unsubOrders);
 
-        // 2. WALLET LISTENER
+        // 2. WALLET LISTENER (Private Doc)
         set({ isLoadingWallet: true });
         const walletDocRef = doc(db, 'artifacts', appId, 'users', userId, 'wallet', 'main');
         
@@ -98,7 +107,7 @@ export const useMainStore = create((set, get) => ({
             if (snap.exists()) {
                 set({ wallet: snap.data(), isLoadingWallet: false });
             } else {
-                // Feature: Auto-provision wallet for new users
+                // Feature: Auto-provision wallet for new users securely
                 setDoc(walletDocRef, { 
                     balance: 0, 
                     currency: 'INR', 
@@ -107,7 +116,9 @@ export const useMainStore = create((set, get) => ({
                 set({ isLoadingWallet: false });
             }
         }, (error) => {
-            console.error("Wallet sync failed:", error);
+            if (error.code !== 'permission-denied') {
+                console.error("Wallet sync failed:", error);
+            }
             set({ isLoadingWallet: false });
         });
         listeners.push(unsubWallet);
@@ -117,7 +128,6 @@ export const useMainStore = create((set, get) => ({
 
     /**
      * FEATURE 4: Lifecycle Cleanup
-     * Gracefully detaches all real-time listeners.
      */
     stopListeners: () => {
         const { activeListeners } = get();
@@ -135,7 +145,8 @@ export const useMainStore = create((set, get) => ({
             user: null, 
             isAuthenticated: false, 
             orders: [], 
-            wallet: { balance: 0, currency: 'INR' } 
+            wallet: { balance: 0, currency: 'INR' },
+            authLoading: true // Re-lock the gatekeeper
         });
     }
 }));
