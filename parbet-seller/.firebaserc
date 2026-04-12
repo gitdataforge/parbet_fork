@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "parbet-44902"
+  },
+  "targets": {
+    "parbet-44902": {
+      "hosting": {
+        "seller": [
+          "parbet-seller-44902"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
