@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useSellerStore } from './store/useSellerStore';
 
 // Structural Layout Components
 import Header from './components/Header';
@@ -7,10 +8,19 @@ import Footer from './components/Footer';
 
 // Core Real-Time Pages
 import Home from './pages/Home';
-import Dashboard from './pages/seller/Dashboard'; // Resolves to the new src/pages/seller/Dashboard/index.jsx
-import CreateListing from './pages/CreateListing'; // Resolves to the new src/pages/CreateListing/index.jsx
+import Dashboard from './pages/seller/Dashboard';
+import CreateListing from './pages/CreateListing';
+import IPLHub from './pages/seller/IPLHub'; // The new standalone 1:1 Viagogo IPL catalog page
 
 export default function App() {
+    const { initAuth } = useSellerStore();
+
+    // CRITICAL PATH: Securely initialize real Firebase Authentication the millisecond the app loads
+    // This permanently resolves the infinite "Processing..." hang by granting the app a real UID
+    useEffect(() => {
+        initAuth();
+    }, [initAuth]);
+
     return (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             {/* Base shell matching the pristine white aesthetic of the Viagogo seller portal */}
@@ -24,7 +34,10 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
-                        {/* Route to the newly built real-time tracking dashboard */}
+                        {/* Standalone IPL Hub Page (Strictly Zero Modals) */}
+                        <Route path="/ipl" element={<IPLHub />} />
+                        
+                        {/* Route to the real-time tracking dashboard */}
                         <Route path="/dashboard" element={<Dashboard />} />
                         
                         {/* Map both legacy and new routing pathways directly to the real-time API listing flow */}
