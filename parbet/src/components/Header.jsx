@@ -135,7 +135,8 @@ export default function Header() {
                 <div className="flex items-center space-x-4 md:space-x-6">
                     <nav className="hidden lg:flex items-center space-x-6 text-[15px] font-medium text-[#1a1a1a]">
                         <button onClick={() => navigate('/explore')} className="hover:text-[#458731] transition-colors">Explore</button>
-                        <button onClick={() => handleNavigation('/sell')} className="hover:text-[#458731] transition-colors">Sell</button>
+                        {/* FEATURE: Cross-Network Bridge mapped securely to Seller Site URL */}
+                        <button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hover:text-[#458731] transition-colors">Sell</button>
                         <button onClick={() => handleNavigation('/profile/settings')} className="hover:text-[#458731] transition-colors">Favorites</button>
                         <button onClick={() => handleNavigation('/profile/orders')} className="hover:text-[#458731] transition-colors whitespace-nowrap">My Tickets</button>
                         {!isAuthenticated && (
@@ -222,7 +223,8 @@ export default function Header() {
 
                         {menuView === 'sell' && (
                             <ul className="flex flex-col w-full">
-                                <li onClick={() => handleNavigation('/sell')} className="px-5 py-[14px] border-b border-gray-100 text-[15px] text-[#54626c] font-medium cursor-pointer active:bg-gray-50">
+                                {/* FEATURE: Cross-Network Bridge mapped securely to Seller Site URL */}
+                                <li onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="px-5 py-[14px] border-b border-gray-100 text-[15px] text-[#54626c] font-medium cursor-pointer active:bg-gray-50">
                                     Sell Tickets
                                 </li>
                                 <li onClick={() => handleNavigation('/profile/orders')} className="px-5 py-[14px] border-b border-gray-100 text-[15px] text-[#54626c] font-medium cursor-pointer active:bg-gray-50">
