@@ -17,6 +17,14 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
+// FEATURE 1: Bulletproof Date Parser for Firebase Timestamps
+// Prevents the silent sorting crash that breaks the dashboard UI when Firestore returns Timestamp objects or null
+const safeGetTime = (val) => {
+    if (!val) return 0;
+    if (typeof val.toDate === 'function') return val.toDate().getTime();
+    return new Date(val).getTime();
+};
+
 export const useSellerStore = create((set, get) => ({
     // ------------------------------------------------------------------
     // 1. COMPLEX AUTH STATE MACHINE & SECURITY
@@ -90,7 +98,8 @@ export const useSellerStore = create((set, get) => ({
                     const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
                     const unsubListings = onSnapshot(query(ticketsRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                        set({ listings: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+                        // FIX: Applied safeGetTime to prevent date-parsing crashes
+                        set({ listings: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
                     }, (err) => console.error("Listings Listener Error:", err));
                     newUnsubscribers.push(unsubListings);
 
@@ -99,8 +108,9 @@ export const useSellerStore = create((set, get) => ({
                     const unsubSales = onSnapshot(query(ordersRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, type: 'sale', description: `Sold: ${d.data().eventName}`, date: d.data().createdAt || new Date().toISOString(), ...d.data() }));
                         set(state => {
-                            const mergedTx = [...items, ...state.payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                            return { sales: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), transactions: mergedTx };
+                            // FIX: Applied safeGetTime for robust cross-browser chronological sorting
+                            const mergedTx = [...items, ...state.payments].sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+                            return { sales: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)), transactions: mergedTx };
                         });
                     }, (err) => console.error("Sales Listener Error:", err));
                     newUnsubscribers.push(unsubSales);
@@ -108,18 +118,19 @@ export const useSellerStore = create((set, get) => ({
                     // 4. Purchases/Orders Listener
                     const unsubOrders = onSnapshot(query(ordersRef, where('buyerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                        set({ orders: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+                        // FIX: Applied safeGetTime
+                        set({ orders: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
                     }, (err) => console.error("Orders Listener Error:", err));
                     newUnsubscribers.push(unsubOrders);
 
                     // 5. Razorpay Payouts/Remittance Listener
-                    // FEATURE UPDATE: Strictly fixed to 5-segment valid collection path
                     const payoutsRef = collection(db, 'artifacts', appId, 'users', uid, 'payouts');
                     const unsubPayouts = onSnapshot(payoutsRef, (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set(state => {
-                            const mergedTx = [...state.sales, ...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                            return { payments: items.sort((a, b) => new Date(b.date) - new Date(a.date)), transactions: mergedTx };
+                            // FIX: Applied safeGetTime
+                            const mergedTx = [...state.sales, ...items].sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+                            return { payments: items.sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date)), transactions: mergedTx };
                         });
                     }, (err) => console.error("Payouts Listener Error:", err));
                     newUnsubscribers.push(unsubPayouts);
@@ -130,7 +141,6 @@ export const useSellerStore = create((set, get) => ({
                     set({ isLoading: false });
                 }
             } else {
-                // Anonymous sign-in removed for strict seller security. Unauthenticated users stay null.
                 set({ user: null, isAuthenticated: false, authStatus: 'unverified', isLoading: false });
             }
         });
@@ -175,7 +185,6 @@ export const useSellerStore = create((set, get) => ({
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
         const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
         
-        // FEATURE UPDATE: Strictly fixed to 5-segment valid collection path
         const payoutRef = doc(collection(db, 'artifacts', appId, 'users', user.uid, 'payouts'));
 
         // Secure Atomic Transaction
@@ -305,7 +314,13 @@ export const useSellerStore = create((set, get) => ({
                 commenceTimeStr = new Date(`${listingData.date}T${listingData.time}`).toISOString();
             }
 
+            // FEATURE 2: Deterministic Event ID Generator
+            // Automatically generates the unique slug the Main Site expects so your custom tickets link to real event pages
+            const rawEventId = `${listingData.t1}-${listingData.t2 || 'event'}-${commenceTimeStr.split('T')[0]}`;
+            const deterministicEventId = rawEventId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
             const payload = {
+                eventId: deterministicEventId, // INJECTED FIX: Maps exactly to the public Main Site dynamic router
                 sellerId: state.user.uid,
                 t1: listingData.t1,
                 t2: listingData.t2 || '',
