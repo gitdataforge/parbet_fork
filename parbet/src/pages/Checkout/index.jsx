@@ -5,12 +5,11 @@ import {
     ShieldCheck, CreditCard, Ticket, Clock, Check, 
     ChevronDown, ChevronRight, ChevronUp, Lock, MapPin, Truck, 
     User, Mail, Phone, Info, Zap, UploadCloud, FileText, Building, 
-    CheckCircle2, ShieldAlert, Navigation
+    CheckCircle2, ShieldAlert, Navigation, Smartphone
 } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
 import { doc, getDoc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { initiatePayUPayment } from '../../services/payuApi';
 import { uploadToCloudinary } from '../../services/cloudinaryApi';
 
 // Internal components for modular layout
@@ -21,11 +20,13 @@ export default function Checkout() {
     const listingId = searchParams.get('listingId');
     const navigate = useNavigate();
     
+    // FEATURE 1: Extracted executePurchase for Real-Time Razorpay Handler
     const { 
         user, balance, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
         checkoutFormData, updateCheckoutFormData,
-        checkoutExpiration, startCheckoutTimer, resetCheckoutTimer
+        checkoutExpiration, startCheckoutTimer, resetCheckoutTimer,
+        executePurchase
     } = useAppStore();
 
     // Data States
@@ -36,11 +37,11 @@ export default function Checkout() {
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState('');
 
-    // FEATURE 1: Advanced Checkout States
-    const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'paypal' | 'bank_transfer'
+    // FEATURE 2: Advanced Checkout States (Razorpay Compatible)
+    const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'upi' | 'bank_transfer'
     const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
     
-    // FEATURE 2: Cloudinary Upload States
+    // Cloudinary Upload States
     const [receiptFile, setReceiptFile] = useState(null);
     const [receiptPreview, setReceiptPreview] = useState('');
     const [receiptUrl, setReceiptUrl] = useState('');
@@ -81,7 +82,7 @@ export default function Checkout() {
             if (diff <= 0) {
                 clearInterval(interval);
                 resetCheckoutTimer();
-                navigate('/'); // FEATURE 3: Idle Session Protection Routing
+                navigate('/'); // Idle Session Protection
                 return;
             }
             const mins = Math.floor(diff / 60000);
@@ -115,7 +116,6 @@ export default function Checkout() {
         setCheckoutStep(2);
     };
 
-    // FEATURE 4: Real-time Cloudinary Receipt Upload Logic
     const handleReceiptSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -138,19 +138,59 @@ export default function Checkout() {
         }
     };
 
-    // Secure Order Finalization
+    // FEATURE 3: Secure Razorpay Integration Handler
     const handleFinalPayment = async () => {
         setIsProcessingOrder(true);
+        setError('');
+
         try {
-            if (paymentMethod === 'card') {
-                await initiatePayUPayment({
-                    totalAmount: totals.total,
-                    eventName: listing.eventName,
-                    firstName: checkoutFormData.contact.firstName,
-                    lastName: checkoutFormData.contact.lastName,
-                    email: checkoutFormData.contact.email,
-                    phone: checkoutFormData.contact.phone
+            if (paymentMethod === 'card' || paymentMethod === 'upi') {
+                // Verify the script loaded from index.html
+                if (!window.Razorpay) {
+                    throw new Error("Payment gateway failed to load. Please check your internet connection and disable ad-blockers.");
+                }
+
+                // Configure the Razorpay UI
+                const options = {
+                    key: "rzp_test_parbet", // Replace with your production live key
+                    amount: Math.round(totals.total * 100), // Razorpay strictly expects paise
+                    currency: "INR",
+                    name: "Parbet Marketplace",
+                    description: `Tickets for ${listing.eventName}`,
+                    image: "https://parbet-44902.web.app/vite.svg", // Brand Logo
+                    handler: async function (response) {
+                        try {
+                            // FEATURE 4: Instant Secure Firestore Reconciliation upon Gateway Success
+                            await executePurchase(listing.id, user.uid, totals.total);
+                            resetCheckoutTimer();
+                            // Vault the user into the buyer dashboard to view their newly acquired tickets
+                            navigate(`/profile/orders?success=true&payment_id=${response.razorpay_payment_id}`);
+                        } catch (err) {
+                            setError("Payment succeeded but order finalization failed. Please contact support.");
+                        }
+                    },
+                    prefill: {
+                        name: `${checkoutFormData.contact.firstName} ${checkoutFormData.contact.lastName}`,
+                        email: checkoutFormData.contact.email,
+                        contact: checkoutFormData.contact.phone
+                    },
+                    theme: {
+                        color: "#114C2A" // 1:1 Brand Matching
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            setIsProcessingOrder(false); // Release the UI lock if user closes modal
+                        }
+                    }
+                };
+
+                const rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', function (response){
+                    setError(`Transaction Failed: ${response.error.description}`);
+                    setIsProcessingOrder(false);
                 });
+                rzp.open();
+
             } else if (paymentMethod === 'bank_transfer') {
                 if (!receiptUrl) throw new Error("Please upload the payment receipt before finalizing.");
                 
@@ -175,7 +215,6 @@ export default function Checkout() {
             }
         } catch (err) {
             setError(err.message || 'Payment initialization failed. Please try again.');
-        } finally {
             setIsProcessingOrder(false);
         }
     };
@@ -365,18 +404,19 @@ export default function Checkout() {
                             <div onClick={() => setPaymentMethod('card')} className="w-full text-left">
                                 <PaymentOption 
                                     icon={<CreditCard size={24} />} label="Credit / Debit Card" 
-                                    description="Instant processing via PayU India." active={paymentMethod === 'card'}
+                                    description="Instant processing via Razorpay Gateway." active={paymentMethod === 'card'}
                                 />
                             </div>
-                            <div onClick={() => setPaymentMethod('paypal')} className="w-full text-left">
+                            {/* FEATURE 5: Updated from PayPal to localized UPI natively handled by Razorpay */}
+                            <div onClick={() => setPaymentMethod('upi')} className="w-full text-left">
                                 <PaymentOption 
-                                    icon={<img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" className="h-6 rounded-md" alt="PayPal" />} 
-                                    label="PayPal Gateway" description="Fast and secure global payments." active={paymentMethod === 'paypal'}
+                                    icon={<Smartphone size={24} />} 
+                                    label="UPI (GPay, PhonePe, Paytm)" description="Fast and secure mobile payments." active={paymentMethod === 'upi'}
                                 />
                             </div>
                             <div onClick={() => setPaymentMethod('bank_transfer')} className="w-full text-left">
                                 <PaymentOption 
-                                    icon={<Building size={24} />} label="Manual Bank / UPI Transfer" 
+                                    icon={<Building size={24} />} label="Manual Bank Transfer" 
                                     description="Zero processing fees. Requires receipt upload." active={paymentMethod === 'bank_transfer'}
                                 />
                             </div>
@@ -384,9 +424,9 @@ export default function Checkout() {
                             <button 
                                 onClick={() => paymentMethod === 'bank_transfer' ? setCheckoutStep(5) : handleFinalPayment()}
                                 disabled={isProcessingOrder}
-                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl text-lg shadow-xl hover:bg-[#0c361d] transition-all disabled:opacity-70 mt-6"
+                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl text-lg shadow-xl hover:bg-[#0c361d] transition-all disabled:opacity-70 mt-6 flex justify-center items-center"
                             >
-                                {isProcessingOrder ? 'Processing...' : paymentMethod === 'bank_transfer' ? 'Continue to Transfer Proof' : `Pay ₹${totals.total.toLocaleString()}`}
+                                {isProcessingOrder ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : paymentMethod === 'bank_transfer' ? 'Continue to Transfer Proof' : `Pay ₹${totals.total.toLocaleString()}`}
                             </button>
                         </div>
                     </CheckoutStep>
@@ -471,7 +511,7 @@ export default function Checkout() {
                                 <span className="font-black text-[16px] text-[#114C2A] bg-[#EAF4D9] px-3 py-1 rounded-lg">{listing?.quantity || 1} Ticket(s)</span>
                             </div>
                             
-                            {/* FEATURE 4: Advanced Cost Breakdown Accordion */}
+                            {/* Cost Breakdown Accordion */}
                             <div className="border border-gray-200 rounded-xl overflow-hidden">
                                 <button 
                                     onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
@@ -515,7 +555,7 @@ export default function Checkout() {
                         </div>
                     </div>
 
-                    {/* SECTION 3: Trust & Safety Guarantee Panel */}
+                    {/* Trust & Safety Guarantee Panel */}
                     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 bg-[#EAF4D9] rounded-full flex items-center justify-center text-[#114C2A]">
@@ -531,12 +571,12 @@ export default function Checkout() {
                                 <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Full refund if the event is canceled and not rescheduled.
                             </li>
                             <li className="flex items-start text-[13px] font-medium text-gray-600">
-                                <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Secure transactions backed by enterprise encryption.
+                                <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Secure transactions backed by Razorpay encryption.
                             </li>
                         </ul>
                     </div>
 
-                    {/* SECTION 4: Post-Purchase Delivery Timeline */}
+                    {/* Post-Purchase Delivery Timeline */}
                     <div className="bg-gray-900 rounded-2xl p-6 shadow-sm text-white relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
                         <h3 className="font-black text-[16px] mb-6 flex items-center"><Navigation size={18} className="mr-2 text-green-400"/> What happens next?</h3>
@@ -546,7 +586,7 @@ export default function Checkout() {
                                 <div className="md:w-1/2 md:pr-8 text-left md:text-right hidden md:block"></div>
                                 <div className="md:w-1/2 md:pl-8 text-left">
                                     <h4 className="text-[14px] font-bold">Payment Secured</h4>
-                                    <p className="text-[12px] text-gray-400 font-medium">Funds locked in escrow.</p>
+                                    <p className="text-[12px] text-gray-400 font-medium">Funds locked via Razorpay.</p>
                                 </div>
                             </div>
                             <div className="relative flex items-center gap-4 pl-8 md:pl-0 md:justify-center">
