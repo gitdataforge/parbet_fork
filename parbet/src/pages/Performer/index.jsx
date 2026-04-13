@@ -345,7 +345,7 @@ export default function Performer() {
                 {/* 9. APP DOWNLOAD BANNER */}
                 <div className="w-full bg-[#f2f7f4] rounded-[16px] p-6 md:p-10 flex flex-col md:flex-row justify-between items-center relative overflow-hidden mb-12 shadow-sm border border-[#e8f0e4]">
                     <div className="md:w-1/2 z-10 text-center md:text-left mb-6 md:mb-0">
-                        <h2 className="text-[26px] md:text-[32px] font-black text-[#1a1a1a] mb-1 leading-tight tracking-tight">Download the viagogo app</h2>
+                        <h2 className="text-[26px] md:text-[32px] font-black text-[#1a1a1a] mb-1 leading-tight tracking-tight">Download the parbet app</h2>
                         <p className="text-[15px] text-[#54626c] font-medium mb-6">Discover your favourite events with ease</p>
                         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
                             <button className="bg-black text-white px-5 py-2.5 rounded-[8px] flex items-center hover:bg-gray-900 transition-colors w-full sm:w-auto justify-center shadow-md">
