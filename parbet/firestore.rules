@@ -3,74 +3,73 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // =========================================================================
-    // LEGACY ARCHITECTURE (PRESERVED STRICTLY)
-    // =========================================================================
-
-    // 1. site_assets Collection (The CMS Bridge)
-    // Allows Main site to display banners while restricting edits to authenticated sellers
-    match /site_assets/{assetId} {
-      allow read: if true; 
-      allow write: if request.auth != null;
+    // Helper: Checks if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // 2. listings Collection (P2P Tickets)
-    // Public can view tickets; only the owner can modify their specific listing
-    match /listings/{listingId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.sellerId;
-    }
-
-    // 3. users & wallets Collections (Private Data)
-    // Strict ID matching: Users can only see/edit their own profile and balance
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    match /wallets/{walletId} {
-      allow read, write: if request.auth != null && request.auth.uid == walletId;
-    }
-
-    // 4. orders Collection (Transaction History)
-    // Access restricted to the specific buyer or the seller involved in the transaction
-    match /orders/{orderId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null && 
-        (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+    // Helper: Checks if the user is the owner of the private user data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     // =========================================================================
-    // NEW PRODUCTION ARCHITECTURE (100% SECURE ARTIFACT ROUTING)
+    // PRODUCTION ARTIFACT ARCHITECTURE (MANDATORY RULE 1)
     // =========================================================================
     
-    // 5. Artifacts Architecture (Mandatory 6-Segment Pathing)
     match /artifacts/{appId} {
       
-      // A. Public Data (Tickets, Feedback, Shared Marketplace)
-      // Path: /artifacts/{appId}/public/data/{collectionName}/{docId}
-      match /public/data/{collectionName}/{docId} {
-        allow read: if true; // Public can view active listings and global events
-        allow write: if request.auth != null; // Authenticated users can write feedback/tickets
-      }
-      
-      // B. Private User Data (Orders, Wallet, Profile, Settings)
-      // Path: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
-      // Strict ID Matching: Prevents any user from reading another user's financial or order data
-      match /users/{userId}/{collectionName}/{docId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // FEATURE 1: Shared Marketplace Data (Tickets)
+      // Path: /artifacts/{appId}/public/data/tickets/{docId}
+      match /public/data/tickets/{ticketId} {
+        // Buyers can read all available tickets to browse the marketplace
+        allow read: if true;
+        
+        // Buyers are STRICTLY FORBIDDEN from creating or modifying tickets
+        // Only the Seller (via the Seller Site) can write here
+        allow write: if false; 
       }
 
-      // C. Deep Wildcard Fallback for Nested Private Documents (e.g., wallet/main)
+      // FEATURE 2: Transactional Ledger (Orders)
+      // Path: /artifacts/{appId}/public/data/orders/{docId}
+      match /public/data/orders/{orderId} {
+        // Buyers can create orders when they purchase a ticket
+        allow create: if isAuthenticated();
+        
+        // A user can only read an order if they are the buyer or the seller
+        allow read: if isAuthenticated() && (
+          request.auth.uid == resource.data.buyerId || 
+          request.auth.uid == resource.data.sellerId
+        );
+        
+        // Orders are immutable once created to ensure financial integrity
+        allow update, delete: if false;
+      }
+
+      // FEATURE 3: Private Buyer Data (Profile, Wallet, Settings)
+      // Path: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+      match /users/{userId}/{collectionName}/{docId} {
+        // Strict ID Matching: Users can only see/edit their own private records
+        allow read, write: if isOwner(userId);
+      }
+
+      // Deep Wildcard Fallback for nested private structures
       match /users/{userId}/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
 
     // =========================================================================
-    // SECURITY CATCH-ALL
+    // LEGACY & FALLBACK SECURITY
     // =========================================================================
-    // Default deny for any other collection to ensure "Secure by Default" posture
+
+    // Preserve read access for site banners/assets
+    match /site_assets/{assetId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Catch-all: Deny everything else by default
     match /{document=**} {
       allow read, write: if false;
     }
