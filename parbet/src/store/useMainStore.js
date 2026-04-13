@@ -12,8 +12,7 @@ import {
 import { 
     signInAnonymously, 
     onAuthStateChanged, 
-    signInWithCustomToken,
-    sendPasswordResetEmail
+    signInWithCustomToken
 } from 'firebase/auth';
 
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
@@ -149,11 +148,27 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 5: Secure Password Recovery
+     * FEATURE 5: Secure Password Recovery via Vercel Micro-Backend
      */
     resetPassword: async (email) => {
         try {
-            await sendPasswordResetEmail(auth, email);
+            // Update this URL if your Vercel production domain differs
+            const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
+            
+            const response = await fetch(VERCEL_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to dispatch secure password reset email.');
+            }
+
             return { success: true };
         } catch (error) {
             console.error("Password recovery failed:", error);
