@@ -271,12 +271,88 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // LIVE SELLER TICKET LISTENER (DISABLED TO PREVENT PERMISSION SPAM)
+    // LIVE SELLER TICKET LISTENER (ACTIVATED FOR REAL-TIME SYNC)
     // ------------------------------------------------------------------
     initSellerTicketsListener: () => {
-        console.log("Legacy Seller Listener Deactivated - Delegated to useMainStore to prevent permission spam.");
-        // We set a dummy function so existing cleanup calls don't crash
-        set({ unsubscribeSellerTickets: () => {} });
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+        // Only fetch tickets that have not been sold yet
+        const q = query(ticketsRef, where('status', '==', 'active'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const sellerEventsMap = new Map();
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                
+                // FEATURE 1: Deterministic Event Resolution
+                // Group individual active tickets into unified Event Cards based on the shared eventId
+                const eventId = data.eventId || `${data.t1}-${data.t2 || 'event'}-${data.commence_time?.split('T')[0]}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+                if (!sellerEventsMap.has(eventId)) {
+                    sellerEventsMap.set(eventId, {
+                        id: `event_${eventId}`,
+                        eventId: eventId,
+                        t1: data.t1,
+                        t2: data.t2 || '',
+                        league: data.league || 'Indian Premier League',
+                        eventName: data.eventName || (data.t2 ? `${data.t1} vs ${data.t2}` : data.t1),
+                        commence_time: data.commence_time,
+                        loc: data.loc || 'TBA Stadium',
+                        city: data.city || 'Location TBA',
+                        country: data.country || 'IN',
+                        source: 'Parbet_Seller_Network',
+                        minPrice: parseFloat(data.price),
+                        ticketCount: parseInt(data.quantity, 10) || 1
+                    });
+                } else {
+                    // Accumulate ticket counts and find the lowest starting price for the UI
+                    const existing = sellerEventsMap.get(eventId);
+                    existing.ticketCount += (parseInt(data.quantity, 10) || 1);
+                    if (parseFloat(data.price) < existing.minPrice) {
+                        existing.minPrice = parseFloat(data.price);
+                    }
+                }
+            });
+
+            const newSellerMatches = Array.from(sellerEventsMap.values());
+
+            set(state => {
+                // FEATURE 2: Hybrid Pipeline Merge
+                // Merge real-time seller events with any standard API feeds
+                const combined = [...state.apiMatches, ...newSellerMatches];
+                
+                // Deduplicate identical events strictly by team and time
+                const deduplicated = combined.filter((event, index, self) =>
+                    index === self.findIndex((e) => (
+                        e.t1 === event.t1 && e.commence_time === event.commence_time
+                    ))
+                );
+
+                // Chronological Sorting Engine
+                const sorted = deduplicated.sort((a, b) => {
+                    if (b.proximityScore !== a.proximityScore) {
+                        return (b.proximityScore || 1) - (a.proximityScore || 1);
+                    }
+                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
+                });
+
+                // Dynamically extract performers for the Trending UI ribbon
+                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
+                    .filter(Boolean)
+                    .map(name => ({ name }));
+
+                return { 
+                    sellerMatches: newSellerMatches,
+                    liveMatches: sorted,
+                    trendingPerformers: performers
+                };
+            });
+        }, (error) => {
+            console.error("Failed to sync public seller tickets:", error);
+        });
+
+        set({ unsubscribeSellerTickets: unsubscribe });
     },
 
     // ------------------------------------------------------------------
