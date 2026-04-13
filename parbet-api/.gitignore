@@ -1,0 +1,24 @@
+#Dependency directories
+
+node_modules/
+
+#Local Environment Variables (CRITICAL: NEVER COMMIT THIS)
+
+.env
+.env.local
+.env.*.local
+
+#Vercel internal folder
+
+.vercel
+
+#Log files
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+#OS Files
+
+.DS_Store
+Thumbs.db

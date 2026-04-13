@@ -11,8 +11,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
     "cors": "^2.8.6",
-    "firebase-admin": "^13.8.0"
+    "firebase-admin": "^13.8.0",
+    "resend": "^6.11.0"
   }
 }
