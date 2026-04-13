@@ -16,6 +16,7 @@ import ProfileLayout from './layouts/ProfileLayout'; // Master Profile Wrapper
 // Page Components
 import Home from './pages/Home';
 import Maintenance from './pages/Maintenance';
+import Performer from './pages/Performer'; // FEATURE: Explicitly imported to guarantee route registration
 
 // Profile Standalone Nodes (Real-Time Functional Components)
 import Profile from './pages/Profile';
@@ -25,8 +26,8 @@ import Sales from './pages/Profile/Sales';
 import Payments from './pages/Profile/Payments';
 import Settings from './pages/Profile/Settings';
 import Wallet from './pages/Profile/Wallet';
-import Support from './pages/Profile/Support'; // ADDED: Support module
-import Faqs from './pages/Profile/Faqs';       // ADDED: FAQs module
+import Support from './pages/Profile/Support'; 
+import Faqs from './pages/Profile/Faqs';       
 
 // Dynamic module imports for high-performance routing
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
@@ -46,7 +47,7 @@ function MainLayout() {
     );
 
     return (
-        <div className="flex flex-col w-full min-h-screen bg-white text-brand-text relative">
+        <div className="flex flex-col w-full min-h-screen bg-white text-[#1a1a1a] relative">
             {!isIsolatedPage && (
                 location.pathname === '/explore' ? <ExploreHeader /> : <Header />
             )}
@@ -54,6 +55,9 @@ function MainLayout() {
             <main className={`flex-1 w-full mx-auto ${isIsolatedPage ? '' : 'max-w-[1400px] p-0'}`}>
                 <Routes>
                     <Route path="/" element={<Home />} />
+                    
+                    {/* CRITICAL: Formally registered dynamic Performer route for Viagogo Catalog replica */}
+                    <Route path="/performer/:id" element={<Performer />} />
                     
                     {/* 1:1 REPLICA: Nested Profile Architecture (Strictly Zero Modals) */}
                     <Route path="/profile" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
@@ -64,17 +68,13 @@ function MainLayout() {
                         <Route path="payments" element={<Payments />} />
                         <Route path="settings" element={<Settings />} />
                         <Route path="wallet" element={<Wallet />} />
-                        <Route path="support" element={<Support />} /> {/* ADDED: Support Route */}
-                        <Route path="faqs" element={<Faqs />} />       {/* ADDED: FAQs Route */}
+                        <Route path="support" element={<Support />} /> 
+                        <Route path="faqs" element={<Faqs />} />       
                     </Route>
 
                     {dynamicRoutes.map(({ name, Component }) => {
                         // Skip pages already handled by static routes or excluded
-                        if (['Home', 'Maintenance', 'Profile', 'Dashboard'].includes(name)) return null;
-                        
-                        if (name === 'Performer') {
-                            return <Route key={name} path={`/performer/:id`} element={<Component />} />;
-                        }
+                        if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer'].includes(name)) return null;
 
                         // Protect Legacy Dashboard: Redirect to standalone login if unauthorized
                         if (name === 'Dashboard') {
