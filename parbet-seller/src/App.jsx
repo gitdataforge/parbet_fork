@@ -53,6 +53,13 @@ export default function App() {
                 <Route path="/auth/verify" element={<VerifyCode />} />
                 <Route path="/auth/set-password" element={<SetPassword />} />
 
+                {/* FEATURE 8: Standalone Distraction-Free Listing Flow */}
+                {/* Placed OUTSIDE the MainLayout to hide Header/Footer, but protected by AuthGuard */}
+                <Route element={<AuthGuard />}>
+                    <Route path="/sell" element={<CreateListing />} />
+                    <Route path="/create-listing" element={<CreateListing />} />
+                </Route>
+
                 {/* FEATURE 5: Primary Application Shell */}
                 {/* Placed INSIDE the MainLayout to inherit global Header/Footer */}
                 <Route element={<MainLayout />}>
@@ -85,10 +92,6 @@ export default function App() {
                             <Route path="support" element={<Support />} />
                             <Route path="faqs" element={<Faqs />} />
                         </Route>
-                        
-                        {/* Secure Listing Flow */}
-                        <Route path="/sell" element={<CreateListing />} />
-                        <Route path="/create-listing" element={<CreateListing />} />
                     </Route>
                 </Route>
 
