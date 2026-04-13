@@ -113,7 +113,8 @@ export const useSellerStore = create((set, get) => ({
                     newUnsubscribers.push(unsubOrders);
 
                     // 5. Razorpay Payouts/Remittance Listener
-                    const payoutsRef = collection(db, 'artifacts', appId, 'users', uid, 'payouts', 'history');
+                    // FEATURE UPDATE: Strictly fixed to 5-segment valid collection path
+                    const payoutsRef = collection(db, 'artifacts', appId, 'users', uid, 'payouts');
                     const unsubPayouts = onSnapshot(payoutsRef, (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set(state => {
@@ -173,7 +174,9 @@ export const useSellerStore = create((set, get) => ({
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
         const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-        const payoutRef = doc(collection(db, 'artifacts', appId, 'users', user.uid, 'payouts', 'history'));
+        
+        // FEATURE UPDATE: Strictly fixed to 5-segment valid collection path
+        const payoutRef = doc(collection(db, 'artifacts', appId, 'users', user.uid, 'payouts'));
 
         // Secure Atomic Transaction
         await runTransaction(db, async (transaction) => {
