@@ -51,18 +51,22 @@ export default function Performer() {
     const itemsPerPage = 12;
 
     // ==========================================
-    // CRITICAL FIX: REAL-TIME FIREBASE SYNC
+    // CRITICAL FIX: REAL-TIME FIREBASE SYNC (STRICT PATHS)
     // ==========================================
     const [realTimeListings, setRealTimeListings] = useState([]);
 
     useEffect(() => {
         const db = getFirestore();
-        // Listen instantly to the global listings database where sellers push tickets
-        const unsubscribe = onSnapshot(collection(db, 'listings'), (snapshot) => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+        
+        // Listen instantly to the global tickets database using the mandatory 6-segment path
+        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+        
+        const unsubscribe = onSnapshot(ticketsRef, (snapshot) => {
             const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setRealTimeListings(listings);
         }, (error) => {
-            console.warn("Buyer Site Listener pending Firebase initialization.", error);
+            console.error("Buyer Site Listener Permission Error:", error);
         });
 
         if (liveMatches.length === 0 && !isLoadingMatches) {
@@ -115,7 +119,7 @@ export default function Performer() {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-white font-sans text-[#1a1a1a]">
             
-            {/* 1. EXACT VIAGOGO DARK GREEN HERO BANNER (image_bd0924.jpg) */}
+            {/* 1. EXACT VIAGOGO DARK GREEN HERO BANNER */}
             <div className="w-full bg-[#112d1e] h-[240px] md:h-[280px] relative overflow-hidden flex items-center">
                 {/* Fade to transparent for stadium image overlay */}
                 <div className="absolute inset-0 z-0 flex justify-end">
@@ -191,7 +195,7 @@ export default function Performer() {
                     ) : (
                         paginatedEvents.map((m, index) => {
                             // Map real-time Firebase tickets to this specific match
-                            const eventListings = realTimeListings.filter(listing => listing.eventId === m.id || listing.team1 === m.t1);
+                            const eventListings = realTimeListings.filter(listing => listing.eventId === m.id || listing.t1 === m.t1);
                             const hasTickets = eventListings.length > 0;
                             const relativeLabel = getRelativeDateLabel(m.commence_time);
                             
@@ -283,7 +287,7 @@ export default function Performer() {
                     </div>
                 )}
 
-                {/* 7. "FANS ALSO LOVE" CAROUSEL (image_bd0ce7.jpg) */}
+                {/* 7. "FANS ALSO LOVE" CAROUSEL */}
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-[20px] md:text-[24px] font-bold text-[#1a1a1a] tracking-tight">
@@ -315,7 +319,7 @@ export default function Performer() {
                     </div>
                 </div>
 
-                {/* 8. TRENDING EVENTS NEAR LOCATION (image_bd0d0c.jpg) */}
+                {/* 8. TRENDING EVENTS NEAR LOCATION */}
                 {trendingGroups.length > 0 && (
                     <div className="mb-16">
                         <h2 className="text-[20px] md:text-[24px] font-bold text-[#1a1a1a] mb-6 tracking-tight">Trending events near <span className="text-[#458731]">{userCity}</span></h2>
@@ -338,7 +342,7 @@ export default function Performer() {
                     </div>
                 )}
 
-                {/* 9. APP DOWNLOAD BANNER (image_bd0d0c.jpg bottom) */}
+                {/* 9. APP DOWNLOAD BANNER */}
                 <div className="w-full bg-[#f2f7f4] rounded-[16px] p-6 md:p-10 flex flex-col md:flex-row justify-between items-center relative overflow-hidden mb-12 shadow-sm border border-[#e8f0e4]">
                     <div className="md:w-1/2 z-10 text-center md:text-left mb-6 md:mb-0">
                         <h2 className="text-[26px] md:text-[32px] font-black text-[#1a1a1a] mb-1 leading-tight tracking-tight">Download the viagogo app</h2>
@@ -367,7 +371,7 @@ export default function Performer() {
                     </div>
                 </div>
 
-                {/* 10. EMAIL SUBSCRIPTION BANNER (image_bd0d84.png) */}
+                {/* 10. EMAIL SUBSCRIPTION BANNER */}
                 <div className="w-full flex flex-col items-center text-center px-4 mb-8 py-8 border-t border-[#e2e2e2]">
                     <h3 className="text-[16px] md:text-[18px] font-bold text-[#1a1a1a] mb-6">Get hot events and deals delivered straight to your inbox</h3>
                     <div className="flex flex-col sm:flex-row items-center w-full max-w-md space-y-3 sm:space-y-0 sm:space-x-3">
