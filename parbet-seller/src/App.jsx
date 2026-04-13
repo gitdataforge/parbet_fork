@@ -2,6 +2,10 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useSellerStore } from './store/useSellerStore';
 
+// FEATURE: Fleet Command Real-Time Imports
+import { db } from './lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+
 // Structural Layout Components
 import MainLayout from './layouts/MainLayout'; // FEATURE 1: Imported Main Wrapper
 import ProfileLayout from './layouts/ProfileLayout'; 
@@ -41,6 +45,37 @@ export default function App() {
     useEffect(() => {
         initAuth();
     }, [initAuth]);
+
+    // FEATURE 9: Fleet Command Real-Time Deployment Listener
+    useEffect(() => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+        
+        // CRITICAL FIX: Explicitly appending the 6th segment ('latest') to create a valid Document Reference
+        const versionRef = doc(db, 'artifacts', appId, 'public', 'data', 'system_version', 'latest');
+        
+        let currentVersion = null;
+        
+        const unsubscribe = onSnapshot(versionRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (currentVersion === null) {
+                    // Initialize baseline version on first load
+                    currentVersion = data.v || '1.0';
+                } else if (data.v && data.v !== currentVersion) {
+                    // Fleet Command Received: Instant global refresh triggered
+                    console.log("Fleet Command: New deployment detected. Initiating instant cache-busted reload.");
+                    window.location.reload(true);
+                }
+            }
+        }, (error) => {
+            // Silently ignore permission transitions during auth handshakes
+            if (error.code !== 'permission-denied') {
+                console.warn("Fleet Command Listener Status:", error.message);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     return (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

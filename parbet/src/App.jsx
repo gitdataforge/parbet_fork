@@ -5,6 +5,10 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { useAppStore } from './store/useStore';
 import { useMainStore } from './store/useMainStore'; // CRITICAL: Real-time buyer data engine
 
+// FEATURE: Fleet Command Real-Time Imports
+import { db } from './lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+
 // Structural & Layout Components
 import Onboarding from './components/Onboarding';
 import LocationToast from './components/LocationToast';
@@ -109,6 +113,40 @@ export default function App() {
             initAuth();
         }
     }, [isMaintenance, initAuth]);
+
+    /**
+     * FEATURE 2: Fleet Command Real-Time Deployment Listener
+     * Forces all active buyer browsers to hard-reload and fetch cache-busted files instantly on new deployments.
+     */
+    useEffect(() => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+        
+        // CRITICAL FIX: Explicitly appending the 6th segment ('latest') to create a valid Document Reference
+        const versionRef = doc(db, 'artifacts', appId, 'public', 'data', 'system_version', 'latest');
+        
+        let currentVersion = null;
+        
+        const unsubscribe = onSnapshot(versionRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (currentVersion === null) {
+                    // Initialize baseline version on first load
+                    currentVersion = data.v || '1.0';
+                } else if (data.v && data.v !== currentVersion) {
+                    // Fleet Command Received: Instant global refresh triggered
+                    console.log("Fleet Command: New deployment detected. Initiating instant cache-busted reload.");
+                    window.location.reload(true);
+                }
+            }
+        }, (error) => {
+            // Silently ignore permission transitions during auth handshakes
+            if (error.code !== 'permission-denied') {
+                console.warn("Fleet Command Listener Status:", error.message);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     if (isMaintenance) return <Maintenance />;
 
