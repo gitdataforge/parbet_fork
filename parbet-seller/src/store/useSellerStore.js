@@ -14,7 +14,7 @@ import {
     runTransaction,
     setDoc
 } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
@@ -206,6 +206,19 @@ export const useSellerStore = create((set, get) => ({
             set({ iplEvents: events, isLoadingIPLEvents: false });
         } catch (error) {
             set({ isLoadingIPLEvents: false });
+        }
+    },
+
+    // ------------------------------------------------------------------
+    // SECURE ACCOUNT RECOVERY
+    // ------------------------------------------------------------------
+    resetPassword: async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            return { success: true };
+        } catch (error) {
+            console.error("Password recovery failed:", error);
+            throw error;
         }
     },
 
