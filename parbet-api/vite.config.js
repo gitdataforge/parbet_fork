@@ -29,9 +29,25 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Chunks vendor libraries (React, Firebase) to improve loading speed
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom', 'firebase', 'framer-motion'],
+        // FEATURE: Dynamic Chunking Engine (Permanent Fix for Vite 8 / Rolldown)
+        // Replaces the static object with a dynamic function to safely process vendor libraries
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Chunk React Core separately for optimal caching
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'react-core';
+            }
+            // Chunk Firebase SDK to prevent blocking main UI thread
+            if (id.includes('firebase')) {
+              return 'firebase-sdk';
+            }
+            // Chunk Framer Motion, Lucide Icons, and Zustand state manager
+            if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('zustand')) {
+              return 'ui-vendor';
+            }
+            // Group any remaining dependencies into a fallback vendor chunk
+            return 'vendor';
+          }
         },
       },
     },
