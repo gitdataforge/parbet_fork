@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // STRICT FIX: Added AnimatePresence
 import { Loader2, ArrowLeft, MailCheck, AlertCircle } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 
