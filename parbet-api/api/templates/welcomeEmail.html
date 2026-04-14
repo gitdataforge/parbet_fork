@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>Welcome to Parbet</title>
+    
+    <!-- Outlook specific targeting -->
+    <!--[if mso]>
+    <style type="text/css">
+        table, td {border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;}
+        a {text-decoration: none;}
+    </style>
+    <![endif]-->
+
+    <style>
+        /* CSS Animations for Modern Email Clients */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 0 rgba(140, 198, 63, 0.4); }
+            70% { box-shadow: 0 0 0 12px rgba(140, 198, 63, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(140, 198, 63, 0); }
+        }
+        
+        /* Base Resets */
+        body { margin: 0; padding: 0; background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+        table { border-spacing: 0; border-collapse: collapse; }
+        td { padding: 0; }
+        img { border: 0; display: block; max-width: 100%; height: auto; }
+        
+        /* Utility Classes */
+        .wrapper { width: 100%; background-color: #f4f5f7; padding: 40px 20px; }
+        .main-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.04); animation: fadeIn 0.8s ease-out forwards; }
+        .cta-btn { background-color: #458731; color: #ffffff; text-decoration: none; padding: 16px 36px; border-radius: 6px; font-weight: 800; font-size: 16px; display: inline-block; animation: pulseGlow 2.5s infinite; transition: background-color 0.3s; }
+        .cta-btn:hover { background-color: #366a26 !important; }
+        .link-hover:hover { color: #8cc63f !important; text-decoration: underline !important; }
+    </style>
+</head>
+<body>
+
+    <!-- SECTION 1: Invisible Preheader for Inbox Preview -->
+    <div style="display: none; max-height: 0px; overflow: hidden; font-size: 0px; line-height: 0px; color: #f4f5f7;">
+        Welcome to the world's most secure ticketing marketplace. Discover how to safely buy and sell tickets today.
+        &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+    </div>
+
+    <div class="wrapper">
+        <table class="main-container" width="100%" align="center">
+            
+            <!-- SECTION 2: Brand Header -->
+            <tr>
+                <td align="center" style="padding: 35px 20px; border-bottom: 4px solid #8cc63f; background-color: #ffffff;">
+                    <h2 style="margin: 0; font-size: 42px; font-weight: 900; letter-spacing: -2px; font-family: 'Arial Black', Arial, sans-serif;">
+                        <span style="color: #54626c;">par</span><span style="color: #8cc63f;">bet</span>
+                    </h2>
+                </td>
+            </tr>
+
+            <!-- SECTION 3: Hero Banner Area -->
+            <tr>
+                <td align="center" style="background-color: #1a1a1a; padding: 60px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0 0 15px; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">You're in the club!</h1>
+                    <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0; font-weight: 500;">
+                        The global marketplace for live experiences is now at your fingertips.
+                    </p>
+                </td>
+            </tr>
+
+            <!-- SECTION 4: Personalized Greeting & Introduction -->
+            <tr>
+                <td style="padding: 40px 40px 20px;">
+                    <p style="color: #1a1a1a; font-size: 18px; font-weight: 700; margin-bottom: 15px;">Hello {{userName}},</p>
+                    <p style="color: #54626c; font-size: 16px; line-height: 1.7; margin-bottom: 0;">
+                        We are thrilled to welcome you to <strong>Parbet</strong>. Whether you're here to secure front-row seats to a sold-out match, or looking to safely sell your spare tickets to millions of fans globally, you've come to the right place.
+                    </p>
+                </td>
+            </tr>
+
+            <!-- SECTION 5: Primary Animated Call-to-Action -->
+            <tr>
+                <td align="center" style="padding: 20px 40px 40px;">
+                    <a href="{{dashboardUrl}}" class="cta-btn">Access Your Dashboard</a>
+                </td>
+            </tr>
+
+            <!-- SECTION 6: Quick Start Divider -->
+            <tr>
+                <td style="padding: 0 40px;">
+                    <table width="100%">
+                        <tr>
+                            <td style="border-top: 1px solid #e2e2e2; padding-top: 30px;">
+                                <h3 style="color: #1a1a1a; font-size: 20px; font-weight: 800; margin: 0 0 25px; text-align: center;">How Parbet Works</h3>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 7: Step 1 - Search & Discover -->
+            <tr>
+                <td style="padding: 0 40px 25px;">
+                    <table width="100%">
+                        <tr>
+                            <td width="50" valign="top" style="padding-top: 2px;">
+                                <div style="width: 36px; height: 36px; background-color: #f2f7ef; color: #458731; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 800; font-size: 18px;">1</div>
+                            </td>
+                            <td>
+                                <h4 style="color: #1a1a1a; font-size: 16px; margin: 0 0 5px;">Discover Events</h4>
+                                <p style="color: #54626c; font-size: 14px; line-height: 1.6; margin: 0;">Search millions of live sports, concerts, and theater events globally. Our real-time engine ensures you see live inventory instantly.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 8: Step 2 - Secure Transaction -->
+            <tr>
+                <td style="padding: 0 40px 25px;">
+                    <table width="100%">
+                        <tr>
+                            <td width="50" valign="top" style="padding-top: 2px;">
+                                <div style="width: 36px; height: 36px; background-color: #f2f7ef; color: #458731; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 800; font-size: 18px;">2</div>
+                            </td>
+                            <td>
+                                <h4 style="color: #1a1a1a; font-size: 16px; margin: 0 0 5px;">Transact Safely</h4>
+                                <p style="color: #54626c; font-size: 14px; line-height: 1.6; margin: 0;">Buyers are protected by our secure checkout. Sellers are guaranteed payment. We handle the fraud checks so you don't have to.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 9: Step 3 - Enjoy or Profit -->
+            <tr>
+                <td style="padding: 0 40px 40px;">
+                    <table width="100%">
+                        <tr>
+                            <td width="50" valign="top" style="padding-top: 2px;">
+                                <div style="width: 36px; height: 36px; background-color: #f2f7ef; color: #458731; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 800; font-size: 18px;">3</div>
+                            </td>
+                            <td>
+                                <h4 style="color: #1a1a1a; font-size: 16px; margin: 0 0 5px;">Instant Delivery & Payouts</h4>
+                                <p style="color: #54626c; font-size: 14px; line-height: 1.6; margin: 0;">Tickets are delivered digitally before the event. Sellers receive automated bank transfers 24-48 hours after the event concludes.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 10: Enterprise Guarantee Highlights Box -->
+            <tr>
+                <td style="padding: 0 40px 40px;">
+                    <table width="100%" style="background-color: #f8f9fa; border: 1px solid #e2e2e2; border-radius: 8px; padding: 25px;">
+                        <tr>
+                            <td align="center">
+                                <h3 style="color: #1a1a1a; font-size: 18px; font-weight: 800; margin: 0 0 15px;">The Parbet Guarantee 🛡️</h3>
+                                <p style="color: #54626c; font-size: 14px; line-height: 1.6; margin: 0;">
+                                    Every single order is 100% guaranteed. You will receive valid tickets in time for the event, or we will provide comparable replacement tickets or your money back.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 11: Mobile Application Placeholder -->
+            <tr>
+                <td align="center" style="padding: 10px 40px 40px;">
+                    <p style="color: #1a1a1a; font-size: 14px; font-weight: 700; margin: 0 0 15px;">Take Parbet anywhere</p>
+                    <table align="center" border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td align="center" style="background-color: #1a1a1a; border-radius: 4px;">
+                                <a href="#" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold;">📱 Download for iOS</a>
+                            </td>
+                            <td width="15"></td>
+                            <td align="center" style="background-color: #1a1a1a; border-radius: 4px;">
+                                <a href="#" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: bold;">🤖 Download for Android</a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            <!-- SECTION 12: Help & Support Links -->
+            <tr>
+                <td align="center" style="padding: 30px 40px; border-top: 1px solid #f0f0f0;">
+                    <p style="color: #1a1a1a; font-size: 15px; font-weight: 700; margin: 0 0 10px;">Need assistance?</p>
+                    <p style="color: #54626c; font-size: 14px; margin: 0;">
+                        Our global support team is available 24/7.<br>
+                        <a href="{{supportUrl}}" class="link-hover" style="color: #0064d2; text-decoration: none; font-weight: 600; display: inline-block; margin-top: 8px;">Visit the Help Center &rarr;</a>
+                    </p>
+                </td>
+            </tr>
+
+            <!-- SECTION 13: Legal, Unsubscribe & Footer -->
+            <tr>
+                <td align="center" style="padding: 35px 40px; background-color: #1a1a1a;">
+                    <p style="color: #ffffff; font-size: 14px; font-weight: 800; margin: 0 0 15px; letter-spacing: -0.5px;">parbet.</p>
+                    <p style="color: #808080; font-size: 12px; line-height: 1.6; margin: 0 0 15px;">
+                        This email was sent to {{email}} because you recently created an account on Parbet.<br>
+                        If you did not make this request, please contact our security team immediately.
+                    </p>
+                    <p style="color: #808080; font-size: 12px; margin: 0;">
+                        <a href="{{unsubscribeUrl}}" style="color: #b0b0b0; text-decoration: underline;">Unsubscribe</a> &nbsp;|&nbsp; 
+                        <a href="#" style="color: #b0b0b0; text-decoration: underline;">Privacy Policy</a> &nbsp;|&nbsp; 
+                        <a href="#" style="color: #b0b0b0; text-decoration: underline;">Terms of Service</a>
+                    </p>
+                    <p style="color: #606060; font-size: 11px; margin: 15px 0 0;">
+                        &copy; 2026 Parbet Global Marketplace Technologies. All rights reserved.
+                    </p>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+</body>
+</html>
