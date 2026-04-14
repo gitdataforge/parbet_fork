@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import FeedbackTab from '../components/FeedbackTab';
+import ProfileHeader from '../components/ProfileHeader'; // FEATURE 1: Imported the 1:1 Viagogo UI Clone Header
 
 export default function ProfileLayout() {
     const location = useLocation();
@@ -11,7 +12,7 @@ export default function ProfileLayout() {
     const [userInitials, setUserInitials] = useState('GU');
     const [userDisplayName, setUserDisplayName] = useState('Guest User');
 
-    // FEATURE 1 & 2: Real-time Firebase Identity Extraction & Parsing
+    // FEATURE 2 & 3: Real-time Firebase Identity Extraction & Parsing
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -39,7 +40,7 @@ export default function ProfileLayout() {
         return () => unsubscribe();
     }, []);
 
-    // FEATURE 3-11: Strict Multi-Page Navigation Configuration
+    // FEATURE 4-12: Strict Multi-Page Navigation Configuration
     const navLinks = [
         { path: '/profile', label: 'Profile' },
         { path: '/profile/orders', label: 'My Orders' },
@@ -53,53 +54,60 @@ export default function ProfileLayout() {
     ];
 
     return (
-        <div className="flex w-full min-h-[calc(100vh-80px)] bg-white font-sans relative">
+        <div className="flex flex-col w-full min-h-screen bg-white font-sans relative">
             
-            {/* 1:1 REPLICA: Desktop Grey Sidebar (Hidden on Mobile in favor of MobileMenu) */}
-            <aside className="hidden md:flex flex-col w-[220px] bg-[#f8f9fa] border-r border-[#e2e2e2] shrink-0">
+            {/* INJECTED 1:1 VIAGOGO PROFILE HEADER */}
+            <ProfileHeader />
+
+            {/* Container for Sidebar and Main Content */}
+            <div className="flex w-full flex-1">
                 
-                {/* User Identity Block */}
-                <div className="py-10 flex flex-col items-center justify-center border-b border-[#e2e2e2]">
-                    <div className="w-[72px] h-[72px] rounded-full bg-[#f0f2f5] flex items-center justify-center text-[22px] font-black text-[#1a1a1a] mb-5 tracking-tight">
-                        {userInitials}
+                {/* 1:1 REPLICA: Desktop Grey Sidebar (Hidden on Mobile in favor of MobileMenu inside ProfileHeader) */}
+                <aside className="hidden md:flex flex-col w-[220px] bg-[#f8f9fa] border-r border-[#e2e2e2] shrink-0">
+                    
+                    {/* User Identity Block */}
+                    <div className="py-10 flex flex-col items-center justify-center border-b border-[#e2e2e2]">
+                        <div className="w-[72px] h-[72px] rounded-full bg-[#f0f2f5] flex items-center justify-center text-[22px] font-black text-[#1a1a1a] mb-5 tracking-tight">
+                            {userInitials}
+                        </div>
+                        <div className="text-[15px] font-bold text-[#1a1a1a] text-center px-4 break-words w-full leading-tight">
+                            {userDisplayName}
+                        </div>
                     </div>
-                    <div className="text-[15px] font-bold text-[#1a1a1a] text-center px-4 break-words w-full leading-tight">
-                        {userDisplayName}
+
+                    {/* Profile Navigation Links */}
+                    <nav className="flex flex-col py-4 w-full">
+                        {navLinks.map((link) => {
+                            // Strict Active State Matching (Exact match for base profile, startsWith for others)
+                            const isActive = link.path === '/profile' 
+                                ? location.pathname === '/profile' || location.pathname === '/profile/'
+                                : location.pathname.startsWith(link.path);
+
+                            return (
+                                <Link 
+                                    key={link.path}
+                                    to={link.path}
+                                    className={`w-full py-3.5 px-6 text-[15px] transition-colors ${
+                                        isActive 
+                                        ? 'bg-[#6fb52c] text-white font-bold' 
+                                        : 'text-[#1a1a1a] font-normal hover:bg-[#e2e2e2]'
+                                    }`}
+                                >
+                                    {link.label}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </aside>
+
+                {/* RESPONSIVE MAIN CONTENT AREA */}
+                <main className="flex-1 w-full bg-white relative">
+                    <div className="w-full max-w-[1000px] p-5 md:p-8">
+                        {/* The specific page content (Orders, Listings, etc.) renders here dynamically */}
+                        <Outlet />
                     </div>
-                </div>
-
-                {/* Profile Navigation Links */}
-                <nav className="flex flex-col py-4 w-full">
-                    {navLinks.map((link) => {
-                        // Strict Active State Matching (Exact match for base profile, startsWith for others)
-                        const isActive = link.path === '/profile' 
-                            ? location.pathname === '/profile' || location.pathname === '/profile/'
-                            : location.pathname.startsWith(link.path);
-
-                        return (
-                            <Link 
-                                key={link.path}
-                                to={link.path}
-                                className={`w-full py-3.5 px-6 text-[15px] transition-colors ${
-                                    isActive 
-                                    ? 'bg-[#6fb52c] text-white font-bold' 
-                                    : 'text-[#1a1a1a] font-normal hover:bg-[#e2e2e2]'
-                                }`}
-                            >
-                                {link.label}
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </aside>
-
-            {/* RESPONSIVE MAIN CONTENT AREA */}
-            <main className="flex-1 w-full bg-white relative">
-                <div className="w-full max-w-[1000px] p-5 md:p-8">
-                    {/* The specific page content (Orders, Listings, etc.) renders here dynamically */}
-                    <Outlet />
-                </div>
-            </main>
+                </main>
+            </div>
 
             {/* GLOBAL INJECTION: Persistent Real-Time Feedback Tab */}
             <FeedbackTab />
