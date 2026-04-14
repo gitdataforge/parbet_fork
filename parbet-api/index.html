@@ -1,63 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <!-- High-Performance Viewport for Mobile/Desktop Responsiveness -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Parbet Admin | API Gateway Control</title>
-    
-    <!-- Security Metadata -->
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#ffffff" />
-    
-    <!-- Fonts: System Stack matching image_6188a6.png -->
-    <style>
-      :root {
-        --bg-base: #ffffff;
-        --brand-green: #8cc63f;
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      html, body {
-        width: 100%;
-        height: 100%;
-        background-color: var(--bg-base);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        overflow-x: hidden;
-      }
-      /* Initial Loading State Design */
-      #root:empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        width: 100vw;
-      }
-      #root:empty::after {
-        content: "";
-        width: 40px;
-        height: 40px;
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid var(--brand-green);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- MANDATORY REACT MOUNT POINT -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parbet API Gateway | Restricted Access</title>
+</head>
+<body>
     <div id="root"></div>
-    
-    <!-- VITE ENTRY POINT -->
     <script type="module" src="/src/main.jsx"></script>
-  </body>
+</body>
 </html>
