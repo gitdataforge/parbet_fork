@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/useAuthStore';
-import { Menu, X, User, ShieldCheck, Check, Globe, DollarSign } from 'lucide-react';
+import { Menu, X, User, ShieldCheck, Check, Globe, DollarSign, LogOut, Terminal, Activity, FileText } from 'lucide-react';
 
+/**
+ * FEATURE: High-Fidelity Enterprise Layout
+ * Strictly matching image_8dbe50.png, image_6188a6.png and image_6188e9.png design tokens.
+ * Implements a permanent fix for navigation alignment and footer density.
+ */
 export default function Layout({ children }) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -18,17 +23,13 @@ export default function Layout({ children }) {
     // FEATURE: Scroll Physics Engine
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 10);
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // FEATURE: Body Scroll-Lock for Mobile Menu
     useEffect(() => {
-        if (mobileMenuOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
+        document.body.style.overflow = mobileMenuOpen ? 'hidden' : 'unset';
         return () => { document.body.style.overflow = 'unset'; };
     }, [mobileMenuOpen]);
 
@@ -56,225 +57,225 @@ export default function Layout({ children }) {
 
     // Animation Variants
     const dropdownVariants = {
-        hidden: { opacity: 0, y: 5, transition: { duration: 0.1 } },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } }
+        hidden: { opacity: 0, y: 8, transition: { duration: 0.15 } },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }
     };
 
     const drawerVariants = {
-        hidden: { opacity: 0, scale: 0.95, y: 20 },
-        visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 200 } }
+        hidden: { x: '-100%', transition: { duration: 0.3, ease: 'easeInOut' } },
+        visible: { x: 0, transition: { type: 'spring', damping: 25, stiffness: 200 } }
     };
 
     return (
-        <div className="min-h-screen bg-white flex flex-col font-sans text-[#1a1a1a]">
+        <div className="min-h-screen bg-white flex flex-col font-sans antialiased text-[#1a1a1a]">
             
             {/* ========================================= */}
-            {/* DESKTOP HEADER (Hidden on Mobile) */}
+            {/* GLOBAL HEADER (Sticky & Blurred) */}
             {/* ========================================= */}
             <header 
-                className={`fixed top-0 left-0 right-0 h-[72px] bg-white z-40 transition-shadow duration-200 border-b border-[#e2e2e2] hidden md:block ${scrolled ? 'shadow-sm' : ''}`}
+                className={`fixed top-0 left-0 right-0 h-[72px] bg-white/95 backdrop-blur-md z-40 transition-all duration-300 border-b border-[#f0f0f0] ${scrolled ? 'shadow-[0_4px_20px_rgba(0,0,0,0.03)]' : ''}`}
             >
-                <div className="max-w-[1200px] mx-auto px-8 h-full flex justify-between items-center">
+                <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-full flex justify-between items-center">
                     
-                    {/* Brand Logo */}
-                    <Link to="/" className="flex items-center text-[32px] font-black tracking-[-1.5px] no-underline">
+                    {/* Brand Logo (Strict Left Alignment) */}
+                    <Link to="/" className="flex items-center text-[30px] font-black tracking-[-1.8px] no-underline select-none">
                         <span className="text-[#54626c]">par</span><span className="text-[#8cc63f]">bet</span>
-                        <span className="ml-2 mt-2 px-1.5 py-0.5 bg-[#f8f9fa] border border-[#e2e2e2] rounded-[4px] text-[14px] font-mono font-bold text-[#54626c] tracking-normal leading-none">
-                            / api
+                        <span className="ml-2.5 px-1.5 py-0.5 bg-[#f8f9fa] border border-[#e2e2e2] rounded-[4px] text-[11px] font-mono font-bold text-[#54626c] uppercase tracking-wider leading-none">
+                            api
                         </span>
                     </Link>
 
-                    {/* Desktop Navigation */}
-                    <nav className="flex h-full items-center">
-                        <Link to="/status" className="h-full flex items-center px-5 text-[15px] font-bold text-[#1a1a1a] hover:text-[#458731] transition-colors">
-                            Status
+                    {/* Desktop Navigation (Strict Right Alignment) */}
+                    <nav className="hidden md:flex h-full items-center gap-1">
+                        <Link 
+                            to="/status" 
+                            className={`flex items-center gap-2 px-5 py-2 text-[14px] font-bold transition-colors ${location.pathname === '/status' ? 'text-[#8cc63f]' : 'text-[#1a1a1a] hover:text-[#8cc63f]'}`}
+                        >
+                            <Activity size={16} /> Status
                         </Link>
                         
                         {/* Docs Dropdown */}
                         <div 
-                            className="relative h-full flex items-center px-5 cursor-pointer text-[15px] font-bold text-[#1a1a1a] hover:text-[#458731] transition-colors"
+                            className="relative h-full flex items-center px-5 cursor-pointer text-[14px] font-bold text-[#1a1a1a] hover:text-[#8cc63f] transition-colors"
                             onMouseEnter={() => handleMouseEnter('docs')}
                             onMouseLeave={handleMouseLeave}
                         >
-                            Documentation
+                            <div className="flex items-center gap-2"><FileText size={16} /> Documentation</div>
                             <AnimatePresence>
                                 {activeDropdown === 'docs' && (
                                     <motion.div 
                                         initial="hidden" animate="visible" exit="hidden" variants={dropdownVariants}
-                                        className="absolute top-[72px] left-0 bg-white border border-t-0 border-[#e2e2e2] rounded-b-[4px] shadow-lg py-2 min-w-[200px] z-50 flex flex-col"
+                                        className="absolute top-[72px] right-0 bg-white border border-[#f0f0f0] rounded-b-[8px] shadow-[0_15px_40px_rgba(0,0,0,0.08)] py-3 min-w-[240px] z-50 flex flex-col"
                                     >
-                                        <Link to="/docs#sendVerification" className="px-6 py-3 text-[15px] font-medium text-[#1a1a1a] hover:bg-[#f8f9fa] hover:text-[#458731] transition-colors whitespace-nowrap">Authentication API</Link>
-                                        <Link to="/docs#createOrder" className="px-6 py-3 text-[15px] font-medium text-[#1a1a1a] hover:bg-[#f8f9fa] hover:text-[#458731] transition-colors whitespace-nowrap">Transactions API</Link>
-                                        <Link to="/docs#sendTicketEmail" className="px-6 py-3 text-[15px] font-medium text-[#1a1a1a] hover:bg-[#f8f9fa] hover:text-[#458731] transition-colors whitespace-nowrap">Fulfillment API</Link>
+                                        <Link to="/docs#auth" className="px-6 py-3 text-[14px] font-bold text-[#54626c] hover:bg-[#f8f9fa] hover:text-[#8cc63f] transition-colors">Authentication API</Link>
+                                        <Link to="/docs#tx" className="px-6 py-3 text-[14px] font-bold text-[#54626c] hover:bg-[#f8f9fa] hover:text-[#8cc63f] transition-colors">Transactions API</Link>
+                                        <Link to="/docs#fulfillment" className="px-6 py-3 text-[14px] font-bold text-[#54626c] hover:bg-[#f8f9fa] hover:text-[#8cc63f] transition-colors">Fulfillment API</Link>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
 
-                        {/* Profile Dropdown */}
+                        {/* Developer Profile */}
                         <div 
-                            className="relative h-full flex items-center pl-5 cursor-pointer text-[15px] font-bold text-[#1a1a1a] hover:text-[#458731] transition-colors"
+                            className="relative h-full flex items-center pl-5 cursor-pointer"
                             onMouseEnter={() => handleMouseEnter('profile')}
                             onMouseLeave={handleMouseLeave}
                         >
-                            Developer
-                            <div className="w-9 h-9 bg-[#f2f7ef] rounded-full flex items-center justify-center ml-3">
-                                <User size={20} className="text-[#458731]" />
+                            <div className="flex items-center gap-3 pl-5 border-l border-[#f0f0f0]">
+                                <span className="text-[14px] font-bold text-[#1a1a1a]">Developer</span>
+                                <div className="w-10 h-10 bg-[#f2f7ef] rounded-full flex items-center justify-center border border-[#8cc63f]/10 shadow-sm">
+                                    <User size={20} className="text-[#8cc63f]" />
+                                </div>
                             </div>
                             <AnimatePresence>
                                 {activeDropdown === 'profile' && (
                                     <motion.div 
                                         initial="hidden" animate="visible" exit="hidden" variants={dropdownVariants}
-                                        className="absolute top-[72px] right-0 bg-white border border-t-0 border-[#e2e2e2] rounded-b-[4px] shadow-lg py-2 min-w-[200px] z-50 flex flex-col"
+                                        className="absolute top-[72px] right-0 bg-white border border-[#f0f0f0] rounded-b-[8px] shadow-[0_15px_40px_rgba(0,0,0,0.08)] py-4 min-w-[220px] z-50 flex flex-col"
                                     >
-                                        <Link to="/" className="px-6 py-3 text-[15px] font-medium text-[#1a1a1a] hover:bg-[#f8f9fa] hover:text-[#458731] transition-colors">Developer Hub</Link>
-                                        <Link to="/docs" className="px-6 py-3 text-[15px] font-medium text-[#1a1a1a] hover:bg-[#f8f9fa] hover:text-[#458731] transition-colors">API Keys</Link>
-                                        <button onClick={handleLogout} className="px-6 py-3 text-[15px] font-bold text-[#c21c3a] text-left hover:bg-[#fdf2f2] transition-colors w-full">Sign out</button>
+                                        <div className="px-6 pb-3 mb-2 border-b border-[#f0f0f0]">
+                                            <p className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest">Admin Role</p>
+                                            <p className="text-[13px] font-bold text-[#1a1a1a] truncate">testcodecfg@gmail.com</p>
+                                        </div>
+                                        <button onClick={handleLogout} className="px-6 py-3 text-[14px] font-black text-[#c21c3a] text-left hover:bg-[#fdf2f2] transition-colors w-full flex items-center gap-2">
+                                            <LogOut size={16} /> Sign out
+                                        </button>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
                         </div>
                     </nav>
-                </div>
-            </header>
 
-            {/* ========================================= */}
-            {/* MOBILE HEADER (Hidden on Desktop) */}
-            {/* ========================================= */}
-            <header className="fixed top-0 left-0 right-0 h-[64px] bg-white z-40 border-b border-[#e2e2e2] md:hidden">
-                <div className="px-4 h-full flex justify-between items-center">
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-[#54626c]">
+                    {/* Mobile Menu Trigger */}
+                    <button onClick={() => setMobileMenuOpen(true)} className="md:hidden p-2 text-[#54626c] hover:text-[#8cc63f] transition-colors">
                         <Menu size={28} />
                     </button>
-                    
-                    <Link to="/" className="absolute left-1/2 -translate-x-1/2 flex items-center text-[28px] font-black tracking-[-1.5px] no-underline">
-                        <span className="text-[#54626c]">par</span><span className="text-[#8cc63f]">bet</span>
-                        <span className="ml-1 mt-1 px-1 py-0.5 bg-[#f8f9fa] border border-[#e2e2e2] rounded-[4px] text-[10px] font-mono font-bold text-[#54626c] leading-none">
-                            / api
-                        </span>
-                    </Link>
-
-                    <div onClick={() => setMobileMenuOpen(true)} className="w-8 h-8 bg-[#f2f7ef] rounded-full flex items-center justify-center cursor-pointer">
-                        <User size={18} className="text-[#458731]" />
-                    </div>
                 </div>
             </header>
 
             {/* ========================================= */}
-            {/* MOBILE SLIDE DRAWER */}
+            {/* MOBILE SIDEBAR DRAWER */}
             {/* ========================================= */}
             <AnimatePresence>
                 {mobileMenuOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden"
-                        onClick={(e) => { if(e.target === e.currentTarget) setMobileMenuOpen(false); }}
-                    >
-                        <motion.button 
-                            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] md:hidden"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="absolute top-4 left-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border border-[#e2e2e2] text-[#54626c] z-[51]"
-                        >
-                            <X size={20} />
-                        </motion.button>
-                        
+                        />
                         <motion.div 
                             variants={drawerVariants} initial="hidden" animate="visible" exit="hidden"
-                            className="absolute top-[76px] left-4 right-4 bg-white rounded-[12px] shadow-2xl overflow-hidden flex flex-col border border-[#e2e2e2] max-h-[calc(100vh-100px)] py-2"
+                            className="fixed top-0 left-0 bottom-0 w-[80%] max-w-[320px] bg-white z-[70] shadow-2xl flex flex-col md:hidden"
                         >
-                            <div className="overflow-y-auto overflow-x-hidden flex flex-col">
-                                <Link to="/" className="px-6 py-3.5 text-[16px] font-medium text-[#1a1a1a] active:bg-[#f8f9fa] active:text-[#458731]">API Gateway Home</Link>
-                                <Link to="/status" className="px-6 py-3.5 text-[16px] font-medium text-[#1a1a1a] active:bg-[#f8f9fa] active:text-[#458731]">System Status</Link>
-                                <div className="h-[1px] bg-[#e2e2e2] mx-6 my-2"></div>
-                                <span className="px-6 py-2 text-[12px] font-black text-[#54626c] uppercase tracking-wider">Documentation</span>
-                                <Link to="/docs#sendVerification" className="px-6 py-3.5 text-[15px] font-medium text-[#1a1a1a] active:bg-[#f8f9fa] active:text-[#458731]">Authentication API</Link>
-                                <Link to="/docs#createOrder" className="px-6 py-3.5 text-[15px] font-medium text-[#1a1a1a] active:bg-[#f8f9fa] active:text-[#458731]">Transactions API</Link>
-                                <div className="h-[1px] bg-[#e2e2e2] mx-6 my-2"></div>
-                                <button onClick={handleLogout} className="px-6 py-3.5 text-[16px] font-bold text-[#c21c3a] text-left active:bg-[#fdf2f2] w-full">Sign out</button>
+                            <div className="p-6 border-b border-[#f0f0f0] flex justify-between items-center">
+                                <span className="text-[24px] font-black tracking-tighter text-[#54626c]">par<span className="text-[#8cc63f]">bet</span></span>
+                                <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-[#54626c]"><X size={24} /></button>
+                            </div>
+                            <div className="flex-grow py-6 flex flex-col gap-1">
+                                <Link to="/" className="px-8 py-4 text-[16px] font-bold hover:bg-[#f8f9fa] hover:text-[#8cc63f]">Gateway Dashboard</Link>
+                                <Link to="/status" className="px-8 py-4 text-[16px] font-bold hover:bg-[#f8f9fa] hover:text-[#8cc63f]">System Status</Link>
+                                <Link to="/docs" className="px-8 py-4 text-[16px] font-bold hover:bg-[#f8f9fa] hover:text-[#8cc63f]">Documentation</Link>
+                                <div className="h-[1px] bg-[#f0f0f0] my-4 mx-8" />
+                                <button onClick={handleLogout} className="px-8 py-4 text-[16px] font-black text-[#c21c3a] text-left hover:bg-[#fdf2f2]">Sign out</button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </>
                 )}
             </AnimatePresence>
 
             {/* ========================================= */}
-            {/* MAIN CONTENT AREA */}
+            {/* MAIN VIEWPORT */}
             {/* ========================================= */}
-            <main className="flex-1 pt-[64px] md:pt-[72px]">
-                {children}
+            <main className="flex-grow pt-[72px]">
+                <div className="w-full h-full">
+                    {children}
+                </div>
             </main>
 
             {/* ========================================= */}
-            {/* 1:1 REPLICA ENTERPRISE FOOTER */}
+            {/* ENTERPRISE FOOTER (image_8dbe50.png Replica) */}
             {/* ========================================= */}
-            <footer className="border-t border-[#e2e2e2] pt-10 pb-16 mt-16 bg-white">
-                <div className="max-w-[1200px] mx-auto px-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.5fr] gap-10 mb-10">
+            <footer className="bg-white border-t border-[#f0f0f0] pt-16 pb-12 mt-20">
+                <div className="max-w-[1440px] mx-auto px-6 md:px-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.5fr] gap-12 mb-16">
                         
-                        {/* Guarantee Box */}
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-start gap-3 mb-2">
-                                <ShieldCheck size={32} className="text-[#8cc63f]" strokeWidth={2.5} />
-                                <div className="leading-none">
-                                    <span className="text-[20px] font-black tracking-[-1px] text-[#54626c]">par<span className="text-[#8cc63f]">bet</span></span><br/>
-                                    <span className="text-[13px] font-medium text-[#54626c]">guarantee</span>
+                        {/* Guarantee Column */}
+                        <div className="flex flex-col">
+                            <div className="flex items-start gap-4 mb-8">
+                                <ShieldCheck size={42} className="text-[#8cc63f] shrink-0" strokeWidth={2.5} />
+                                <div>
+                                    <div className="text-[24px] font-black tracking-[-1.5px] text-[#54626c] leading-none">
+                                        par<span className="text-[#8cc63f]">bet</span>
+                                    </div>
+                                    <div className="text-[13px] font-bold text-[#8cc63f] uppercase tracking-widest mt-1">enterprise guarantee</div>
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-start gap-2.5 text-[14px] font-black text-[#54626c]">
-                                    <Check size={18} className="text-[#8cc63f] mt-0.5 shrink-0" strokeWidth={3} /> World class security checks
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 text-[15px] font-bold text-[#1a1a1a]">
+                                    <Check size={18} className="text-[#8cc63f]" strokeWidth={3} /> Institutional Grade Security
                                 </div>
-                                <div className="flex items-start gap-2.5 text-[14px] font-black text-[#54626c]">
-                                    <Check size={18} className="text-[#8cc63f] mt-0.5 shrink-0" strokeWidth={3} /> Transparent pricing
+                                <div className="flex items-center gap-3 text-[15px] font-bold text-[#1a1a1a]">
+                                    <Check size={18} className="text-[#8cc63f]" strokeWidth={3} /> Real-Time Latency Monitoring
                                 </div>
-                                <div className="flex items-start gap-2.5 text-[14px] font-black text-[#54626c]">
-                                    <Check size={18} className="text-[#8cc63f] mt-0.5 shrink-0" strokeWidth={3} /> 100% order guarantee
+                                <div className="flex items-center gap-3 text-[15px] font-bold text-[#1a1a1a]">
+                                    <Check size={18} className="text-[#8cc63f]" strokeWidth={3} /> 100% Endpoint Uptime
                                 </div>
                             </div>
                         </div>
 
-                        {/* Company Links */}
-                        <div className="flex flex-col">
-                            <h3 className="text-[16px] font-black text-[#54626c] mb-5">Our Company</h3>
-                            <ul className="flex flex-col gap-4">
-                                <li><a href="#" className="text-[14px] font-medium text-[#1a1a1a] hover:text-[#458731] hover:underline">About Us</a></li>
-                                <li><a href="#" className="text-[14px] font-medium text-[#1a1a1a] hover:text-[#458731] hover:underline">Partners</a></li>
-                                <li><a href="#" className="text-[14px] font-medium text-[#1a1a1a] hover:text-[#458731] hover:underline">Corporate Service</a></li>
+                        {/* Navigation Columns */}
+                        <div>
+                            <h3 className="text-[15px] font-black text-[#54626c] uppercase tracking-widest mb-8">Resources</h3>
+                            <ul className="flex flex-col gap-5 text-[14px] font-bold text-[#1a1a1a]">
+                                <li><Link to="/status" className="hover:text-[#8cc63f] transition-colors">API Status</Link></li>
+                                <li><Link to="/docs" className="hover:text-[#8cc63f] transition-colors">Documentation</Link></li>
+                                <li><a href="#" className="hover:text-[#8cc63f] transition-colors">Developer Portal</a></li>
                             </ul>
                         </div>
 
-                        {/* Support Links */}
-                        <div className="flex flex-col">
-                            <h3 className="text-[16px] font-black text-[#54626c] mb-5">Have Questions?</h3>
-                            <ul className="flex flex-col gap-4">
-                                <li><a href="#" className="text-[14px] font-medium text-[#1a1a1a] hover:text-[#458731] hover:underline">Help Centre / Contact Us</a></li>
-                                <li><a href="#" className="text-[14px] font-medium text-[#1a1a1a] hover:text-[#458731] hover:underline">API Integration Guide</a></li>
+                        <div>
+                            <h3 className="text-[15px] font-black text-[#54626c] uppercase tracking-widest mb-8">Support</h3>
+                            <ul className="flex flex-col gap-5 text-[14px] font-bold text-[#1a1a1a]">
+                                <li><a href="#" className="hover:text-[#8cc63f] transition-colors">Help Centre</a></li>
+                                <li><a href="#" className="hover:text-[#8cc63f] transition-colors">System Updates</a></li>
+                                <li><a href="#" className="hover:text-[#8cc63f] transition-colors">Contact Support</a></li>
                             </ul>
                         </div>
 
-                        {/* Locale Selectors */}
+                        {/* Global Locale Selectors */}
                         <div className="flex flex-col">
-                            <h3 className="text-[16px] font-bold text-[#1a1a1a] mb-4">Live events all over the world</h3>
-                            <div className="flex flex-col gap-3">
-                                <button className="border border-[#e2e2e2] rounded-[4px] px-4 py-3 flex items-center gap-3 bg-white hover:bg-[#f8f9fa] text-[#54626c] text-[14px] transition-colors text-left">
-                                    <strong className="text-[#1a1a1a] font-black w-8">US</strong> United States
+                            <h3 className="text-[15px] font-black text-[#1a1a1a] mb-8 leading-tight">Securing events all over the world</h3>
+                            <div className="grid grid-cols-1 gap-3">
+                                <button className="border border-[#e2e2e2] rounded-[6px] px-5 py-3.5 flex items-center justify-between bg-white hover:bg-[#f8f9fa] transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <Globe size={18} className="text-[#1a1a1a]" />
+                                        <span className="text-[14px] font-bold text-[#54626c] group-hover:text-[#1a1a1a]">English (Global)</span>
+                                    </div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#8cc63f]" />
                                 </button>
-                                <button className="border border-[#e2e2e2] rounded-[4px] px-4 py-3 flex items-center gap-3 bg-white hover:bg-[#f8f9fa] text-[#54626c] text-[14px] transition-colors text-left">
-                                    <Globe size={18} className="text-[#1a1a1a] w-8" /> English (UK)
-                                </button>
-                                <button className="border border-[#e2e2e2] rounded-[4px] px-4 py-3 flex items-center gap-3 bg-white hover:bg-[#f8f9fa] text-[#54626c] text-[14px] transition-colors text-left">
-                                    <DollarSign size={18} className="text-[#1a1a1a] w-8" /> Indian Rupee
+                                <button className="border border-[#e2e2e2] rounded-[6px] px-5 py-3.5 flex items-center justify-between bg-white hover:bg-[#f8f9fa] transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <DollarSign size={18} className="text-[#1a1a1a]" />
+                                        <span className="text-[14px] font-bold text-[#54626c] group-hover:text-[#1a1a1a]">Indian Rupee (INR)</span>
+                                    </div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#e2e2e2]" />
                                 </button>
                             </div>
                         </div>
-
                     </div>
 
-                    {/* Legal Footer Text */}
-                    <div className="border-t border-[#e2e2e2] pt-6 text-[12px] text-[#54626c] leading-relaxed font-medium">
-                        Copyright &copy; parbet Entertainment Inc 2026 <a href="#" className="text-[#458731] font-bold hover:underline ml-1">Company Details</a><br/>
-                        Use of this web site constitutes acceptance of the <a href="#" className="text-[#458731] font-bold hover:underline mx-1">Terms and Conditions</a> and <a href="#" className="text-[#458731] font-bold hover:underline mx-1">Privacy Policy</a> and <a href="#" className="text-[#458731] font-bold hover:underline mx-1">Cookies Policy</a><br/>
-                        <a href="#" className="text-[#458731] font-bold hover:underline">Do Not Share My Personal Information/Your Privacy Choices</a>
+                    {/* Legal Baseline */}
+                    <div className="pt-10 border-t border-[#f0f0f0] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="text-[12px] font-bold text-[#9ca3af] leading-relaxed uppercase tracking-tighter">
+                            Copyright &copy; parbet Entertainment Inc 2026. All rights reserved.<br/>
+                            Enterprise Infrastructure Tier: <span className="text-[#54626c]">v8.4.12-edge</span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-8 gap-y-2 text-[12px] font-bold text-[#1a1a1a]">
+                            <a href="#" className="hover:text-[#8cc63f] transition-colors">Privacy Policy</a>
+                            <a href="#" className="hover:text-[#8cc63f] transition-colors">Terms of Service</a>
+                            <a href="#" className="hover:text-[#8cc63f] transition-colors">Cookie Management</a>
+                        </div>
                     </div>
                 </div>
             </footer>
