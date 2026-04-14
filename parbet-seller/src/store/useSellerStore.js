@@ -210,11 +210,14 @@ export const useSellerStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // SECURE ACCOUNT RECOVERY
+    // SECURE ACCOUNT RECOVERY (Strict Vercel API Override)
     // ------------------------------------------------------------------
     resetPassword: async (email) => {
         try {
-            // Update this URL if your Vercel production domain differs
+            // STRICT SANITIZATION: Prevent invisible whitespace errors
+            const sanitizedEmail = email.trim().toLowerCase();
+
+            // VERCEL API TARGET: Bypasses Firebase Default Templates completely
             const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
             
             const response = await fetch(VERCEL_API_URL, {
@@ -222,18 +225,18 @@ export const useSellerStore = create((set, get) => ({
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email: sanitizedEmail })
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to dispatch secure password reset email.');
+                throw new Error(data.error || 'Failed to dispatch secure password reset email via Resend API.');
             }
 
             return { success: true };
         } catch (error) {
-            console.error("Password recovery failed:", error);
+            console.error("Vercel Password Recovery Pipeline Failed:", error);
             throw error;
         }
     },
