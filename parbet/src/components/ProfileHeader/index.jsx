@@ -293,7 +293,7 @@ export default function ProfileHeader() {
                                 <div className="h-[1px] bg-gray-100 my-2 mx-6"></div>
                                 
                                 <Link 
-                                    to="/sell" 
+                                    to="https://parbet-seller-44902.web.app/" 
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className="block px-6 py-3.5 text-[16px] text-[#111] hover:bg-gray-50 transition-colors"
                                 >
