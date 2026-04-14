@@ -8,6 +8,10 @@
     {
       "source": "/status",
       "destination": "/public/status.html"
+    },
+    {
+      "source": "/docs",
+      "destination": "/public/docs.html"
     }
   ],
   "headers": [
