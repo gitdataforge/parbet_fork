@@ -1,5 +1,15 @@
 {
   "version": 2,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/status.html",
+      "destination": "/public/status.html"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
