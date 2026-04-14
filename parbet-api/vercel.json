@@ -6,7 +6,7 @@
       "destination": "/public/index.html"
     },
     {
-      "source": "/status.html",
+      "source": "/status",
       "destination": "/public/status.html"
     }
   ],
