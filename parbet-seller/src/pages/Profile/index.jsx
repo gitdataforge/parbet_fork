@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
     Wallet, 
@@ -11,7 +11,8 @@ import {
     PlusCircle,
     Banknote,
     ChevronRight,
-    Loader2
+    Loader2,
+    ShieldAlert
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
 
@@ -22,7 +23,16 @@ export default function ProfileOverview() {
     // Connects directly to the live Firebase-backed Zustand store
     const { user, walletBalance, listings = [], sales = [], isLoading } = useSellerStore();
 
-    // FEATURE 2: Time-Aware Personalized Greeting
+    // FEATURE 2: Strict Auth Guard Interceptor
+    // Prevents permission-denied crashes by halting execution and redirecting unauthorized users
+    useEffect(() => {
+        if (!isLoading && !user) {
+            console.warn("[Parbet Security] Unauthenticated dashboard access blocked. Redirecting.");
+            navigate('/login', { replace: true });
+        }
+    }, [user, isLoading, navigate]);
+
+    // FEATURE 3: Time-Aware Personalized Greeting
     const [greeting, setGreeting] = useState('');
     useEffect(() => {
         const hour = new Date().getHours();
@@ -31,7 +41,7 @@ export default function ProfileOverview() {
         else setGreeting('Good evening');
     }, []);
 
-    // FEATURE 3: Mathematical Inventory & Revenue Engine
+    // FEATURE 4: Mathematical Inventory & Revenue Engine
     const activeListingsCount = useMemo(() => {
         return listings.filter(l => l.status === 'active').length;
     }, [listings]);
@@ -66,11 +76,16 @@ export default function ProfileOverview() {
         show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 20 } }
     };
 
-    if (isLoading) {
+    // FEATURE 5: Protected Render Gate
+    // Completely blocks UI compilation until Firebase session is fully minted
+    if (isLoading || !user) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
-                <Loader2 className="animate-spin text-[#1a1a1a] mb-4" size={32} />
-                <p className="text-[13px] font-bold text-[#54626c] tracking-widest uppercase">Syncing Dashboard...</p>
+                <Loader2 className="animate-spin text-[#1a1a1a] mb-5" size={36} />
+                <div className="flex items-center gap-2 text-[13px] font-black text-[#54626c] tracking-widest uppercase bg-[#f8f9fa] px-4 py-2 rounded-full border border-[#e2e2e2]">
+                    <ShieldAlert size={14} className="text-[#8cc63f]" />
+                    {isLoading ? 'Syncing Secure Ledger...' : 'Authenticating Session...'}
+                </div>
             </div>
         );
     }
@@ -82,7 +97,7 @@ export default function ProfileOverview() {
             variants={container}
             className="w-full font-sans max-w-[1000px] pb-20"
         >
-            {/* FEATURE 4: Dynamic Greeting & Quick-List Action */}
+            {/* FEATURE 6: Dynamic Greeting & Quick-List Action */}
             <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                 <div>
                     <h1 className="text-[28px] md:text-[36px] font-black text-[#1a1a1a] tracking-tight leading-tight">
@@ -100,7 +115,7 @@ export default function ProfileOverview() {
                 </button>
             </motion.div>
 
-            {/* FEATURE 5: Real-Time Performance Metric Grid */}
+            {/* FEATURE 7: Real-Time Performance Metric Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 
                 {/* Metric 1: Wallet Balance */}
@@ -161,7 +176,7 @@ export default function ProfileOverview() {
                 </motion.div>
             </div>
 
-            {/* FEATURE 6: Live Activity Ledger & Production Empty States */}
+            {/* FEATURE 8: Live Activity Ledger & Production Empty States */}
             <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm overflow-hidden">
                 <div className="border-b border-[#e2e2e2] px-6 py-5 flex items-center justify-between bg-[#fcfcfc]">
                     <h3 className="text-[15px] font-black text-[#1a1a1a] flex items-center gap-2">

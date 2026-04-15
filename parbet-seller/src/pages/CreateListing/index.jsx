@@ -4,12 +4,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ChevronDown, User, AlertCircle, Eye, 
     Smartphone, Ticket, FileText, QrCode, 
-    X, Check, CreditCard
+    X, Check, CreditCard, Loader2, ShieldAlert
 } from 'lucide-react';
+import { useSellerStore } from '../../store/useSellerStore';
+// FEATURE 1: Import the shared database mutator (to be created next)
+import { useListingStore } from '../../store/useListingStore';
 
 export default function CreateListing() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+
+    // FEATURE 2: Secure Identity Injection
+    const { user } = useSellerStore();
+    const { createListing, isLoading: isSubmitting, error: submitError, clearError } = useListingStore();
 
     // ==========================================
     // WIZARD STATE
@@ -37,13 +44,11 @@ export default function CreateListing() {
     const [row, setRow] = useState('');
     const [firstSeat, setFirstSeat] = useState('');
     const [lastSeat, setLastSeat] = useState('');
-    const [noSeatReason, setNoSeatReason] = useState('');
     const [activeDisclosures, setActiveDisclosures] = useState([]);
     
     const [ticketType, setTicketType] = useState('');
     const [readyToTransferUpload, setReadyToTransferUpload] = useState(true);
     const [storageLocation, setStorageLocation] = useState('');
-    const [aboutYou, setAboutYou] = useState('');
     const [ukEurope, setUkEurope] = useState('');
     
     // ==========================================
@@ -96,16 +101,13 @@ export default function CreateListing() {
         setActiveDisclosures(updated);
     };
 
-    // Calculate Earnings (Viagogo dynamically calculates fee cuts)
     const calculateEarnings = () => {
         const price = parseFloat(perTicketPrice) || 0;
         const qty = parseInt(quantity) || 0;
-        // Mocking the exact mathematical cut from the screenshot ($48 * 2 = 96 -> 85.62 payout)
         const payoutRate = 0.891875; 
         return (price * qty * payoutRate).toFixed(2);
     };
 
-    // Handle Strategy Click
     const handleStrategyClick = (strategy, price) => {
         setPriceStrategy(strategy);
         setPerTicketPrice(price.toString());
@@ -115,6 +117,59 @@ export default function CreateListing() {
         if(cardForm.number && cardForm.exp && cardForm.cvv && cardForm.name) {
             setCardAdded(true);
             setShowCardModal(false);
+        }
+    };
+
+    // FEATURE 3: Standardized Global Database Payload Constructor
+    const handleFinalSubmit = async () => {
+        if (clearError) clearError();
+        
+        const payload = {
+            // Core Identity
+            sellerId: user?.uid || 'anonymous',
+            sellerEmail: user?.email || '',
+            
+            // Event Details
+            title: `${team1} vs ${team2}`,
+            team1,
+            team2,
+            stadium,
+            location,
+            date,
+            time,
+            eventTimestamp: new Date(`${date}T${time}`).toISOString(),
+            views: Number(views) || 0,
+            tags: [tag1, tag2].filter(Boolean),
+            
+            // Ticket specific data (Mapped to array for Buyer compatibility)
+            ticketType,
+            ticketTiers: [
+                {
+                    id: crypto.randomUUID(),
+                    name: `${section} ${row ? `- Row ${row}` : ''}`.trim() || 'General Admission',
+                    price: Number(perTicketPrice),
+                    quantity: Number(quantity),
+                    seats: firstSeat && lastSeat ? `${firstSeat}-${lastSeat}` : 'Unreserved',
+                    disclosures: activeDisclosures,
+                    sold: 0
+                }
+            ],
+            
+            // Financials
+            faceValue: faceValue ? Number(faceValue) : null,
+            payoutMethod,
+            storageLocation,
+            
+            // Metadata
+            status: 'active',
+            createdAt: new Date().toISOString()
+        };
+
+        try {
+            await createListing(payload);
+            navigate('/profile', { replace: true });
+        } catch (err) {
+            console.error("Failed to construct or push payload to shared ledger.");
         }
     };
 
@@ -157,11 +212,23 @@ export default function CreateListing() {
                 
                 {/* LEFT COLUMN: INTERACTIVE WIZARD */}
                 <div className="flex-1 space-y-12">
+
+                    {/* FEATURE 4: Global Error Interceptor */}
+                    <AnimatePresence>
+                        {submitError && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                <div className="bg-[#fdf2f2] border-l-4 border-[#c21c3a] p-4 flex items-center gap-3">
+                                    <ShieldAlert className="text-[#c21c3a]" size={20} />
+                                    <p className="text-[14px] font-bold text-[#c21c3a]">{submitError}</p>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                     
                     {step === 1 && (
                         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-12">
                             
-                            {/* NEW FEATURE: CUSTOMIZABLE EVENT DETAILS */}
+                            {/* CUSTOMIZABLE EVENT DETAILS */}
                             <div className="space-y-4 bg-[#f9fdf7] border border-[#d2e8b0] rounded-[12px] p-6">
                                 <h3 className="font-bold text-[#1a1a1a] text-[18px] flex items-center gap-2">
                                     <AlertCircle className="text-[#458731]" size={20} />
@@ -582,16 +649,21 @@ export default function CreateListing() {
                         </button>
                     ) : <div></div>}
                     
+                    {/* FEATURE 5: Dynamic Final Submission Trigger */}
                     <button 
-                        disabled={step === 1 ? !isStep1Valid : !isStep2Valid}
-                        onClick={() => step === 1 ? setStep(2) : alert("Listing Created Successfully!")}
-                        className={`px-10 py-3.5 rounded-[8px] font-bold text-[15px] transition-all ${
+                        disabled={step === 1 ? !isStep1Valid : (!isStep2Valid || isSubmitting)}
+                        onClick={() => step === 1 ? setStep(2) : handleFinalSubmit()}
+                        className={`px-10 py-3.5 rounded-[8px] font-bold text-[15px] transition-all flex items-center justify-center gap-2 ${
                             (step === 1 ? isStep1Valid : isStep2Valid)
                             ? 'bg-[#458731] text-white hover:bg-[#3a7229] shadow-md cursor-pointer' 
                             : 'bg-[#e2e2e2] text-[#a0a0a0] cursor-not-allowed'
                         }`}
                     >
-                        {step === 1 ? 'Continue' : 'Create Listing'}
+                        {isSubmitting ? (
+                            <><Loader2 size={18} className="animate-spin" /> Publishing...</>
+                        ) : (
+                            step === 1 ? 'Continue' : 'Create Listing'
+                        )}
                     </button>
                 </div>
             </div>
