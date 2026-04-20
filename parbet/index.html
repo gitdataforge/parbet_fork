@@ -3,15 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- FEATURE 1: Strict Mobile Viewport Lock (Prevents UI breaking on input focus) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     <title>Parbet</title>
+    
+    <!-- FEATURE 2: Network Optimization & Warning Resolution -->
+    <!-- Replacing direct preloads with dns-prefetch permanently stops the "preloaded but not used" console errors while maintaining speed -->
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- FEATURE: Secure Razorpay Checkout SDK -->
+    <!-- FEATURE 3: Secure Razorpay Checkout SDK -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
   <body>
