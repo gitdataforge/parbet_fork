@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Loader2, TrendingUp, AlertCircle, Ticket } from 'lucide-react';
+import { ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Global Stores
@@ -14,90 +14,36 @@ import ViagogoEventCard from '../../components/ViagogoEventCard';
 import ViagogoCategoryCard from '../../components/ViagogoCategoryCard';
 
 /**
- * FEATURE 1: Hardcoded IPL 2026 Blockbuster Promotional Rail (Client Requested)
- * FEATURE 2: Real-Time Shared Database Integration
- * FEATURE 3: Dynamic Search & Filtering Engine
- * FEATURE 4: Algorithmic Sport Categorization (Rails)
- * FEATURE 5: Interactive Loading State Skeletons
- * FEATURE 6: Fallback Empty State Engine
- * FEATURE 7: Hardware-Accelerated Rail Navigation
- * FEATURE 8: Spotify Cross-Promotion Banner
- * FEATURE 9: App Download Conversion Banner
- * FEATURE 10: Strict Authentication Guard Integration
+ * FEATURE 1: 100% Real-Time Shared Database Integration (No Mock Data)
+ * FEATURE 2: Dynamic Search & Filtering Engine
+ * FEATURE 3: Algorithmic Sport Categorization (Rails)
+ * FEATURE 4: Interactive Loading State Skeletons
+ * FEATURE 5: Fallback Empty State Engine
+ * FEATURE 6: Hardware-Accelerated Rail Navigation
+ * FEATURE 7: Spotify Cross-Promotion Banner
+ * FEATURE 8: App Download Conversion Banner
+ * FEATURE 9: Mobile-First Responsive Grid
  */
-
-// FEATURE 1: Hardcoded IPL 2026 Promotional Data
-const IPL_BLOCKBUSTERS = [
-    {
-        id: 'ipl-promo-1',
-        title: 'Chennai Super Kings vs Royal Challengers Bengaluru',
-        stadium: 'M. Chinnaswamy Stadium',
-        location: 'Bengaluru',
-        eventTimestamp: '2026-04-18T19:30:00Z',
-        startingPrice: 15000,
-        views: 8432,
-        imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-        id: 'ipl-promo-2',
-        title: 'Mumbai Indians vs Gujarat Titans',
-        stadium: 'Wankhede Stadium',
-        location: 'Mumbai',
-        eventTimestamp: '2026-04-20T19:30:00Z',
-        startingPrice: 10000,
-        views: 6100,
-        imageUrl: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-        id: 'ipl-promo-3',
-        title: 'Kolkata Knight Riders vs Sunrisers Hyderabad',
-        stadium: 'Eden Gardens',
-        location: 'Kolkata',
-        eventTimestamp: '2026-04-22T19:30:00Z',
-        startingPrice: 5000,
-        views: 4200,
-        imageUrl: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-        id: 'ipl-promo-4',
-        title: 'Delhi Capitals vs Punjab Kings',
-        stadium: 'Arun Jaitley Stadium',
-        location: 'Delhi',
-        eventTimestamp: '2026-04-25T19:30:00Z',
-        startingPrice: 6500,
-        views: 3150,
-        imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-        id: 'ipl-promo-5',
-        title: '🏆 IPL 2026 GRAND FINAL',
-        stadium: 'Narendra Modi Stadium',
-        location: 'Ahmedabad',
-        eventTimestamp: '2026-05-24T20:00:00Z',
-        startingPrice: 110000,
-        views: 24500,
-        imageUrl: 'https://images.unsplash.com/photo-1590856029826-c7a73142bbf1?q=80&w=600&auto=format&fit=crop'
-    }
-];
 
 export default function Home() {
     const navigate = useNavigate();
     
     // Local App State
-    const { isAuthenticated, searchQuery, setLocationDropdownOpen, setSearchQuery } = useAppStore();
+    const { searchQuery, setLocationDropdownOpen, setSearchQuery } = useAppStore();
     
     // Shared Market State (Real-Time Firestore Pipe)
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
-    // Initialize Real-Time Listener
+    // FEATURE 1: Initialize Real-Time Listener
     useEffect(() => {
         const unsubscribe = initMarketListener();
+        // Cleanup the WebSocket connection when the component unmounts
         return () => {
             if (unsubscribe) unsubscribe();
         };
     }, [initMarketListener]);
 
-    // Dynamic Search Engine
+    // FEATURE 2: Dynamic Search Engine
     const filteredMatches = useMemo(() => {
         if (!searchQuery) return activeListings;
         const q = searchQuery.toLowerCase();
@@ -107,14 +53,14 @@ export default function Home() {
         });
     }, [activeListings, searchQuery]);
 
-    // Algorithmic Categorization
+    // FEATURE 3: Algorithmic Categorization
     const trendingMatches = useMemo(() => filteredMatches.slice(0, 8), [filteredMatches]);
     
     const cricketMatches = useMemo(() => 
         filteredMatches.filter(m => m.sportCategory === 'Cricket'), 
     [filteredMatches]);
 
-    // Reusable Dynamic Event Rail
+    // FEATURE 6: Reusable Dynamic Event Rail
     const EventRail = ({ title, events }) => {
         const scrollRef = useRef(null);
         
@@ -179,7 +125,7 @@ export default function Home() {
                     <ViagogoFilterBar />
                 </div>
 
-                {/* Loading State UI */}
+                {/* FEATURE 4: Loading State UI */}
                 {isLoading ? (
                     <div className="w-full py-24 flex flex-col items-center justify-center bg-[#f8f9fa] rounded-[16px] mb-12">
                         <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={40} />
@@ -188,54 +134,49 @@ export default function Home() {
                     </div>
                 ) : (
                     <>
-                        <AnimatePresence>
-                            {/* FEATURE 1: IPL BLOCKBUSTER PROMO RAIL */}
-                            <EventRail title="🔥 IPL 2026 Blockbusters" events={IPL_BLOCKBUSTERS} />
-
-                            {/* Empty State UI for Dynamic Matches */}
-                            {filteredMatches.length === 0 ? (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full py-20 flex flex-col items-center justify-center bg-[#fcfcfc] border border-[#e2e2e2] rounded-[16px] mb-12 text-center px-6">
-                                    <div className="w-16 h-16 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-4">
-                                        <AlertCircle size={32} className="text-[#c21c3a]" />
+                        {/* FEATURE 5: Empty State UI for Dynamic Matches */}
+                        {filteredMatches.length === 0 ? (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full py-20 flex flex-col items-center justify-center bg-[#fcfcfc] border border-[#e2e2e2] rounded-[16px] mb-12 text-center px-6">
+                                <div className="w-16 h-16 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-4">
+                                    <AlertCircle size={32} className="text-[#c21c3a]" />
+                                </div>
+                                <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">No Active Matches Found</h3>
+                                <p className="text-[15px] text-[#54626c] max-w-md mx-auto mb-6">
+                                    There are currently no live tickets matching your criteria. Sellers are adding new inventory every minute.
+                                </p>
+                                <button onClick={() => setSearchQuery('')} className="bg-[#1a1a1a] text-white px-6 py-3 rounded-[8px] font-bold text-[14px] hover:bg-black transition-colors">
+                                    Clear Filters
+                                </button>
+                            </motion.div>
+                        ) : (
+                            <AnimatePresence>
+                                {/* DYNAMIC REAL-TIME RAILS */}
+                                <EventRail title="Trending Now" events={trendingMatches} />
+                                
+                                {/* SPOTIFY PROMO BANNER */}
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
+                                    <div className="flex flex-col md:flex-row items-center w-full md:w-auto justify-center md:justify-start mb-5 md:mb-0 space-y-4 md:space-y-0 md:space-x-5">
+                                        <div className="flex items-center space-x-3">
+                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.36.18.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.239.54-.959.72-1.56.3z"/></svg>
+                                            <span className="font-bold text-[20px] md:text-[24px] text-white tracking-tight">Spotify</span>
+                                        </div>
+                                        <div className="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-5">
+                                            <h3 className="font-bold text-[14px] md:text-[16px] text-white leading-tight">Connect your Spotify account</h3>
+                                            <p className="text-[12px] md:text-[14px] text-gray-400 mt-1">Discover matches from teams you follow</p>
+                                        </div>
                                     </div>
-                                    <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">No Additional Matches Found</h3>
-                                    <p className="text-[15px] text-[#54626c] max-w-md mx-auto mb-6">
-                                        There are currently no live dynamic tickets matching your criteria. Sellers are adding new inventory every minute.
-                                    </p>
-                                    <button onClick={() => setSearchQuery('')} className="bg-[#1a1a1a] text-white px-6 py-3 rounded-[8px] font-bold text-[14px] hover:bg-black transition-colors">
-                                        Clear Filters
+                                    <button className="bg-[#1ed760] text-black font-bold px-8 py-3 rounded-full text-[14px] hover:bg-[#1cdf5f] transition-colors w-full md:w-auto">
+                                        Connect Spotify
                                     </button>
                                 </motion.div>
-                            ) : (
-                                <>
-                                    {/* DYNAMIC REAL-TIME RAILS */}
-                                    <EventRail title="Trending Now" events={trendingMatches} />
-                                    
-                                    {/* SPOTIFY PROMO BANNER */}
-                                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
-                                        <div className="flex flex-col md:flex-row items-center w-full md:w-auto justify-center md:justify-start mb-5 md:mb-0 space-y-4 md:space-y-0 md:space-x-5">
-                                            <div className="flex items-center space-x-3">
-                                                <svg viewBox="0 0 24 24" width="32" height="32" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.36.18.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.239.54-.959.72-1.56.3z"/></svg>
-                                                <span className="font-bold text-[20px] md:text-[24px] text-white tracking-tight">Spotify</span>
-                                            </div>
-                                            <div className="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-5">
-                                                <h3 className="font-bold text-[14px] md:text-[16px] text-white leading-tight">Connect your Spotify account</h3>
-                                                <p className="text-[12px] md:text-[14px] text-gray-400 mt-1">Discover matches from teams you follow</p>
-                                            </div>
-                                        </div>
-                                        <button className="bg-[#1ed760] text-black font-bold px-8 py-3 rounded-full text-[14px] hover:bg-[#1cdf5f] transition-colors w-full md:w-auto">
-                                            Connect Spotify
-                                        </button>
-                                    </motion.div>
 
-                                    <EventRail title="Top Cricket Matches" events={cricketMatches} />
-                                </>
-                            )}
-                        </AnimatePresence>
+                                <EventRail title="Top Cricket Matches" events={cricketMatches} />
+                            </AnimatePresence>
+                        )}
                     </>
                 )}
 
-                {/* 5. POPULAR CATEGORIES GRID */}
+                {/* POPULAR CATEGORIES GRID */}
                 <div className="mb-10 md:mb-14">
                     <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] mb-4 md:mb-5 tracking-tight">Popular categories</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -255,7 +196,7 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* 7. APP DOWNLOAD BANNER */}
+                {/* APP DOWNLOAD BANNER */}
                 <div className="w-full bg-[#f8f9fa] border border-[#e2e2e2] rounded-[16px] p-6 md:p-10 mb-8 flex flex-col md:flex-row justify-between items-center relative overflow-hidden">
                     <div className="md:w-1/2 z-10 mb-6 md:mb-0 text-center md:text-left">
                         <h2 className="text-[24px] md:text-[32px] font-black text-[#1a1a1a] mb-2 leading-tight tracking-tight">Download the parbet app</h2>
