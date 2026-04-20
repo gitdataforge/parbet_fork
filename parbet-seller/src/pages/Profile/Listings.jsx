@@ -12,20 +12,39 @@ import {
     Clock,
     CheckCircle2,
     Loader2,
-    AlertCircle
+    AlertCircle,
+    Pause,
+    Play,
+    ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { useSellerStore } from '../../store/useSellerStore';
 
 export default function Listings() {
     const navigate = useNavigate();
     
-    // FEATURE 1: Secure Data Injection from Real-Time Seller Engine
-    const { listings = [], isLoading, deleteListing } = useSellerStore();
+    // FEATURE 1: Secure Data Injection & Multi-Currency State
+    const { listings = [], isLoading, deleteListing, currency } = useSellerStore();
+
+    // Dynamic Currency Symbol Resolver
+    const getCurrencySymbol = (code) => {
+        switch(code) {
+            case 'USD': return '$';
+            case 'GBP': return '£';
+            case 'EUR': return '€';
+            case 'AUD': return 'A$';
+            case 'INR': 
+            default: return '₹';
+        }
+    };
+    const currencySymbol = getCurrencySymbol(currency || 'INR');
 
     // FEATURE 2: Complex Inventory State Machine
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('Active');
+    const [isMutating, setIsMutating] = useState(null);
 
     // FEATURE 3: Real-Time Multi-Tab Filtering Logic
     const filteredListings = useMemo(() => {
@@ -36,6 +55,7 @@ export default function Listings() {
             // Map statuses to tabs
             if (activeTab === 'All') return matchesSearch;
             if (activeTab === 'Active') return matchesSearch && item.status === 'active';
+            if (activeTab === 'Paused') return matchesSearch && item.status === 'paused';
             if (activeTab === 'Sold') return matchesSearch && item.status === 'sold';
             if (activeTab === 'Expired') return matchesSearch && item.status === 'expired';
             return matchesSearch;
@@ -46,9 +66,9 @@ export default function Listings() {
     const renderStatus = (status) => {
         const styles = {
             active: 'bg-[#eaf4d9] text-[#458731]',
+            paused: 'bg-orange-50 text-orange-600 border border-orange-200',
             sold: 'bg-[#ebf3fb] text-[#0064d2]',
-            expired: 'bg-gray-100 text-gray-500',
-            pending: 'bg-orange-50 text-orange-600'
+            expired: 'bg-gray-100 text-gray-500 border border-gray-200'
         };
         const label = status?.charAt(0).toUpperCase() + status?.slice(1) || 'Active';
         return (
@@ -58,13 +78,29 @@ export default function Listings() {
         );
     };
 
-    // FEATURE 5: Framer Motion Animation Physics
+    // FEATURE 5: Real-Time Database Mutator (Pause/Activate)
+    const toggleListingStatus = async (item) => {
+        if (isMutating) return;
+        setIsMutating(item.id);
+        const newStatus = item.status === 'active' ? 'paused' : 'active';
+        try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+            const ticketRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', item.id);
+            await updateDoc(ticketRef, { status: newStatus });
+        } catch (err) {
+            console.error("[Parbet Ledger] Failed to toggle listing status:", err);
+        } finally {
+            setIsMutating(null);
+        }
+    };
+
+    // Framer Motion Animation Physics
     const container = {
         hidden: { opacity: 0 },
         show: { opacity: 1, transition: { staggerChildren: 0.05 } }
     };
 
-    const item = {
+    const itemAnimation = {
         hidden: { opacity: 0, y: 10 },
         show: { opacity: 1, y: 0 }
     };
@@ -85,7 +121,7 @@ export default function Listings() {
             variants={container}
             className="w-full font-sans max-w-[1100px] pb-20"
         >
-            {/* FEATURE 6: Header with Quick-Action Injection */}
+            {/* Header with Quick-Action Injection */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
                 <div>
                     <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tight leading-none mb-2">My Listings</h1>
@@ -99,12 +135,12 @@ export default function Listings() {
                 </button>
             </div>
 
-            {/* FEATURE 7: Inventory Analytics Strip */}
+            {/* Inventory Analytics Strip */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                     { label: 'Active', value: listings.filter(l => l.status === 'active').length, icon: <TrendingUp size={14}/>, color: 'text-[#458731]' },
+                    { label: 'Paused', value: listings.filter(l => l.status === 'paused').length, icon: <Pause size={14}/>, color: 'text-orange-500' },
                     { label: 'Sold', value: listings.filter(l => l.status === 'sold').length, icon: <CheckCircle2 size={14}/>, color: 'text-[#0064d2]' },
-                    { label: 'Expired', value: listings.filter(l => l.status === 'expired').length, icon: <Clock size={14}/>, color: 'text-gray-400' },
                     { label: 'Total Volume', value: listings.length, icon: <Ticket size={14}/>, color: 'text-[#1a1a1a]' }
                 ].map((stat, i) => (
                     <div key={i} className="bg-white border border-[#e2e2e2] p-4 rounded-[12px] shadow-sm">
@@ -116,11 +152,11 @@ export default function Listings() {
                 ))}
             </div>
 
-            {/* FEATURE 8: Interactive Toolbelt (Search & Tabs) */}
+            {/* Interactive Toolbelt (Search & Tabs) */}
             <div className="bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm mb-6 overflow-hidden">
                 <div className="flex flex-col md:flex-row border-b border-[#e2e2e2]">
                     <div className="flex-1 flex overflow-x-auto no-scrollbar">
-                        {['Active', 'Sold', 'Expired', 'All'].map(tab => (
+                        {['Active', 'Paused', 'Sold', 'Expired', 'All'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -148,7 +184,7 @@ export default function Listings() {
                     </div>
                 </div>
 
-                {/* FEATURE 9: Dynamic Listing Ledger */}
+                {/* Dynamic Listing Ledger */}
                 <div className="p-0">
                     <AnimatePresence mode="popLayout">
                         {filteredListings.length > 0 ? (
@@ -156,14 +192,14 @@ export default function Listings() {
                                 {filteredListings.map((item) => (
                                     <motion.div 
                                         key={item.id}
-                                        variants={item}
+                                        variants={itemAnimation}
                                         layout
                                         exit={{ opacity: 0, x: -20 }}
-                                        className="p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:bg-[#fcfcfc] transition-colors group"
+                                        className={`p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors group ${item.status === 'paused' ? 'bg-gray-50 opacity-80' : 'bg-white hover:bg-[#fcfcfc]'}`}
                                     >
                                         <div className="flex items-start gap-5 flex-1 min-w-0">
-                                            <div className="w-12 h-12 bg-[#f8f9fa] rounded-[10px] flex items-center justify-center border border-gray-200 shrink-0 group-hover:bg-[#eaf4d9] transition-colors">
-                                                <Ticket size={24} className="text-[#1a1a1a] group-hover:text-[#458731] transition-colors" />
+                                            <div className={`w-12 h-12 rounded-[10px] flex items-center justify-center border border-gray-200 shrink-0 transition-colors ${item.status === 'paused' ? 'bg-gray-100' : 'bg-[#f8f9fa] group-hover:bg-[#eaf4d9]'}`}>
+                                                <Ticket size={24} className={`transition-colors ${item.status === 'paused' ? 'text-gray-400' : 'text-[#1a1a1a] group-hover:text-[#458731]'}`} />
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-3 mb-1.5 flex-wrap">
@@ -181,12 +217,28 @@ export default function Listings() {
                                         <div className="flex items-center justify-between md:justify-end gap-10 w-full md:w-auto border-t border-gray-100 md:border-0 pt-4 md:pt-0">
                                             <div className="text-right">
                                                 <div className="text-[11px] font-bold text-[#54626c] uppercase tracking-widest mb-0.5">Price</div>
-                                                <div className="text-[20px] font-black text-[#1a1a1a]">₹{item.price?.toLocaleString()}</div>
+                                                <div className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}{item.price?.toLocaleString()}</div>
                                             </div>
                                             
-                                            <div className="flex items-center gap-2">
+                                            {/* Explicit Data Controls */}
+                                            <div className="flex items-center gap-1">
                                                 <button 
-                                                    onClick={() => navigate(`/sell?edit=${item.id}`)}
+                                                    onClick={() => window.open(`https://parbet-44902.web.app/event?id=${item.eventId}`, '_blank')}
+                                                    className="p-2.5 text-gray-400 hover:text-[#0064d2] hover:bg-[#ebf3fb] rounded-[8px] transition-all"
+                                                    title="View on Marketplace"
+                                                >
+                                                    <ExternalLink size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => toggleListingStatus(item)}
+                                                    disabled={isMutating === item.id || item.status === 'sold' || item.status === 'expired'}
+                                                    className="p-2.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-[8px] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    title={item.status === 'active' ? 'Pause Listing' : 'Activate Listing'}
+                                                >
+                                                    {isMutating === item.id ? <Loader2 size={18} className="animate-spin" /> : item.status === 'active' ? <Pause size={18} /> : <Play size={18} />}
+                                                </button>
+                                                <button 
+                                                    onClick={() => navigate(`/edit-listing/${item.id}`)}
                                                     className="p-2.5 text-gray-400 hover:text-[#458731] hover:bg-[#eaf4d9] rounded-[8px] transition-all"
                                                     title="Edit Listing"
                                                 >
@@ -195,7 +247,7 @@ export default function Listings() {
                                                 <button 
                                                     onClick={() => deleteListing(item.id)}
                                                     className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-[8px] transition-all"
-                                                    title="Delete Listing"
+                                                    title="Delete Listing Permanently"
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -231,7 +283,6 @@ export default function Listings() {
                 </div>
             </div>
 
-            {/* FEATURE 10: Marketplace Note */}
             <div className="bg-[#f0f9ff] border border-[#0064d2]/10 rounded-[12px] p-5 flex items-start gap-4">
                 <AlertCircle className="text-[#0064d2] shrink-0 mt-0.5" size={20} />
                 <div>

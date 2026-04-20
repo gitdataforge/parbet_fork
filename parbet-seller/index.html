@@ -7,11 +7,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     <title>Parbet - Sell your tickets</title>
     
-    <!-- FEATURE 2: Network Optimization & Ad-Blocker Warning Prevention -->
+    <!-- FEATURE 2: Network Optimization for Dynamic Injection -->
     <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
     
-    <!-- FEATURE 3: Secure Razorpay Checkout SDK for Pay-to-List Gatekeeper -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- CRITICAL FIX: Razorpay SDK removed from global head to prevent ERR_BLOCKED_BY_CLIENT and otp-credentials crashes. It will now be dynamically injected by the Zustand store only when needed. -->
 
     <!-- External free ML weights will be loaded securely by face-api in the logic layer -->
   </head>
