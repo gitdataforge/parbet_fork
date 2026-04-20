@@ -39,6 +39,10 @@ export const useSellerStore = create((set, get) => ({
     submitError: null,
     isLoading: true, 
 
+    // FEATURE 2: Multi-Currency Engine State
+    currency: 'INR',
+    setCurrency: (newCurrency) => set({ currency: newCurrency }),
+
     // ------------------------------------------------------------------
     // 2. REAL-TIME DATA BUCKETS (Consumable by Profile UI)
     // ------------------------------------------------------------------

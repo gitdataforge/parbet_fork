@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ChevronDown, User, AlertCircle, Eye, 
     Smartphone, Ticket, FileText, QrCode, 
-    X, Check, CreditCard, Loader2, ShieldAlert
+    X, Check, CreditCard, Loader2, ShieldAlert, UploadCloud
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
 import { useListingStore } from '../../store/useListingStore';
@@ -36,6 +36,11 @@ export default function CreateListing() {
     const [views, setViews] = useState('148');
     const [tag1, setTag1] = useState('Good time to sell!');
     const [tag2, setTag2] = useState('This week');
+
+    // FEATURE 2: Cloudinary Custom Promo Image State
+    const [promoImageUrl, setPromoImageUrl] = useState('');
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [imageError, setImageError] = useState('');
 
     // ==========================================
     // STEP 1: SEAT & TICKET DETAILS
@@ -120,7 +125,39 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 2: Standardized Global Database Payload Constructor
+    // FEATURE 3: Cloudinary Direct Upload Engine
+    const handlePromoImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        setIsUploadingImage(true);
+        setImageError('');
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'ml_default'); // Public unsigned preset
+            
+            const response = await fetch('https://api.cloudinary.com/v1_1/demo/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            if (data.secure_url) {
+                setPromoImageUrl(data.secure_url);
+            } else {
+                throw new Error("Invalid response from image server");
+            }
+        } catch (err) {
+            console.error("[Parbet Storage] Image Upload Error:", err);
+            setImageError("Failed to upload image. Please try again.");
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
+    // Standardized Global Database Payload Constructor
     const handleFinalSubmit = async () => {
         if (clearError) clearError();
         
@@ -138,6 +175,7 @@ export default function CreateListing() {
             eventTimestamp: new Date(`${date}T${time}`).toISOString(),
             views: Number(views) || 0,
             tags: [tag1, tag2].filter(Boolean),
+            imageUrl: promoImageUrl || '', // Injects the custom image into the global feed
             
             ticketType,
             ticketTiers: [
@@ -153,7 +191,7 @@ export default function CreateListing() {
             ],
             
             faceValue: faceValue ? Number(faceValue) : null,
-            payoutMethod,
+            payoutMethod: isAdmin ? 'admin_bypass' : payoutMethod,
             storageLocation,
             
             status: 'active',
@@ -168,9 +206,9 @@ export default function CreateListing() {
         }
     };
 
-    // Validation Checkers
+    // FEATURE 4: Strict Validation Gatekeeper (Admin bypasses step 2 financial locks)
     const isStep1Valid = team1 && stadium && date && quantity && ticketType;
-    const isStep2Valid = perTicketPrice && payoutMethod && terms1 && cardAdded;
+    const isStep2Valid = isAdmin ? (perTicketPrice && terms1) : (perTicketPrice && payoutMethod && terms1 && cardAdded);
 
     return (
         <div className="min-h-screen bg-white font-sans flex flex-col text-[#1a1a1a]">
@@ -201,11 +239,11 @@ export default function CreateListing() {
                 <div className="flex-1 space-y-12">
 
                     <AnimatePresence>
-                        {submitError && (
+                        {(submitError || imageError) && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                                 <div className="bg-[#fdf2f2] border-l-4 border-[#c21c3a] p-4 flex items-center gap-3">
                                     <ShieldAlert className="text-[#c21c3a]" size={20} />
-                                    <p className="text-[14px] font-bold text-[#c21c3a]">{submitError}</p>
+                                    <p className="text-[14px] font-bold text-[#c21c3a]">{submitError || imageError}</p>
                                 </div>
                             </motion.div>
                         )}
@@ -236,7 +274,43 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
+                            {/* FEATURE 5: Cloudinary Promo Image Upload Zone */}
+                            <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
+                                <h3 className="font-bold text-[#1a1a1a] text-[16px]">Promotional Image</h3>
+                                <p className="text-[14px] text-[#54626c]">Upload a high-quality image for the event. This will replace the default fallback image on the buyer marketplace.</p>
+                                
+                                <div className="relative group">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handlePromoImageUpload} 
+                                        disabled={isUploadingImage} 
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed" 
+                                    />
+                                    <div className={`w-full border-2 border-dashed rounded-[12px] flex flex-col items-center justify-center p-8 transition-all relative ${promoImageUrl ? 'border-[#8cc63f] bg-[#eaf4d9]' : 'border-[#e2e2e2] bg-[#f8f9fa] group-hover:border-[#8cc63f] group-hover:bg-[#eaf4d9]'}`}>
+                                        {isUploadingImage ? (
+                                            <div className="flex flex-col items-center">
+                                                <Loader2 className="animate-spin text-[#8cc63f] mb-3" size={32} />
+                                                <p className="font-bold text-[#8cc63f] text-[14px]">Uploading & Optimizing...</p>
+                                            </div>
+                                        ) : promoImageUrl ? (
+                                            <div className="flex flex-col items-center">
+                                                <img src={promoImageUrl} alt="Promo Preview" className="h-32 object-cover rounded-[8px] mb-3 shadow-md border border-white" />
+                                                <p className="font-bold text-[#1a1a1a] text-[15px]">Image Uploaded Successfully</p>
+                                                <p className="text-[13px] text-[#54626c] mt-1">Click or drag to replace image</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center text-[#9ca3af] group-hover:text-[#458731] transition-colors">
+                                                <UploadCloud size={40} className="mb-3" />
+                                                <h4 className="font-black text-[15px] text-[#1a1a1a]">Click or drag to upload cover photo</h4>
+                                                <p className="text-[13px] font-medium mt-1">Supports JPG, PNG (Max 5MB)</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Perks of selling on parbet</h3>
                                 <div className="flex items-start gap-2 text-[#469e96] text-[14px]">
                                     <User size={16} className="mt-0.5 shrink-0" strokeWidth={2.5} />
@@ -267,7 +341,7 @@ export default function CreateListing() {
                                         <option value="General Admission">General Admission</option>
                                         <option value="VIP Box">VIP Box</option>
                                         <option value="North Stand">North Stand</option>
-                                        <option value="2">Section 2</option>
+                                        <option value="Section 2">Section 2</option>
                                     </select>
                                     <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                                 </div>
@@ -435,12 +509,15 @@ export default function CreateListing() {
                                     <span className="absolute left-4 top-2 text-[10px] text-[#54626c] uppercase font-bold tracking-wider">Per ticket</span>
                                 </div>
 
-                                <div className="bg-[#f8f9fa] rounded-[8px] p-4 text-center border border-[#e2e2e2]">
-                                    <p className="text-[14px] text-[#1a1a1a]">If all of your tickets sell, you'll earn</p>
-                                    <p className="text-[18px] font-black text-[#458731] mt-1 flex items-center justify-center gap-1">
-                                        US$ {calculateEarnings()} <AlertCircle size={14} className="text-gray-400 cursor-pointer" />
-                                    </p>
-                                </div>
+                                {/* FEATURE 6: Hide Revenue Cost Breakdown from Admin */}
+                                {!isAdmin && (
+                                    <div className="bg-[#f8f9fa] rounded-[8px] p-4 text-center border border-[#e2e2e2]">
+                                        <p className="text-[14px] text-[#1a1a1a]">If all of your tickets sell, you'll earn</p>
+                                        <p className="text-[18px] font-black text-[#458731] mt-1 flex items-center justify-center gap-1">
+                                            US$ {calculateEarnings()} <AlertCircle size={14} className="text-gray-400 cursor-pointer" />
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
@@ -459,48 +536,53 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
-                                <h3 className="font-bold text-[#1a1a1a] text-[16px]">Credit or debit card</h3>
-                                <p className="text-[13px] text-[#54626c]">
-                                    To provide our Fan Protect Guarantee, all sellers are required to have a valid credit or debit card on file. <span className="text-[#0064d2] cursor-pointer hover:underline">Learn more</span>
-                                </p>
-                                
-                                {cardAdded ? (
-                                    <div className="bg-[#f9fdf7] border border-[#d2e8b0] rounded-[8px] p-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <CreditCard className="text-[#458731]" />
-                                            <div>
-                                                <p className="text-[14px] font-bold text-[#1a1a1a]">Card Added Successfully</p>
-                                                <p className="text-[12px] text-[#54626c]">Ending in ****</p>
+                            {/* FEATURE 7: Hide Financial Payment Gateways from Admin */}
+                            {!isAdmin && (
+                                <>
+                                    <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
+                                        <h3 className="font-bold text-[#1a1a1a] text-[16px]">Credit or debit card</h3>
+                                        <p className="text-[13px] text-[#54626c]">
+                                            To provide our Fan Protect Guarantee, all sellers are required to have a valid credit or debit card on file. <span className="text-[#0064d2] cursor-pointer hover:underline">Learn more</span>
+                                        </p>
+                                        
+                                        {cardAdded ? (
+                                            <div className="bg-[#f9fdf7] border border-[#d2e8b0] rounded-[8px] p-4 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <CreditCard className="text-[#458731]" />
+                                                    <div>
+                                                        <p className="text-[14px] font-bold text-[#1a1a1a]">Card Added Successfully</p>
+                                                        <p className="text-[12px] text-[#54626c]">Ending in ****</p>
+                                                    </div>
+                                                </div>
+                                                <Check className="text-[#458731]" />
                                             </div>
-                                        </div>
-                                        <Check className="text-[#458731]" />
+                                        ) : (
+                                            <button 
+                                                onClick={() => setShowCardModal(true)}
+                                                className="w-full bg-[#111827] text-white font-bold text-[15px] py-4 rounded-[8px] hover:bg-black transition-colors"
+                                            >
+                                                Add Card On File
+                                            </button>
+                                        )}
                                     </div>
-                                ) : (
-                                    <button 
-                                        onClick={() => setShowCardModal(true)}
-                                        className="w-full bg-[#111827] text-white font-bold text-[15px] py-4 rounded-[8px] hover:bg-black transition-colors"
-                                    >
-                                        Add Card On File
-                                    </button>
-                                )}
-                            </div>
 
-                            <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
-                                <h3 className="font-bold text-[#1a1a1a] text-[16px]">Payout method</h3>
-                                <div className="relative">
-                                    <select 
-                                        value={payoutMethod}
-                                        onChange={(e) => setPayoutMethod(e.target.value)}
-                                        className="w-full border border-[#cccccc] rounded-[8px] p-4 text-[15px] appearance-none focus:outline-none focus:border-[#1a1a1a] cursor-pointer bg-white"
-                                    >
-                                        <option value="" disabled>Select payout method</option>
-                                        <option value="paypal">PayPal</option>
-                                        <option value="direct">Direct deposit</option>
-                                    </select>
-                                    <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                                </div>
-                            </div>
+                                    <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
+                                        <h3 className="font-bold text-[#1a1a1a] text-[16px]">Payout method</h3>
+                                        <div className="relative">
+                                            <select 
+                                                value={payoutMethod}
+                                                onChange={(e) => setPayoutMethod(e.target.value)}
+                                                className="w-full border border-[#cccccc] rounded-[8px] p-4 text-[15px] appearance-none focus:outline-none focus:border-[#1a1a1a] cursor-pointer bg-white"
+                                            >
+                                                <option value="" disabled>Select payout method</option>
+                                                <option value="paypal">PayPal</option>
+                                                <option value="direct">Direct deposit</option>
+                                            </select>
+                                            <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2] pb-10">
                                 <label className="flex items-start gap-3 cursor-pointer">
@@ -527,8 +609,14 @@ export default function CreateListing() {
 
                 <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 relative pb-24 md:pb-0">
                     <div className="sticky top-[120px] rounded-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-gray-100 bg-white overflow-hidden">
+                        
+                        {/* FEATURE 8: Dynamic Real-Time Image Preview Update */}
                         <div className="w-full h-[180px] md:h-[220px] overflow-hidden bg-black p-3">
-                            <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1000&auto=format&fit=crop" alt="Cricket Match" className="w-full h-full object-cover rounded-[8px] grayscale contrast-125 opacity-90"/>
+                            <img 
+                                src={promoImageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1000&auto=format&fit=crop"} 
+                                alt="Cricket Match" 
+                                className="w-full h-full object-cover rounded-[8px] grayscale contrast-125 opacity-90 transition-all duration-500"
+                            />
                         </div>
                         
                         <div className="p-5 md:p-6">
@@ -606,7 +694,6 @@ export default function CreateListing() {
                         </button>
                     ) : <div></div>}
                     
-                    {/* FEATURE 3: Dynamic Final Submission Trigger based on Admin Role */}
                     <button 
                         disabled={step === 1 ? !isStep1Valid : (!isStep2Valid || isSubmitting)}
                         onClick={() => step === 1 ? setStep(2) : handleFinalSubmit()}

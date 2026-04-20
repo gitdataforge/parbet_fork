@@ -1,16 +1,35 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 import { useSellerStore } from '../store/useSellerStore';
+
+/**
+ * FEATURE 1: Global Multi-Currency Toggle Engine
+ * FEATURE 2: Real-Time Zustand State Synchronization
+ * FEATURE 3: Hardware-Accelerated Dropdown UI
+ */
 
 export default function Header() {
     const navigate = useNavigate();
     
-    // Extracted global logout mutation from the real-time data engine
-    const { logout } = useSellerStore();
+    // Extracted global state and mutations from the real-time data engine
+    const { logout, currency, setCurrency } = useSellerStore();
 
     const handleSignOut = async () => {
         await logout();
         navigate('/auth/login');
+    };
+
+    // Helper to visually map currency codes to their respective symbols
+    const getCurrencySymbol = (code) => {
+        switch(code) {
+            case 'USD': return '$';
+            case 'GBP': return '£';
+            case 'EUR': return '€';
+            case 'AUD': return 'A$';
+            case 'INR': 
+            default: return '₹';
+        }
     };
 
     return (
@@ -30,7 +49,26 @@ export default function Header() {
                 {/* Right: Interactive Navigation Cluster */}
                 <div className="flex items-center h-full">
                     
-                    {/* FEATURE 1: Sell Menu Dropdown (Matches image_da28e7.png) */}
+                    {/* FEATURE 1: Dynamic Multi-Currency Dropdown */}
+                    <div className="relative group h-full flex items-center px-4 lg:px-5 border-r border-[#e2e2e2] hidden sm:flex">
+                        <span className="flex items-center text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors cursor-pointer">
+                            {currency} ({getCurrencySymbol(currency)}) <ChevronDown size={14} className="ml-1 opacity-70" />
+                        </span>
+                        
+                        <div className="absolute top-full left-0 bg-white border border-[#cccccc] shadow-[0_8px_24px_rgba(0,0,0,0.12)] py-2 min-w-[120px] hidden group-hover:block z-50 rounded-b-[4px]">
+                            {['INR', 'USD', 'EUR', 'GBP', 'AUD'].map((cur) => (
+                                <button 
+                                    key={cur}
+                                    onClick={() => setCurrency(cur)}
+                                    className={`block w-full px-5 py-2.5 text-[15px] hover:bg-[#f8f9fa] hover:underline text-left whitespace-nowrap ${currency === cur ? 'text-[#1a1a1a] font-bold bg-gray-50' : 'text-[#0064d2]'}`}
+                                >
+                                    {cur} ({getCurrencySymbol(cur)})
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Sell Menu Dropdown */}
                     <div className="relative group h-full flex items-center px-4 lg:px-5">
                         <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors cursor-pointer">
                             Sell
@@ -53,7 +91,7 @@ export default function Header() {
                         </div>
                     </div>
 
-                    {/* FEATURE 2: My Tickets Menu Dropdown (Matches image_da2c10.png) */}
+                    {/* My Tickets Menu Dropdown */}
                     <div className="relative group h-full flex items-center px-4 lg:px-5">
                         <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors cursor-pointer">
                             My Tickets
@@ -75,13 +113,13 @@ export default function Header() {
                         </div>
                     </div>
 
-                    {/* FEATURE 3: Profile Menu & User Icon Dropdown (Matches image_da304b.png & image_da338f.png) */}
+                    {/* Profile Menu & User Icon Dropdown */}
                     <div className="relative group h-full flex items-center pl-4 lg:pl-5 cursor-pointer">
                         <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors mr-3">
                             Profile
                         </span>
                         
-                        {/* Solid Green User Profile Icon (Exact Replica) */}
+                        {/* Solid Green User Profile Icon */}
                         <div className="w-[36px] h-[36px] rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 group-hover:border-[#458731] transition-colors">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="#458731" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" />
@@ -97,7 +135,7 @@ export default function Header() {
                             </Link>
                             <button 
                                 onClick={handleSignOut} 
-                                className="block w-full px-5 py-2.5 text-[15px] text-[#0064d2] hover:bg-[#f8f9fa] hover:underline whitespace-nowrap text-left"
+                                className="block w-full px-5 py-2.5 text-[15px] text-[#c21c3a] font-bold hover:bg-[#fdf2f2] hover:underline whitespace-nowrap text-left"
                             >
                                 Sign out
                             </button>
