@@ -50,7 +50,7 @@ export default function CreateListing() {
     const [tag1, setTag1] = useState('Good time to sell!');
     const [tag2, setTag2] = useState('This week');
 
-    // ImgBB Custom Promo Image State
+    // Cloudinary Custom Promo Image State
     const [promoImageUrl, setPromoImageUrl] = useState('');
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [imageError, setImageError] = useState('');
@@ -138,7 +138,7 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 3: Robust ImgBB Direct Upload Engine (Replaces broken Cloudinary)
+    // FEATURE 3: Robust Cloudinary Unsigned Direct Upload Engine
     const handlePromoImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -148,26 +148,28 @@ export default function CreateListing() {
         
         try {
             const formData = new FormData();
-            formData.append('image', file); // ImgBB strictly requires the field to be named 'image'
+            formData.append('file', file);
+            // REQUIRES SETUP: Your Cloudinary upload preset must be set to "Unsigned" in Settings
+            formData.append('upload_preset', 'parbet_preset'); 
             
-            // Publicly accessible free-tier ImgBB API Key
-            const IMGBB_API_KEY = '017c603a1443685e1354bb85a21fa284'; 
+            // NOTE: Replace 'dxa1m6xez' with your actual Cloudinary Cloud Name from your dashboard
+            const CLOUD_NAME = 'dzyonmksh'; 
             
-            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
                 method: 'POST',
                 body: formData
             });
             
             const data = await response.json();
             
-            if (data.success && data.data?.url) {
-                setPromoImageUrl(data.data.url);
+            if (data.secure_url) {
+                setPromoImageUrl(data.secure_url);
             } else {
-                throw new Error("Invalid response from ImgBB image server");
+                throw new Error(data.error?.message || "Invalid response from Cloudinary server");
             }
         } catch (err) {
             console.error("[Parbet Storage] Image Upload Error:", err);
-            setImageError("Failed to upload image. Please try again.");
+            setImageError("Failed to upload image. Please verify your Cloudinary Cloud Name and Unsigned Preset.");
         } finally {
             setIsUploadingImage(false);
         }
@@ -290,7 +292,7 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* ImgBB Promo Image Upload Zone */}
+                            {/* Cloudinary Promo Image Upload Zone */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Promotional Image</h3>
                                 <p className="text-[14px] text-[#54626c]">Upload a high-quality image for the event. This will replace the default fallback image on the buyer marketplace.</p>
@@ -307,7 +309,7 @@ export default function CreateListing() {
                                         {isUploadingImage ? (
                                             <div className="flex flex-col items-center">
                                                 <Loader2 className="animate-spin text-[#8cc63f] mb-3" size={32} />
-                                                <p className="font-bold text-[#8cc63f] text-[14px]">Uploading & Optimizing...</p>
+                                                <p className="font-bold text-[#8cc63f] text-[14px]">Uploading to Cloudinary...</p>
                                             </div>
                                         ) : promoImageUrl ? (
                                             <div className="flex flex-col items-center">
