@@ -2,54 +2,68 @@ const admin = require('firebase-admin');
 const { Resend } = require('resend');
 const cors = require('cors')({ origin: true });
 
+// FEATURE 1: Strict Environment Variable Guards
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.error("CRITICAL: FIREBASE_SERVICE_ACCOUNT environment variable is missing in Vercel.");
+}
+if (!process.env.RESEND_API_KEY) {
+    console.error("CRITICAL: RESEND_API_KEY environment variable is missing in Vercel.");
+}
+
 /**
- * FEATURE 1: Secure Firebase Admin Initialization
+ * FEATURE 2: Secure Firebase Admin Initialization
  * Uses a singleton pattern to prevent multiple initializations during Vercel cold starts.
  * Security: Credentials are pulled strictly from the encrypted Vercel Environment Variables.
  */
-if (!admin.apps.length) {
+if (!admin.apps.length && process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
+        console.log("Firebase Admin Initialized Successfully.");
     } catch (error) {
-        console.error("CRITICAL: Firebase Admin Initialization Failed. Check FIREBASE_SERVICE_ACCOUNT env var string format.");
+        console.error("CRITICAL: Firebase Admin Initialization Failed. Check JSON string format in Vercel.", error.message);
     }
 }
 
 /**
- * FEATURE 2: Resend SDK Initialization
+ * FEATURE 3: Resend SDK Initialization
  */
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 module.exports = async (req, res) => {
     // Handle Cross-Origin Resource Sharing (CORS) for Parbet Frontend Apps
     cors(req, res, async () => {
         
-        // FEATURE 3: Strict Method Guard
+        // FEATURE 4: Strict Method Guard
         if (req.method !== 'POST') {
             return res.status(405).json({ error: 'Method Not Allowed. This endpoint strictly requires a POST request.' });
         }
 
+        // FEATURE 5: Runtime Dependency Check (Prevents silent 500 crashes)
+        if (!admin.apps.length || !resend) {
+            console.error("Endpoint Execution Blocked: Server misconfiguration detected.");
+            return res.status(500).json({ error: 'Server misconfiguration. Environment variables for Firebase or Resend are missing or invalid.' });
+        }
+
         const { email } = req.body;
 
-        // FEATURE 4: Input Validation
+        // FEATURE 6: Input Validation
         if (!email) {
             return res.status(400).json({ error: 'Email address is required to process the reset request.' });
         }
 
         try {
             /**
-             * FEATURE 5: Generate Secure Reset Link
+             * FEATURE 7: Generate Secure Reset Link
              * Uses the Admin SDK to create the official OOB (Out-Of-Band) code.
-             * This allows us to use custom HTML templates instead of Firebase's locked ones.
              */
             const resetLink = await admin.auth().generatePasswordResetLink(email);
             const appName = "Parbet";
 
             /**
-             * FEATURE 6: Enterprise 9-Section HTML Template
+             * FEATURE 8: Enterprise 9-Section HTML Template
              * Fully responsive, branded design with accessibility support.
              */
             const htmlContent = `
@@ -120,7 +134,7 @@ module.exports = async (req, res) => {
             `;
 
             /**
-             * FEATURE 7: Dispatch via Resend Sandbox Engine
+             * FEATURE 9: Dispatch via Resend Sandbox Engine
              * MANDATORY: Since no domain is owned, 'from' MUST be exactly 'onboarding@resend.dev'
              * NOTE: Emails will only be delivered to your signup email (testcodecfg@gmail.com)
              */
@@ -133,8 +147,8 @@ module.exports = async (req, res) => {
             });
 
             if (error) {
-                console.error("Resend Sandbox Dispatch Error:", error);
-                return res.status(500).json({ error: error.message });
+                console.error("Resend API Dispatch Error:", JSON.stringify(error, null, 2));
+                return res.status(500).json({ error: 'Resend API failed to dispatch the email. Please check Vercel Logs.' });
             }
 
             return res.status(200).json({ 
@@ -144,8 +158,9 @@ module.exports = async (req, res) => {
             });
 
         } catch (error) {
-            console.error('Critical Backend Pipeline Failure:', error);
-            return res.status(500).json({ error: 'Failed to process security request. Please check server logs.' });
+            console.error('Critical Backend Pipeline Failure:', error.message);
+            console.error(error.stack);
+            return res.status(500).json({ error: 'Failed to process security request due to server logic error. Check Vercel logs.' });
         }
     });
 };
