@@ -22,19 +22,27 @@ import { db } from '../../lib/firebase';
 import { useSellerStore } from '../../store/useSellerStore';
 import { exportSalesToExcel } from '../../utils/excelExporter';
 
+// Retrieve global environment variables securely
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+
 export default function Sales() {
     // FEATURE 1: Secure Identity & Role Verification
     const { user, sales: storeSales, isLoading: storeIsLoading, currency } = useSellerStore();
     const isAdmin = user?.email === 'testcodecfg@gmail.com';
 
-    // FEATURE 2: Admin God-Mode Real-Time Sync
+    // FEATURE 2: Admin God-Mode Real-Time Sync & Graceful Error Handling
     const [adminSales, setAdminSales] = useState([]);
     const [isAdminLoading, setIsAdminLoading] = useState(false);
+    const [syncError, setSyncError] = useState(null);
 
     useEffect(() => {
         if (isAdmin) {
             setIsAdminLoading(true);
-            const q = query(collection(db, 'orders'));
+            setSyncError(null);
+            
+            // CRITICAL FIX: Migrated query to secured Canvas Artifacts Path
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
+            
             const unsub = onSnapshot(q, (snap) => {
                 const allOrders = snap.docs.map(d => ({
                     id: d.id,
@@ -44,7 +52,9 @@ export default function Sales() {
                 setAdminSales(allOrders);
                 setIsAdminLoading(false);
             }, (error) => {
+                // Graceful UI Error Handling
                 console.error("Admin God-Mode Sync Error:", error);
+                setSyncError(error.message || 'Missing or insufficient permissions.');
                 setIsAdminLoading(false);
             });
             return () => unsub();
@@ -146,6 +156,22 @@ export default function Sales() {
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
                 <Loader2 className="animate-spin text-[#1a1a1a] mb-4" size={32} />
                 <p className="text-[13px] font-bold text-[#54626c] tracking-widest uppercase">Syncing Secure Ledger...</p>
+            </div>
+        );
+    }
+
+    // Graceful Error Boundary Rendering
+    if (syncError) {
+        return (
+            <div className="w-full h-[60vh] flex flex-col items-center justify-center text-center px-4">
+                <ShieldAlert className="text-[#c21c3a] mb-4" size={48} />
+                <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">Database Access Denied</h3>
+                <p className="text-[15px] text-[#54626c] max-w-md bg-white border border-[#e2e2e2] p-4 rounded-[4px] mt-2 shadow-sm">
+                    <span className="font-bold text-[#1a1a1a]">Error:</span> {syncError}
+                </p>
+                <p className="text-[13px] text-[#54626c] mt-6 max-w-md">
+                    Please ensure your Firestore security rules grant read access to the global artifacts collection for your admin account.
+                </p>
             </div>
         );
     }
