@@ -7,10 +7,8 @@ import {
     query, 
     where, 
     onSnapshot, 
-    getDocs, 
     doc, 
     deleteDoc, 
-    updateDoc, 
     runTransaction,
     setDoc
 } from 'firebase/firestore';
@@ -134,6 +132,16 @@ export const useSellerStore = create((set, get) => ({
                     });
                     newUnsubscribers.push(unsubOrders);
 
+                    // 5. REAL-TIME TRANSACTIONS/WITHDRAWALS (Mapped securely to Private Path)
+                    const withdrawalsRef = collection(db, 'artifacts', appId, 'users', uid, 'withdrawals');
+                    const unsubWithdrawals = onSnapshot(withdrawalsRef, (snapshot) => {
+                        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        set({ transactions: items.sort((a, b) => safeGetTime(b.requestDate) - safeGetTime(a.requestDate)) });
+                    }, (err) => {
+                        if (err.code !== 'permission-denied') console.error("Withdrawals Sync Error:", err);
+                    });
+                    newUnsubscribers.push(unsubWithdrawals);
+
                     set({ unsubscribers: newUnsubscribers, isLoading: false });
                 } catch (error) {
                     set({ isLoading: false });
@@ -195,6 +203,85 @@ export const useSellerStore = create((set, get) => ({
         await deleteDoc(doc(db, 'events', listingId));
     },
 
+    // FEATURE: Secure Bank/UPI Detail Saving
+    saveBankDetails: async (details) => {
+        set({ isSubmitting: true, submitError: null });
+        try {
+            const state = get();
+            if (!state.user) throw new Error("Authentication Required");
+
+            const profileRef = doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data');
+            
+            // Merging bank details into the highly protected profile user path.
+            await setDoc(profileRef, { 
+                bankDetails: {
+                    ...details,
+                    updatedAt: serverTimestamp(),
+                    status: 'pending_verification' // Indicates admin needs to review
+                }
+            }, { merge: true });
+
+            set({ isSubmitting: false });
+            return { success: true };
+        } catch (error) {
+            set({ isSubmitting: false, submitError: error.message });
+            throw error;
+        }
+    },
+
+    // FEATURE: Financial Transaction for Wallet Withdrawal
+    requestWithdrawal: async (amount) => {
+        set({ isSubmitting: true, submitError: null });
+        try {
+            const state = get();
+            if (!state.user) throw new Error("Authentication Required");
+
+            const uid = state.user.uid;
+            const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
+            const newWithdrawalRef = doc(collection(db, 'artifacts', appId, 'users', uid, 'withdrawals'));
+
+            // Using Firestore Transactions to prevent race conditions during money deduction
+            await runTransaction(db, async (transaction) => {
+                const profileDoc = await transaction.get(profileRef);
+                if (!profileDoc.exists()) {
+                    throw new Error("Financial profile not found.");
+                }
+
+                const currentBalance = profileDoc.data().balance || 0;
+                if (currentBalance < amount) {
+                    throw new Error(`Insufficient funds. Available: ${state.currency} ${currentBalance}`);
+                }
+
+                const currentPending = profileDoc.data().pendingBalance || 0;
+                
+                // Deduct from main balance, shift to pending balance
+                transaction.update(profileRef, {
+                    balance: currentBalance - amount,
+                    pendingBalance: currentPending + amount
+                });
+
+                // Record the withdrawal request document securely
+                transaction.set(newWithdrawalRef, {
+                    id: newWithdrawalRef.id,
+                    type: 'withdrawal',
+                    sellerId: uid,
+                    amount: amount,
+                    currency: state.currency,
+                    status: 'processing',
+                    requestDate: serverTimestamp(),
+                    bankDetailsSnapshot: profileDoc.data().bankDetails || null,
+                    description: `Withdrawal to ${profileDoc.data().bankDetails?.bankName || 'Bank'}`
+                });
+            });
+
+            set({ isSubmitting: false });
+            return { success: true };
+        } catch (error) {
+            set({ isSubmitting: false, submitError: error.message });
+            throw error;
+        }
+    },
+
     fetchLiveEvents: async () => {
         set({ isLoadingEvents: true });
         try {
@@ -220,10 +307,7 @@ export const useSellerStore = create((set, get) => ({
     // ------------------------------------------------------------------
     resetPassword: async (email) => {
         try {
-            // STRICT SANITIZATION: Prevent invisible whitespace errors
             const sanitizedEmail = email.trim().toLowerCase();
-
-            // VERCEL API TARGET: Bypasses Firebase Default Templates completely
             const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
             
             const response = await fetch(VERCEL_API_URL, {
@@ -247,7 +331,6 @@ export const useSellerStore = create((set, get) => ({
         }
     },
 
-    // FEATURE: New Vercel Account Verification Pipeline
     sendVerificationEmail: async (email, name) => {
         try {
             const sanitizedEmail = email.trim().toLowerCase();
@@ -276,7 +359,7 @@ export const useSellerStore = create((set, get) => ({
 
     logout: () => {
         get().unsubscribers.forEach(unsub => unsub());
-        set({ user: null, isAuthenticated: false, listings: [], sales: [], orders: [] });
+        set({ user: null, isAuthenticated: false, listings: [], sales: [], orders: [], transactions: [] });
         auth.signOut();
     }
 }));
