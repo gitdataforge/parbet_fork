@@ -103,11 +103,22 @@ export default function Login() {
             await signInWithEmailAndPassword(auth, email, password);
             navigate('/profile');
         } catch (error) {
-            console.error("Login Error:", error);
-            if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                setAuthError("Invalid email or password. Please try again.");
+            // CRITICAL FIX: Robust substring matching prevents unhandled promise rejections
+            console.error("Login Error Catch:", error);
+            const errorCode = String(error.code || '');
+            const errorMessage = String(error.message || '');
+
+            if (
+                errorCode.includes('invalid-credential') || 
+                errorCode.includes('wrong-password') || 
+                errorCode.includes('user-not-found') ||
+                errorMessage.includes('invalid-credential')
+            ) {
+                setAuthError("Incorrect Email or Password. Please try again.");
+            } else if (errorCode.includes('too-many-requests')) {
+                setAuthError("Account temporarily locked due to too many failed attempts. Please reset your password or try again later.");
             } else {
-                setAuthError("Authentication failed. Please check your connection.");
+                setAuthError("Authentication failed. Please check your connection or credentials.");
             }
         } finally {
             setIsAuthenticating(false);

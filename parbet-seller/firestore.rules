@@ -13,6 +13,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // FEATURE: God-Mode Admin Verification
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == 'testcodecfg@gmail.com';
+    }
+
     // =========================================================================
     // PRODUCTION ARTIFACT ARCHITECTURE (Strict Paths)
     // =========================================================================
@@ -31,18 +36,18 @@ service cloud.firestore {
         // Authenticated users can update (e.g., buyers checking out reduces tier stock)
         allow update: if isAuthenticated();
         
-        // Only the original seller can delete/archive their own event
-        allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+        // Only the original seller or admin can delete/archive their own event
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
       }
 
       // FEATURE 2: Transactional Escrow Ledger (Orders)
       // Path: /artifacts/{appId}/public/data/orders/{orderId}
       match /public/data/orders/{orderId} {
-        // A user can only read an order if they are either the buyer or the seller
-        allow read: if isAuthenticated() && (
+        // CRITICAL FIX: Admin bypass injected for God-Mode global read access
+        allow read: if isAdmin() || (isAuthenticated() && (
           resource.data.sellerId == request.auth.uid || 
           resource.data.buyerId == request.auth.uid
-        );
+        ));
         
         // Orders are created by the Main Site (Buyer) upon successful payment
         allow create: if isAuthenticated();
@@ -54,8 +59,9 @@ service cloud.firestore {
       // FEATURE 3: Private Seller/Buyer Profiles & Wallet Data
       // Path: /artifacts/{appId}/users/{userId}/...
       match /users/{userId}/{document=**} {
-        // Strict ID Matching: Users can only see/edit their own private records
-        allow read, write: if isOwner(userId);
+        // Strict ID Matching: Users can only see/edit their own private records. Admins can view for support.
+        allow read: if isAdmin() || isOwner(userId);
+        allow write: if isOwner(userId);
       }
     }
 
@@ -66,20 +72,22 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if true;
       allow create, update: if isAuthenticated();
-      allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
     }
 
     match /orders/{orderId} {
       allow create: if isAuthenticated();
-      allow read: if isAuthenticated() && (
+      // CRITICAL FIX: Admin bypass injected for legacy root God-Mode synchronization
+      allow read: if isAdmin() || (isAuthenticated() && (
         resource.data.sellerId == request.auth.uid || 
         resource.data.buyerId == request.auth.uid
-      );
+      ));
       allow update, delete: if false;
     }
 
     match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isOwner(userId);
     }
     
     // Catch-all: Deny any rogue access to undefined collections
