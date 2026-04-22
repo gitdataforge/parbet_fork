@@ -4,18 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Package, 
     Search, 
-    Filter, 
     ChevronDown, 
     ChevronUp, 
     Calendar, 
-    MapPin, 
     Receipt, 
     ArrowRight,
     ShoppingBag,
     CheckCircle2,
-    Clock
+    Clock,
+    Download
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
+import { exportOrdersToExcel } from '../../utils/excelExporter';
 
 export default function Orders() {
     const navigate = useNavigate();
@@ -95,6 +95,13 @@ export default function Orders() {
         show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 120 } }
     };
 
+    // FEATURE 8: Excel Export Handler
+    const handleExport = () => {
+        if (filteredOrders.length > 0) {
+            exportOrdersToExcel(filteredOrders, 'Parbet_Purchase_History');
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
@@ -111,17 +118,27 @@ export default function Orders() {
             variants={containerVariants}
             className="w-full font-sans max-w-[1000px] pb-20"
         >
-            {/* FEATURE 8: Viagogo Typography & Headers */}
-            <motion.div variants={itemVariants} className="mb-8">
-                <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tight leading-tight mb-2">
-                    My Orders
-                </h1>
-                <p className="text-[#54626c] text-[15px]">
-                    Track and manage tickets you've purchased on the marketplace.
-                </p>
+            {/* FEATURE 9: Typography & Headers with Export Action */}
+            <motion.div variants={itemVariants} className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tight leading-tight mb-2">
+                        My Orders
+                    </h1>
+                    <p className="text-[#54626c] text-[15px]">
+                        Track and manage tickets you've purchased on the marketplace.
+                    </p>
+                </div>
+                {filteredOrders.length > 0 && (
+                    <button 
+                        onClick={handleExport}
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#f8f9fa] border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a] rounded-[4px] font-bold text-[14px] transition-colors shrink-0"
+                    >
+                        <Download size={18} /> Export Excel
+                    </button>
+                )}
             </motion.div>
 
-            {/* FEATURE 9: Interactive Control Panel (Search & Filter) */}
+            {/* FEATURE 10: Interactive Control Panel (Search & Filter) */}
             <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-4 mb-8">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#54626c]" size={18} />
@@ -150,7 +167,7 @@ export default function Orders() {
                 </div>
             </motion.div>
 
-            {/* FEATURE 10: Dynamic Order List with Accordion Expansion */}
+            {/* FEATURE 11: Dynamic Order List with Accordion Expansion */}
             <div className="w-full space-y-4">
                 <AnimatePresence mode="wait">
                     {filteredOrders.length > 0 ? (
@@ -196,7 +213,7 @@ export default function Orders() {
                                     </div>
                                 </div>
 
-                                {/* FEATURE 11: Expandable Order Details Panel */}
+                                {/* FEATURE 12: Expandable Order Details Panel */}
                                 <AnimatePresence>
                                     {expandedOrderId === order.id && (
                                         <motion.div
@@ -262,7 +279,7 @@ export default function Orders() {
                             </motion.div>
                         ))
                     ) : (
-                        /* FEATURE 12: Production-Grade Empty State */
+                        /* FEATURE 13: Production-Grade Empty State */
                         <motion.div 
                             key="empty"
                             initial={{ opacity: 0, scale: 0.98 }}
@@ -289,7 +306,7 @@ export default function Orders() {
                                 </button>
                             ) : (
                                 <button 
-                                    onClick={() => navigate('/')} // Back to main site effectively, or explore if available
+                                    onClick={() => navigate('/')} 
                                     className="bg-[#1a1a1a] hover:bg-[#333333] text-white px-8 py-3 rounded-[4px] font-bold text-[14px] transition-colors flex items-center gap-2"
                                 >
                                     Explore Marketplace <ArrowRight size={16} />
