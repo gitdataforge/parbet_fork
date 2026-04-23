@@ -12,7 +12,7 @@ import {
     runTransaction,
     setDoc
 } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
@@ -303,7 +303,7 @@ export const useSellerStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // SECURE ACCOUNT RECOVERY & VERIFICATION (Strict Vercel API Override)
+    // SECURE ACCOUNT RECOVERY & VERIFICATION
     // ------------------------------------------------------------------
     resetPassword: async (email) => {
         try {
