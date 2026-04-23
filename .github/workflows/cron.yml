@@ -1,0 +1,27 @@
+name: Parbet API Automated Cron Scheduler
+
+on:
+  schedule:
+    # Executes daily at midnight (00:00 UTC)
+    # Modify this cron string if you require a different frequency
+    - cron: '0 0 * * *'
+  
+  # Enables the 'Run workflow' button in the GitHub Actions UI for manual testing
+  workflow_dispatch:
+
+jobs:
+  execute-event-synchronization:
+    name: Trigger Event Sync Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Dispatch HTTP POST to Vercel Gateway
+        # Uses cURL to hit your monolithic Vercel router which parses the URL and runs apis/syncEvents.js
+        # The --fail flag ensures the GitHub Action marks as "Failed" if Vercel returns a 4xx or 500 error
+        run: |
+          curl -X POST "https://parbet-api.vercel.app/api/syncEvents" \
+          -H "Content-Type: application/json" \
+          -d '{"source": "github_actions", "trigger": "automated_scheduled_task"}' \
+          --fail \
+          --silent \
+          --show-error
