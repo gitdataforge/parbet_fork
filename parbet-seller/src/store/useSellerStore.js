@@ -12,7 +12,7 @@ import {
     runTransaction,
     setDoc
 } from 'firebase/firestore';
-import { onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
@@ -312,6 +312,7 @@ export const useSellerStore = create((set, get) => ({
             
             const response = await fetch(VERCEL_API_URL, {
                 method: 'POST',
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -338,6 +339,7 @@ export const useSellerStore = create((set, get) => ({
 
             const response = await fetch(VERCEL_API_URL, {
                 method: 'POST',
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
