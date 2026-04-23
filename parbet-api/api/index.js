@@ -33,20 +33,29 @@ if (!admin.apps.length && process.env.FIREBASE_SERVICE_ACCOUNT) {
  */
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-module.exports = async (req, res) => {
-    // FEATURE 4: Native CORS Preflight Resolution Injection
-    // Stripped third-party wrapper to ensure Vercel does not swallow the OPTIONS request
+// FEATURE 4: Official Vercel CORS Wrapper
+// Intercepts the request at the absolute top level to inject native headers and resolve OPTIONS preflight
+const allowCors = fn => async (req, res) => {
     const origin = req.headers.origin || '*';
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, PATCH, DELETE, POST, PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
 
-    // FEATURE 5: Strict Method Guard & Immediate Preflight Approval
+    // FEATURE 5: Immediate Preflight Approval
     if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+        res.status(200).end();
+        return;
     }
 
+    return await fn(req, res);
+};
+
+// Core Request Handler
+const handler = async (req, res) => {
     // FEATURE 6: Request Path Extraction Engine
     // Extracts the target route from the rewritten Vercel URL (e.g., /api/createOrder -> createOrder)
     const urlPath = req.url.split('?')[0];
@@ -240,3 +249,6 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: `Gateway encountered an internal server error while executing '${routeName}'. Check Vercel logs.` });
     }
 };
+
+// Wrap the entire handler in the official Vercel CORS wrapper before exporting
+module.exports = allowCors(handler);
