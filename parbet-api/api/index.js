@@ -33,30 +33,20 @@ if (!admin.apps.length && process.env.FIREBASE_SERVICE_ACCOUNT) {
  */
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-// FEATURE 4: Official Vercel CORS Wrapper
-// Intercepts the request at the absolute top level to inject native headers and resolve OPTIONS preflight
-const allowCors = fn => async (req, res) => {
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, PATCH, DELETE, POST, PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-    );
-
-    // FEATURE 5: Immediate Preflight Approval
+/**
+ * CORE SERVERLESS HANDLER
+ * Note: CORS headers are now handled strictly by vercel.json at the Edge Network level.
+ * This function focuses purely on logic execution and dynamic routing.
+ */
+module.exports = async (req, res) => {
+    
+    // FEATURE 4: Immediate Preflight Approval
+    // Even though vercel.json handles headers, we return 200 OK for OPTIONS to satisfy the browser check.
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
-    return await fn(req, res);
-};
-
-// Core Request Handler
-const handler = async (req, res) => {
-    // FEATURE 6: Request Path Extraction Engine
+    // FEATURE 5: Request Path Extraction Engine
     // Extracts the target route from the rewritten Vercel URL (e.g., /api/createOrder -> createOrder)
     const urlPath = req.url.split('?')[0];
     const pathParts = urlPath.split('/').filter(Boolean);
@@ -141,19 +131,15 @@ const handler = async (req, res) => {
 
                 if (error) {
                     console.error("Resend API Dispatch Error:", JSON.stringify(error, null, 2));
-                    return res.status(500).json({ error: 'Resend API failed to dispatch the email. Please check Vercel Logs.' });
+                    return res.status(500).json({ error: 'Resend API failed to dispatch the email.' });
                 }
 
                 return res.status(200).json({ 
                     success: true, 
-                    message: 'Password reset link dispatched via Resend Sandbox.',
-                    details: 'Delivered to verified sandbox recipient.'
+                    message: 'Password reset link dispatched via Resend SDK.'
                 });
 
-            } 
-            
-            // ROUTE B: EMAIL VERIFICATION PIPELINE
-            else if (routeName === 'sendVerification') {
+            } else if (routeName === 'sendVerification') {
                 const verificationLink = await admin.auth().generateEmailVerificationLink(email);
                 const displayName = name || 'User';
                 
@@ -209,12 +195,12 @@ const handler = async (req, res) => {
 
                 if (error) {
                     console.error("Resend API Dispatch Error:", JSON.stringify(error, null, 2));
-                    return res.status(500).json({ error: 'Resend API failed to dispatch the email. Please check Vercel Logs.' });
+                    return res.status(500).json({ error: 'Resend API failed to dispatch verification email.' });
                 }
 
                 return res.status(200).json({ 
                     success: true, 
-                    message: 'Verification link dispatched via Resend Sandbox.',
+                    message: 'Verification link dispatched via Resend SDK.',
                 });
             } 
             
@@ -225,8 +211,7 @@ const handler = async (req, res) => {
 
         } catch (error) {
             console.error('Critical Core Auth Pipeline Failure:', error.message);
-            console.error(error.stack);
-            return res.status(500).json({ error: 'Failed to process request due to server logic error. Check Vercel logs.' });
+            return res.status(500).json({ error: 'Failed to process authentication request.' });
         }
     }
 
@@ -246,9 +231,6 @@ const handler = async (req, res) => {
         }
     } catch (error) {
         console.error(`[Gateway Router] Critical Execution Failure on dynamic route: ${routeName}`, error);
-        return res.status(500).json({ error: `Gateway encountered an internal server error while executing '${routeName}'. Check Vercel logs.` });
+        return res.status(500).json({ error: `Gateway encountered an internal server error while executing '${routeName}'.` });
     }
 };
-
-// Wrap the entire handler in the official Vercel CORS wrapper before exporting
-module.exports = allowCors(handler);
