@@ -15,7 +15,11 @@ service cloud.firestore {
 
     // FEATURE: God-Mode Admin Verification
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.email == 'testcodecfg@gmail.com';
+      return isAuthenticated() && (
+        request.auth.token.email == 'testcodecfg@gmail.com' ||
+        request.auth.token.email == 'krishnamehta.gm@gmail.com' ||
+        request.auth.token.email == 'jatinseth.op@gmail.com'
+      );
     }
 
     // =========================================================================
