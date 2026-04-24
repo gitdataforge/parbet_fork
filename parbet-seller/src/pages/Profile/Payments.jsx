@@ -37,7 +37,8 @@ export default function Payments() {
         isSubmitting,
         saveBankDetails,
         requestWithdrawal,
-        currency 
+        currency,
+        isAdmin // Dynamic Multi-Admin Role State
     } = useSellerStore();
 
     // FEATURE 2: Complex State Management for Modals & Forms
@@ -58,7 +59,10 @@ export default function Payments() {
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [formError, setFormError] = useState('');
 
-    // FEATURE 3: Multi-Conditional Real-Time Search & Filter Engine
+    // FEATURE 3: Dynamic Threshold Engine
+    const minWithdrawalLimit = isAdmin ? 500 : 50000;
+
+    // FEATURE 4: Multi-Conditional Real-Time Search & Filter Engine
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
             const searchTarget = `${t.id || ''} ${t.description || ''}`;
@@ -78,14 +82,14 @@ export default function Payments() {
         });
     }, [transactions, searchTerm, statusFilter]);
 
-    // FEATURE 4: Financial Aggregators
+    // FEATURE 5: Financial Aggregators
     const totalWithdrawn = useMemo(() => {
         return transactions
             .filter(t => t.status === 'completed' || t.status === 'paid')
             .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     }, [transactions]);
 
-    // FEATURE 5: Strict Currency Formatter
+    // FEATURE 6: Strict Currency Formatter
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -94,14 +98,14 @@ export default function Payments() {
         }).format(amount || 0);
     };
 
-    // FEATURE 6: Date Parsing Engine for Firestore Timestamps
+    // FEATURE 7: Date Parsing Engine for Firestore Timestamps
     const formatDate = (val) => {
         if (!val) return 'N/A';
         const date = new Date(val.seconds ? val.seconds * 1000 : val);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    // FEATURE 7: Local Excel Export using SheetJS
+    // FEATURE 8: Local Excel Export using SheetJS
     const handleExport = () => {
         if (filteredTransactions.length === 0) return;
         
@@ -129,7 +133,7 @@ export default function Payments() {
         XLSX.writeFile(workbook, `Parbet_Payouts_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    // FEATURE 8: Strict Regex Validation for RazorpayX Integration
+    // FEATURE 9: Strict Regex Validation for RazorpayX Integration
     const handleSaveBankDetails = async (e) => {
         e.preventDefault();
         setFormError('');
@@ -172,7 +176,7 @@ export default function Payments() {
         }
     };
 
-    // FEATURE 9: Secure Withdrawal Request with Threshold Limits
+    // FEATURE 10: Secure Withdrawal Request with Dynamic Threshold Limits
     const handleRequestWithdrawal = async (e) => {
         e.preventDefault();
         setFormError('');
@@ -181,7 +185,8 @@ export default function Payments() {
         
         try {
             if (!bankDetails) throw new Error("Please configure a payout method first.");
-            if (amount < 500) throw new Error("Minimum withdrawal amount is ₹500.");
+            if (isNaN(amount) || amount <= 0) throw new Error("Please enter a valid withdrawal amount.");
+            if (amount < minWithdrawalLimit) throw new Error(`Minimum withdrawal amount is ${formatCurrency(minWithdrawalLimit)}.`);
             if (amount > walletBalance) throw new Error(`Insufficient available balance. Maximum allowed: ${formatCurrency(walletBalance)}`);
 
             await requestWithdrawal(amount);
@@ -192,7 +197,7 @@ export default function Payments() {
         }
     };
 
-    // FEATURE 10: Framer Motion Staggered Physics
+    // FEATURE 11: Framer Motion Staggered Physics
     const containerVariants = {
         hidden: { opacity: 0 },
         show: { opacity: 1, transition: { staggerChildren: 0.05 } }
@@ -253,13 +258,13 @@ export default function Payments() {
                         </div>
                         <button 
                             onClick={() => setIsWithdrawModalOpen(true)}
-                            disabled={walletBalance < 500}
+                            disabled={walletBalance < minWithdrawalLimit}
                             className="bg-white text-[#1a1a1a] hover:bg-gray-100 px-6 py-3 rounded-[8px] font-black text-[14px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                         >
                             Request Withdrawal
                         </button>
-                        {walletBalance > 0 && walletBalance < 500 && (
-                            <p className="text-red-400 text-[12px] mt-2 font-medium">Minimum withdrawal is ₹500</p>
+                        {walletBalance > 0 && walletBalance < minWithdrawalLimit && (
+                            <p className="text-red-400 text-[12px] mt-2 font-medium">Minimum withdrawal is {formatCurrency(minWithdrawalLimit)}</p>
                         )}
                     </div>
                 </motion.div>
@@ -661,16 +666,16 @@ export default function Payments() {
                                         <input 
                                             type="number" 
                                             required
-                                            min="500"
+                                            min={minWithdrawalLimit}
                                             max={walletBalance}
                                             value={withdrawAmount}
                                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                                            placeholder="500"
+                                            placeholder={`Min. ${minWithdrawalLimit.toLocaleString()}`}
                                             className="w-full pl-10 pr-4 py-4 bg-white border border-[#cccccc] rounded-[6px] text-[24px] font-black outline-none focus:border-[#1a1a1a] transition-colors"
                                         />
                                     </div>
                                     <div className="flex justify-between items-center mt-2">
-                                        <span className="text-[12px] text-gray-500 font-medium">Min: ₹500</span>
+                                        <span className="text-[12px] text-gray-500 font-medium">Min: {formatCurrency(minWithdrawalLimit)}</span>
                                         <button 
                                             type="button" 
                                             onClick={() => setWithdrawAmount(walletBalance)}
@@ -692,7 +697,7 @@ export default function Payments() {
 
                                 <button 
                                     type="submit" 
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !withdrawAmount || Number(withdrawAmount) < minWithdrawalLimit}
                                     className="w-full bg-[#458731] hover:bg-[#3a7229] text-white py-4 rounded-[6px] font-black text-[15px] transition-all disabled:opacity-50 flex justify-center items-center gap-2 shadow-lg"
                                 >
                                     {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : 'Confirm Withdrawal'}

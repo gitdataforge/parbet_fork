@@ -32,12 +32,13 @@ export const useSellerStore = create((set, get) => ({
     // ------------------------------------------------------------------
     user: null, 
     isAuthenticated: false, 
+    isAdmin: false, // FEATURE 2: Dynamic Multi-Admin State
     authStatus: 'unverified',
     isSubmitting: false,
     submitError: null,
     isLoading: true, 
 
-    // FEATURE 2: Multi-Currency Engine State
+    // FEATURE 3: Multi-Currency Engine State
     currency: 'INR',
     setCurrency: (newCurrency) => set({ currency: newCurrency }),
 
@@ -73,7 +74,16 @@ export const useSellerStore = create((set, get) => ({
             set({ unsubscribers: [], isLoading: true });
 
             if (currentUser) {
-                set({ user: currentUser, isAuthenticated: true, authStatus: 'password_set' });
+                // FEATURE 4: Secure Multi-Admin Identity Verification Array
+                const adminEmails = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+                const isUserAdmin = adminEmails.includes(currentUser.email);
+
+                set({ 
+                    user: currentUser, 
+                    isAuthenticated: true, 
+                    authStatus: 'password_set',
+                    isAdmin: isUserAdmin
+                });
                 
                 const uid = currentUser.uid;
                 const newUnsubscribers = [];
@@ -147,7 +157,7 @@ export const useSellerStore = create((set, get) => ({
                     set({ isLoading: false });
                 }
             } else {
-                set({ user: null, isAuthenticated: false, authStatus: 'unverified', isLoading: false });
+                set({ user: null, isAuthenticated: false, isAdmin: false, authStatus: 'unverified', isLoading: false });
             }
         });
     },
@@ -229,7 +239,7 @@ export const useSellerStore = create((set, get) => ({
         }
     },
 
-    // FEATURE: Financial Transaction for Wallet Withdrawal
+    // FEATURE 5: Dynamic Withdrawal Pipeline with Role-Based Constraints
     requestWithdrawal: async (amount) => {
         set({ isSubmitting: true, submitError: null });
         try {
@@ -240,6 +250,13 @@ export const useSellerStore = create((set, get) => ({
             const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
             const newWithdrawalRef = doc(collection(db, 'artifacts', appId, 'users', uid, 'withdrawals'));
 
+            // STRICT LIMIT ENFORCEMENT BEFORE FIRESTORE TRANSACTION
+            const minWithdrawalLimit = state.isAdmin ? 500 : 50000;
+            
+            if (amount < minWithdrawalLimit) {
+                throw new Error(`Minimum withdrawal limit is ${state.currency} ${minWithdrawalLimit.toLocaleString()}.`);
+            }
+
             // Using Firestore Transactions to prevent race conditions during money deduction
             await runTransaction(db, async (transaction) => {
                 const profileDoc = await transaction.get(profileRef);
@@ -249,7 +266,7 @@ export const useSellerStore = create((set, get) => ({
 
                 const currentBalance = profileDoc.data().balance || 0;
                 if (currentBalance < amount) {
-                    throw new Error(`Insufficient funds. Available: ${state.currency} ${currentBalance}`);
+                    throw new Error(`Insufficient funds. Available: ${state.currency} ${currentBalance.toLocaleString()}`);
                 }
 
                 const currentPending = profileDoc.data().pendingBalance || 0;
@@ -361,7 +378,7 @@ export const useSellerStore = create((set, get) => ({
 
     logout: () => {
         get().unsubscribers.forEach(unsub => unsub());
-        set({ user: null, isAuthenticated: false, listings: [], sales: [], orders: [], transactions: [] });
+        set({ user: null, isAuthenticated: false, isAdmin: false, listings: [], sales: [], orders: [], transactions: [] });
         auth.signOut(); 
     }
 }));
