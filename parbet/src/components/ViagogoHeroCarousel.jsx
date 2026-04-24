@@ -4,12 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 
-// Real-time Cloudinary Auto-Optimization Utility
+// Real-time Native Auto-Optimization Utility
+// CRITICAL FIX: Stripped Cloudinary wrapper to prevent 401 Unauthorized fetching crashes.
+// Unsplash natively handles ?auto=format&fit=crop optimizations via direct URL parameters.
 const optimizeImage = (url, width = 1200) => {
     if (!url) return '';
-    if (url.includes('res.cloudinary.com')) return url;
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
-    return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,w_${width}/${encodeURIComponent(url)}`;
+    // Direct passthrough to prevent Cloudinary 401 proxy blocks
+    return url;
 };
 
 export default function ViagogoHeroCarousel() {
