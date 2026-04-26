@@ -3,13 +3,14 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, 
-    ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload, Loader2, Tag 
+    ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload, Loader2, Tag, Pencil 
 } from 'lucide-react';
 
 // PRODUCTION IMPORTS
 import { useAppStore } from '../../store/useStore';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '../../lib/firebase';
 
 // MODULAR COMPONENTS
 import InteractiveStadiumMap from '../../components/InteractiveStadiumMap';
@@ -17,6 +18,7 @@ import TicketQuantityModal from '../../components/TicketQuantityModal';
 import EventFilters from '../../components/EventFilters';
 import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
 import ShareEventModal from '../../components/ShareEventModal';
+import AdminEditEventModal from '../../components/AdminEditEventModal'; // NEW: Admin Editor
 
 /**
  * FEATURE 1: Real-Time Single Document Synchronization
@@ -26,6 +28,9 @@ import ShareEventModal from '../../components/ShareEventModal';
  * FEATURE 5: Live Inventory Quantity Gate
  * FEATURE 6: Seller Disclosure UI Badge Generator
  * FEATURE 7: Price-Value Algorithmic Sorting
+ * FEATURE 8: Localized Schema Normalization Adapter
+ * FEATURE 9: Real-Time Admin Identity Verification
+ * FEATURE 10: God-Mode Mutator Component Injection
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -83,6 +88,10 @@ export default function Event() {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isLangCurrModalOpen, setIsLangCurrModalOpen] = useState(false);
     
+    // ADMIN GOD-MODE STATES
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
     // MAP FILTER STATE
     const [activeSection, setActiveSection] = useState(null);
     const [sitTogether, setSitTogether] = useState(true);
@@ -93,7 +102,20 @@ export default function Event() {
     const hasOpenedModal = useRef(false);
     const feedScrollRef = useRef(null);
 
-    // Dynamic Document Listener
+    // FEATURE 9: Strict Admin Auth Verification
+    useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            if (user && user.email) {
+                const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+                setIsAdmin(validAdmins.includes(user.email.toLowerCase()));
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribeAuth();
+    }, []);
+
+    // Dynamic Document Listener & Schema Normalizer
     useEffect(() => {
         if (!eventId) return;
 
@@ -104,14 +126,12 @@ export default function Event() {
             if (docSnap.exists()) {
                 const rawData = docSnap.data();
 
-                // FEATURE 3 UPDATE: Local Data Normalization Adapter
-                // Safely maps flat seeded IPL data into the nested schema required by the UI
+                // FEATURE 8: Local Data Normalization Adapter
                 const normalizedTitle = rawData.title || rawData.eventName || 'Upcoming Event';
                 const normalizedTimestamp = rawData.commence_time || rawData.eventTimestamp || rawData.date || new Date().toISOString();
                 const normalizedStadium = rawData.venue?.name || rawData.loc || 'TBA Venue';
                 const normalizedLocation = rawData.venue?.city || rawData.city || 'TBA City';
                 
-                // Synthesize missing ticket tiers mathematically
                 let synthesizedTiers = rawData.ticketTiers || [];
                 if (!rawData.ticketTiers && rawData.price) {
                     synthesizedTiers = [{
@@ -120,7 +140,7 @@ export default function Event() {
                         price: rawData.price,
                         quantity: rawData.quantity || 1,
                         seats: rawData.row ? `Row ${rawData.row}` : 'Any',
-                        disclosures: ['Instant Download', 'Mobile Ticket'] // Fallback disclosures
+                        disclosures: ['Instant Download', 'Mobile Ticket']
                     }];
                 }
 
@@ -154,7 +174,7 @@ export default function Event() {
         return () => unsubscribe();
     }, [eventId, setTicketQuantityModalOpen, isTicketQuantityModalOpen]);
 
-    // Smart Auto-scroll to top when a new section/filter is applied
+    // Smart Auto-scroll
     useEffect(() => {
         if (feedScrollRef.current) {
             feedScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,19 +199,12 @@ export default function Event() {
         </div>
     );
 
-    // FEATURE 2: Master Filtering Engine (Map -> Tier Interceptor)
     const filteredTiers = ticketTiers.filter(tier => {
         if (Number(tier.quantity) < selectedTicketQuantity) return false;
-        
-        // PVR Map Link: If a user clicks a section on the SVG map, it sets activeSection.
-        // We filter tiers whose name includes the section name.
         if (activeSection && !tier.name.toUpperCase().includes(activeSection.toUpperCase())) return false;
-        
-        // Disclosures filtering
         const disclosuresStr = (tier.disclosures || []).join(' ').toLowerCase();
         if (instantDownloadOnly && !disclosuresStr.includes('paperless') && !disclosuresStr.includes('instant download')) return false;
         if (clearViewOnly && disclosuresStr.includes('obstructed')) return false;
-        
         return true;
     }).sort((a, b) => {
         return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
@@ -218,7 +231,7 @@ export default function Event() {
     return (
         <div className="w-full animate-fade-in pb-10 bg-[#F8F9FA] min-h-screen text-[#1a1a1a] font-sans">
             
-            {/* Extracted Modular Overlays */}
+            {/* Modular Overlays */}
             <TicketQuantityModal sitTogether={sitTogether} setSitTogether={setSitTogether} />
             <EventFilters 
                 isOpen={isFilterSidebarOpen} 
@@ -230,6 +243,9 @@ export default function Event() {
             />
             <LanguageCurrencyModal isOpen={isLangCurrModalOpen} onClose={() => setIsLangCurrModalOpen(false)} />
             <ShareEventModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} eventData={eventData} />
+            
+            {/* FEATURE 10: Admin God-Mode Editor Modal */}
+            <AdminEditEventModal isOpen={isAdminModalOpen} onClose={() => setIsAdminModalOpen(false)} eventData={eventData} />
 
             {/* TOP INTERACTION HEADER */}
             <div className="w-full bg-[#F8F9FA] border-b border-gray-200 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 shadow-sm">
@@ -241,9 +257,20 @@ export default function Event() {
                         onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=150&auto=format&fit=crop'; }}
                     />
                     <div>
-                        <h1 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] leading-tight mb-1 cursor-pointer hover:underline">
-                            {eventData?.title}
-                        </h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] leading-tight mb-1 cursor-pointer hover:underline">
+                                {eventData?.title}
+                            </h1>
+                            {/* Strictly Rendered Admin Trigger */}
+                            {isAdmin && (
+                                <button 
+                                    onClick={() => setIsAdminModalOpen(true)}
+                                    className="flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[6px] font-bold text-[11px] uppercase tracking-wider hover:bg-red-100 transition-colors shadow-sm mb-1"
+                                >
+                                    <Pencil size={12} /> Edit
+                                </button>
+                            )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className="bg-[#eaf4d9] text-[#458731] border border-[#8cc63f]/30 text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-[4px] shadow-sm">
                                 {getRelativeDateLabel(eventData?.eventTimestamp)}
