@@ -4,8 +4,8 @@ import { useAppStore } from '../store/useStore';
 
 /**
  * FEATURE 1: Strict Image Interceptor (Forces Kabaddi imagery)
- * FEATURE 2: Real-Time Payload Mapping (Seller to Buyer UI)
- * FEATURE 3: Dynamic Starting Price Engine (Calculated lowest tier)
+ * FEATURE 2: Real-Time Universal Payload Mapping (Handles both old and new seeded schemas)
+ * FEATURE 3: Dynamic Starting Price Engine (Calculated lowest tier or direct root price)
  * FEATURE 4: Secure Interaction Guard (Heart / Favorites)
  * FEATURE 5: ISO Timestamp Parsing Engine
  * FEATURE 6: Real-time Fallback Image Handler
@@ -30,6 +30,14 @@ export default function ViagogoEventCard({ event, onClick }) {
         }
     };
 
+    // FEATURE 2: Universal Payload Mapping
+    // Intelligently maps either the old nested schema or the new flat IPL seeded schema
+    const displayTitle = event.title || event.eventName || 'Upcoming Event';
+    const displayTimestamp = event.displayDate || event.eventTimestamp || event.commence_time || event.date;
+    const displayStadium = event.venue?.name || event.stadium || event.loc || 'TBA Venue';
+    const displayCity = event.venue?.city || event.location || event.city || 'TBA City';
+    const displayPrice = event.startingPrice !== null && event.startingPrice !== undefined ? event.startingPrice : event.price;
+
     // ISO Timestamp Parsing Engine
     const parseEventDate = (isoString) => {
         if (!isoString) return 'Date TBA';
@@ -43,25 +51,24 @@ export default function ViagogoEventCard({ event, onClick }) {
     };
 
     // FEATURE 1: Strict Image Interceptor
+    // Strips Cloudinary proxies to prevent 401 Unauthorized crashes
     const determineDisplayImage = () => {
         const isKabaddi = (event.sportCategory?.toLowerCase().includes('kabaddi')) || 
-                          (event.title?.toLowerCase().includes('kabaddi')) ||
-                          (event.title?.toLowerCase().includes('pkl'));
+                          (displayTitle.toLowerCase().includes('kabaddi')) ||
+                          (displayTitle.toLowerCase().includes('pkl'));
                           
         if (isKabaddi) {
-            // Force high-quality Pro Kabaddi imagery
             return 'https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=600&auto=format&fit=crop';
         }
         
-        // Default to seller's image or general fallback
         return event.imageUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
     };
 
     const displayImage = determineDisplayImage();
 
     // Dynamic Starting Price Engine
-    const formattedPrice = event.startingPrice 
-        ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(event.startingPrice)
+    const formattedPrice = displayPrice 
+        ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(displayPrice)
         : null;
 
     return (
@@ -74,7 +81,7 @@ export default function ViagogoEventCard({ event, onClick }) {
                 
                 <img 
                     src={displayImage} 
-                    alt={event.title} 
+                    alt={displayTitle} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
                     onError={(e) => { 
                         e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop'; 
@@ -98,17 +105,17 @@ export default function ViagogoEventCard({ event, onClick }) {
             
             {/* META INFORMATION */}
             <h3 className="font-bold text-[#1a1a1a] text-[16px] leading-snug mb-1.5 truncate pr-2">
-                {event.title}
+                {displayTitle}
             </h3>
             
             <p className="text-[13px] text-[#54626c] mb-1 font-medium truncate flex items-center gap-1.5">
                 <Calendar size={14} className="text-[#9ca3af] shrink-0" />
-                {parseEventDate(event.eventTimestamp)}
+                {parseEventDate(displayTimestamp)}
             </p>
 
             <p className="text-[13px] text-[#54626c] mb-3 font-medium truncate flex items-center gap-1.5">
                 <MapPin size={14} className="text-[#9ca3af] shrink-0" />
-                {event.stadium}, {event.location?.split(',')[0]}
+                {displayStadium}, {displayCity?.split(',')[0]}
             </p>
 
             {/* PRICING ENGINE */}
