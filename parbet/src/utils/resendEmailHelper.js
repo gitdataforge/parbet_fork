@@ -1,19 +1,15 @@
 /**
- * FEATURE 1: Secure API Integration with Resend (Free Tier Sandbox)
+ * FEATURE 1: Secure API Integration via Vercel Backend (100% Free Tier)
  * FEATURE 2: Dynamic HTML Template Generation
  * FEATURE 3: Graceful Error Handling & Network Retries
  * FEATURE 4: Viagogo 1:1 Brand Theming (CSS-in-JS Injection)
- * FEATURE 5: Analytics & Audit Tagging
+ * FEATURE 5: CORS Bypass via Dedicated Serverless Endpoint
  */
 
 export const sendCustomPasswordResetEmail = async (email, resetLink) => {
-    // SECURITY GUARD: Enforce Environment Variable Extraction
-    // Ensure you add VITE_RESEND_API_KEY=your_key_here to your .env file
-    const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
-
-    if (!RESEND_API_KEY) {
-        console.error("[Resend Protocol] Critical Error: Missing VITE_RESEND_API_KEY environment variable.");
-        throw new Error("Email service is temporarily unavailable due to missing security credentials. Please contact support.");
+    if (!email || !resetLink) {
+        console.error("[Auth Protocol] Critical Error: Missing email or reset link.");
+        throw new Error("Invalid reset parameters provided.");
     }
 
     // FEATURE 2: Premium Custom HTML Email Template (Parbet Branding)
@@ -64,34 +60,27 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
                 </div>
                 <div class="footer">
                     <p>&copy; ${new Date().getFullYear()} Parbet Entertainment Inc. All rights reserved.</p>
-                    <p style="margin-top: 4px;">Secure Dispatch Protocol via Resend API</p>
+                    <p style="margin-top: 4px;">Secure Dispatch Protocol via Vercel Serverless API</p>
                 </div>
             </div>
         </body>
         </html>
     `;
 
-    // FEATURE 3: Strict Network Payload Construction
+    // FEATURE 3: Strict Network Payload Construction for Custom Vercel API
     const payload = {
-        // STRICT UPDATE: Enforcing Resend's free tier sandbox requirement
-        // Emails can only be sent from onboarding@resend.dev until a domain is verified
-        from: "Parbet Security <onboarding@resend.dev>",
-        to: [email],
-        subject: "Security Alert: Reset Your Parbet Password",
-        html: htmlContent,
-        tags: [
-            { name: "category", value: "password_reset_auth" },
-            { name: "environment", value: "sandbox" }
-        ]
+        email: email,
+        resetLink: resetLink,
+        htmlContent: htmlContent
     };
 
     try {
-        // FEATURE 4: Synchronous HTTP Dispatch
-        const response = await fetch("https://api.resend.com/emails", {
+        // FEATURE 5: Synchronous HTTP Dispatch to 100% Free Vercel Backend
+        // This inherently bypasses the Resend browser CORS block by acting as a secure proxy
+        const response = await fetch("https://parbet-api.vercel.app/api/resetPassword", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${RESEND_API_KEY}`
+                "Content-Type": "application/json"
             },
             body: JSON.stringify(payload)
         });
@@ -99,15 +88,15 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("[Resend Protocol] Dispatch Failed:", data);
+            console.error("[Vercel Proxy Protocol] Dispatch Failed:", data);
             throw new Error(data.message || "The email gateway rejected the dispatch request.");
         }
 
-        console.log(`[Resend Protocol] Successfully dispatched reset link to ${email}. ID: ${data.id}`);
-        return { success: true, id: data.id };
+        console.log(`[Vercel Proxy Protocol] Successfully dispatched reset link to ${email}.`);
+        return { success: true };
 
     } catch (error) {
-        console.error("[Resend Protocol] Network Exception:", error);
+        console.error("[Vercel Proxy Protocol] Network Exception:", error);
         throw new Error("Unable to connect to the email dispatch server. Please check your network and try again.");
     }
 };
