@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Search, ShieldCheck, MapPin, Tag, Users } from 'lucide-react';
-import { useAppStore } from '../../store/useStore';
+import { useAppStore } from '../store/useStore';
 
 /**
  * FEATURE 1: Mathematical Procedural SVG Geometry Generation
