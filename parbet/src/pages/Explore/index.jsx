@@ -29,6 +29,7 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 8: Contextual Relative Date Badges
  * FEATURE 9: Sub-pixel Font Anti-Aliasing
  * FEATURE 10: Automatic Event De-duplication
+ * FEATURE 11: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
  */
 
 // Strict Relative Date Formatter
@@ -71,7 +72,6 @@ export default function Explore() {
         isLoadingMatches,
         fetchLocationAndMatches,
         isAuthenticated,
-        openAuthModal,
         toggleFavorite,
         favorites
     } = useAppStore();
@@ -100,10 +100,11 @@ export default function Explore() {
         return () => unsubscribeAuth();
     }, []);
 
+    // FEATURE 11: Native Login Redirection replaces broken phantom modal
     const handleRestrictedAction = (e, eventObj) => {
         e.stopPropagation();
         if (!isAuthenticated) {
-            openAuthModal();
+            navigate('/login');
         } else if (eventObj) {
             toggleFavorite(eventObj);
         }
@@ -314,11 +315,15 @@ export default function Explore() {
                                                     </div>
                                                 )}
                                                 
-                                                {formattedPrice && (
-                                                    <div className="w-8 h-8 rounded-full bg-[#f8f9fa] flex items-center justify-center group-hover:bg-[#8cc63f] group-hover:text-white transition-colors text-[#54626c]">
-                                                        <Ticket size={14} />
-                                                    </div>
-                                                )}
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/event?id=${m.id}`);
+                                                    }}
+                                                    className="bg-[#8cc63f] text-[#1a1a1a] px-4 py-2 rounded-[8px] font-bold text-[13px] hover:bg-[#7ab332] transition-colors shadow-sm whitespace-nowrap"
+                                                >
+                                                    Book tickets
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
