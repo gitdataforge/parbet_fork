@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, X, Menu, ChevronRight, ChevronLeft, TrendingUp } from 'lucide-react';
+import { Search, User, X, Menu, ChevronRight, ChevronLeft, TrendingUp, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
@@ -20,6 +20,8 @@ import NavHoverMenu from './NavHoverMenu';
  * FEATURE 11: Ghost-Hover Prevention (Strict exact-name state tracking)
  * FEATURE 12: Z-Index Stacking Context Resolution (Drawer detached from header blur context)
  * FEATURE 13: Background Scroll-Lock (Prevents body scroll when drawer is active)
+ * FEATURE 14: Isolated Route-Based Desktop Header (1:1 UI replication for /explore)
+ * FEATURE 15: Deep-Nested Dropdown Navigations (Sell, My Tickets, Profile, Notifications)
  */
 
 // High-end Green User SVG Icon Component
@@ -44,8 +46,9 @@ export default function Header() {
         setExploreCategory
     } = useAppStore();
 
-    // UI ISOLATION LOGIC: Strictly identify if we are in the profile context
+    // UI ISOLATION LOGIC: Strictly identify route contexts
     const isProfilePage = location.pathname.startsWith('/profile');
+    const isExplorePage = location.pathname === '/explore';
 
     const [hoveredName, setHoveredName] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -107,9 +110,10 @@ export default function Header() {
 
     return (
         <>
-            <header className="w-full bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 font-sans">
-                {/* 1. TOP DISCLAIMER BANNER (Isolated: Hidden on Profile) */}
-                {!isProfilePage && (
+            <header className={`w-full ${isExplorePage ? 'bg-white' : 'bg-white/95 backdrop-blur-md'} border-b border-gray-200 sticky top-0 z-40 font-sans`}>
+                
+                {/* 1. TOP DISCLAIMER BANNER (Isolated: Hidden on Profile and Explore Pages) */}
+                {!isProfilePage && !isExplorePage && (
                     <div className="w-full bg-white py-2 border-b border-gray-100 text-center">
                         <p className="text-[11px] md:text-[13px] text-gray-500 font-medium px-4 leading-tight">
                             We're the world's largest secondary marketplace for tickets to live events. Prices are set by sellers and may be below or above face value.
@@ -117,8 +121,93 @@ export default function Header() {
                     </div>
                 )}
 
-                {/* 2. MAIN LOGO & NAV ROW */}
-                <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex items-center justify-between relative z-50 bg-transparent">
+                {/* FEATURE 14: ISOLATED EXPLORE PAGE DESKTOP NAV (Exact 1:1 UI Replication) */}
+                {isExplorePage && (
+                    <div className="hidden lg:flex max-w-[1400px] mx-auto px-6 py-3 items-center justify-between relative z-50">
+                        {/* Interactive Logo */}
+                        <div className="flex-shrink-0 cursor-pointer mr-6" onClick={() => navigate('/')}>
+                            <h1 className="text-[28px] font-black tracking-tighter text-[#1a1a1a] flex items-center">
+                                par<span className="text-[#8cc63f]">bet</span>
+                            </h1>
+                        </div>
+
+                        {/* Inline Search Bar */}
+                        <div className="flex-1 max-w-[480px] mr-auto relative">
+                            <div className="flex items-center w-full border border-gray-300 rounded-[8px] px-4 py-2.5 bg-white transition-all hover:border-gray-400 focus-within:border-black focus-within:shadow-[0_0_0_1px_black]">
+                                <Search size={20} className="text-gray-600 mr-3" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search events, artists, teams and more" 
+                                    className="w-full outline-none text-[15px] font-medium text-[#1a1a1a] placeholder-gray-500"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleStrictSearchSubmit}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Right-Aligned Action Links & Nested Dropdowns */}
+                        <nav className="flex items-center gap-7">
+                            <span onClick={() => navigate('/explore')} className="text-[15px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Explore</span>
+                            
+                            {/* Sell Nested Dropdown */}
+                            <div className="relative group py-4 cursor-pointer">
+                                <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors">Sell</span>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-8px] w-48 bg-white rounded-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 py-2 z-[100]">
+                                    <div onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">Sell Tickets</div>
+                                    <div onClick={() => handleNavigation('/profile/orders')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">My Tickets</div>
+                                    <div onClick={() => handleNavigation('/profile/sales')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">My Sales</div>
+                                </div>
+                            </div>
+
+                            {/* Favorites Action Link */}
+                            <span onClick={() => handleNavigation('/profile/settings')} className="text-[15px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Favourites</span>
+
+                            {/* My Tickets Nested Dropdown */}
+                            <div className="relative group py-4 cursor-pointer">
+                                <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors">My Tickets</span>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-8px] w-48 bg-white rounded-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 py-2 z-[100]">
+                                    <div onClick={() => handleNavigation('/profile/orders')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">Orders</div>
+                                    <div onClick={() => handleNavigation('/profile/listings')} className="px-5 py-2.5 text-[15px] text-[#458731] hover:bg-[#f5f5f5] transition-colors">My Listings</div>
+                                    <div onClick={() => handleNavigation('/profile/sales')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">My Sales</div>
+                                    <div onClick={() => handleNavigation('/profile/payments')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">Payments</div>
+                                </div>
+                            </div>
+
+                            {/* Profile Nested Dropdown */}
+                            <div className="relative group py-4 cursor-pointer">
+                                <span className="text-[15px] font-bold text-[#1a1a1a] group-hover:text-[#458731] transition-colors">Profile</span>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[-8px] w-48 bg-white rounded-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 py-2 z-[100]">
+                                    <div onClick={() => handleNavigation('/profile')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">My Hub</div>
+                                    <div onClick={() => handleNavigation('/profile/settings')} className="px-5 py-2.5 text-[15px] text-[#458731] hover:bg-[#f5f5f5] transition-colors">Settings</div>
+                                    <div onClick={() => navigate('/login')} className="px-5 py-2.5 text-[15px] text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors">Sign out</div>
+                                </div>
+                            </div>
+
+                            {/* User Avatar & Notification Bell Indicators */}
+                            <div className="flex items-center gap-3 ml-2">
+                                <div onClick={() => handleNavigation('/profile')} className="w-10 h-10 rounded-full bg-[#f0f2f5] flex items-center justify-center cursor-pointer hover:bg-[#e4e6eb] transition-colors">
+                                    <User size={18} className="text-[#1a1a1a] fill-current" />
+                                </div>
+                                <div className="relative group py-4 cursor-pointer">
+                                    <div className="w-10 h-10 rounded-full bg-[#f0f2f5] flex items-center justify-center hover:bg-[#e4e6eb] transition-colors">
+                                        <Bell size={18} className="text-[#1a1a1a]" />
+                                    </div>
+                                    <div className="absolute top-full right-0 mt-[-8px] w-72 bg-white rounded-[12px] shadow-[0_4px_24px_rgba(0,0,0,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 flex flex-col z-[100] overflow-hidden cursor-default">
+                                        <div className="px-5 py-4 border-b border-gray-100 font-bold text-[16px] text-[#1a1a1a]">Notifications</div>
+                                        <div className="py-12 flex flex-col items-center justify-center text-gray-500 gap-3">
+                                            <Bell size={32} className="text-gray-400" />
+                                            <span className="text-[15px] font-medium text-[#54626c]">No notifications</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                )}
+
+                {/* 2. MAIN LOGO & NAV ROW (Hidden on Desktop Explore, shown on all standard pages & mobile views) */}
+                <div className={`${isExplorePage ? 'lg:hidden' : ''} max-w-[1400px] mx-auto px-4 md:px-8 py-4 flex items-center justify-between relative z-50 bg-transparent`}>
                     
                     {/* MOBILE VIEW: Left Hamburger */}
                     <div className="lg:hidden w-10 flex justify-start">
@@ -195,9 +284,9 @@ export default function Header() {
                     </div>
                 </div>
 
-                {/* 3. FLOATING STRICT SEARCH BAR (Isolated: Hidden on Profile) */}
-                {!isProfilePage && (
-                    <div className={`max-w-[850px] mx-auto px-4 pb-4 md:pb-8 relative z-40 w-full transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                {/* 3. FLOATING STRICT SEARCH BAR (Isolated: Hidden on Profile & Desktop Explore) */}
+                {!isProfilePage && (!isExplorePage || (isExplorePage && window.innerWidth < 1024)) && (
+                    <div className={`lg:${isExplorePage ? 'hidden' : 'block'} max-w-[850px] mx-auto px-4 pb-4 md:pb-8 relative z-40 w-full transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                         <div className={`relative flex items-center bg-white border rounded-full px-5 py-2.5 md:py-3.5 w-full transition-all duration-300 ${isSearchExpanded ? 'shadow-[0_10px_30px_rgba(0,0,0,0.12)] border-gray-300' : 'border-gray-200 shadow-sm focus-within:shadow-[0_8px_25px_rgba(0,0,0,0.08)] focus-within:border-[#458731]'}`}>
                             <Search size={18} className="text-gray-400 md:text-[#458731] mr-3 font-bold"/>
                             <input 
