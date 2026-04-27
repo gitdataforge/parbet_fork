@@ -22,8 +22,8 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: Secure "lockCheckout" Metadata Capture Engine
- * FEATURE 2: Real-Time Single Document Synchronization
- * FEATURE 3: PocketBase Image URL Resolution & 404 Failsafe
+ * FEATURE 2: Explicit Button Event Binding (Fixes broken checkout redirection)
+ * FEATURE 3: PocketBase Image URL Scrubber (Fixes Cloudinary 404 banner crash)
  * FEATURE 4: PVR-Style Interactive Map Filtering Engine
  * FEATURE 5: Dynamic Nested Payload Mapping (Ticket Tiers)
  * FEATURE 6: Advanced ISO Timestamp Parser
@@ -103,7 +103,7 @@ export default function Event() {
     const hasOpenedModal = useRef(false);
     const feedScrollRef = useRef(null);
 
-    // FEATURE 9: Strict Admin Auth Verification
+    // FEATURE 10: Strict Admin Auth Verification
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
             if (user && user.email) {
@@ -127,7 +127,7 @@ export default function Event() {
             if (docSnap.exists()) {
                 const rawData = docSnap.data();
 
-                // FEATURE 8: Local Data Normalization Adapter
+                // FEATURE 9: Local Data Normalization Adapter
                 const normalizedTitle = rawData.title || rawData.eventName || 'Upcoming Event';
                 const normalizedTimestamp = rawData.commence_time || rawData.eventTimestamp || rawData.date || new Date().toISOString();
                 const normalizedStadium = rawData.venue?.name || rawData.loc || 'TBA Venue';
@@ -182,7 +182,7 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    // FEATURE 1: Secure "Buy" Action with State Lock
+    // FEATURE 1 & 2: Secure "Buy" Action with Explicit Event Binding
     const handlePurchaseInitiation = (tier) => {
         if (!isAuthenticated) {
             openAuthModal();
@@ -253,11 +253,17 @@ export default function Event() {
         else actionFn();
     };
 
-    // FEATURE 3: Advanced Image Resolution with Failsafe Fallbacks
+    // FEATURE 3: Advanced Image Resolution with Failsafe Scrubber
+    // Completely strips dead Cloudinary proxies causing 404s in the console
     const fallbackImage = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
-    const displayImage = eventData.imageUrl && eventData.imageUrl.startsWith('http') 
-        ? eventData.imageUrl 
-        : fallbackImage;
+    
+    const getSafeImage = (url) => {
+        if (!url) return fallbackImage;
+        if (url.includes('res.cloudinary.com/dtz0urit6')) return fallbackImage;
+        return url;
+    };
+    
+    const displayImage = getSafeImage(eventData.imageUrl || eventData.image);
     const parsedTime = parseEventTimestamp(eventData.eventTimestamp);
 
     return (
@@ -276,7 +282,7 @@ export default function Event() {
             <LanguageCurrencyModal isOpen={isLangCurrModalOpen} onClose={() => setIsLangCurrModalOpen(false)} />
             <ShareEventModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} eventData={eventData} />
             
-            {/* FEATURE 10: Admin God-Mode Editor Modal */}
+            {/* Admin God-Mode Editor Modal */}
             <AdminEditEventModal isOpen={isAdminModalOpen} onClose={() => setIsAdminModalOpen(false)} eventData={eventData} />
 
             {/* TOP INTERACTION HEADER */}
@@ -457,7 +463,6 @@ export default function Event() {
                                                 exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
                                                 whileHover={{ y: -2 }}
                                                 key={tier.id} 
-                                                // FEATURE 1: State Lockdown Trigger via handlePurchaseInitiation
                                                 onClick={() => handlePurchaseInitiation(tier)}
                                                 className={`bg-white rounded-[12px] p-5 cursor-pointer border hover:border-[#8cc63f] hover:shadow-[0_0_0_1px_#8cc63f] transition-all group relative overflow-hidden flex flex-col ${isBestValue ? 'border-[#8cc63f] shadow-sm' : 'border-[#e2e2e2]'}`}
                                             >
@@ -487,13 +492,23 @@ export default function Event() {
                                                             )}
                                                         </p>
                                                     </div>
-                                                    <div className="text-right flex-shrink-0">
+                                                    <div className="text-right flex-shrink-0 flex flex-col items-end">
                                                         <span className="block text-[24px] font-black text-[#1a1a1a] leading-none mb-1">
                                                             {userCurrency === 'USD' ? '$' : userCurrency === 'GBP' ? '£' : userCurrency === 'EUR' ? '€' : userCurrency === 'AUD' ? 'A$' : '₹'}{Number(tier.price).toLocaleString()}
                                                         </span>
-                                                        <span className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest">
+                                                        <span className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest mb-3">
                                                             / ticket
                                                         </span>
+                                                        {/* FEATURE 2: Explicit Binding applied directly to the button to prevent event-bubbling failures */}
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handlePurchaseInitiation(tier);
+                                                            }}
+                                                            className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm whitespace-nowrap"
+                                                        >
+                                                            See tickets
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 
