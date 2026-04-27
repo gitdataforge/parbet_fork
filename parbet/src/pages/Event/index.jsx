@@ -31,6 +31,7 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 8: Price-Value Algorithmic Sorting
  * FEATURE 9: Localized Schema Normalization Adapter
  * FEATURE 10: Real-Time Admin Identity Verification
+ * FEATURE 11: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -68,7 +69,6 @@ export default function Event() {
     
     const { 
         isAuthenticated,
-        openAuthModal,
         isTicketQuantityModalOpen,
         setTicketQuantityModalOpen,
         selectedTicketQuantity,
@@ -76,7 +76,6 @@ export default function Event() {
         userLanguage,
         favorites,
         toggleFavorite
-        // FEATURE 1: Removed undefined 'lockCheckout' to prevent TypeError crash
     } = useAppStore();
 
     // Real-Time Document State
@@ -182,10 +181,10 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    // FEATURE 1 & 2: Secure "Book" Action with Native React Router Payload Delivery
+    // FEATURE 1, 2 & 11: Secure "Book" Action with Native Login Redirect
     const handlePurchaseInitiation = (tier) => {
         if (!isAuthenticated) {
-            openAuthModal();
+            navigate('/login');
             return;
         }
 
@@ -203,7 +202,6 @@ export default function Event() {
         };
 
         // SECURE TRANSITION: Inject payload directly into the Router state to guarantee delivery
-        // This permanently bypasses the broken/undefined lockCheckout Zustand function
         navigate(
             `/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`, 
             { state: { reservedListing: captureData } }
@@ -250,7 +248,7 @@ export default function Event() {
     
     const handleRestrictedAction = (e, actionFn) => {
         e.stopPropagation();
-        if (!isAuthenticated) openAuthModal();
+        if (!isAuthenticated) navigate('/login');
         else actionFn();
     };
 
@@ -500,7 +498,6 @@ export default function Event() {
                                                         <span className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest mb-3">
                                                             / ticket
                                                         </span>
-                                                        {/* FEATURE 2: Changed to Book tickets & Event Binding explicitly maintained */}
                                                         <button 
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
