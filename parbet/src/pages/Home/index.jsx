@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { ChevronDown, Loader2, AlertCircle, Pencil, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 
 // Global Stores
 import { useAppStore } from '../../store/useStore';
@@ -12,56 +14,98 @@ import ViagogoHeroCarousel from '../../components/ViagogoHeroCarousel';
 import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 import ViagogoEventCard from '../../components/ViagogoEventCard';
 import ViagogoCategoryCard from '../../components/ViagogoCategoryCard';
+import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: 100% Real-Time Shared Database Integration (No Mock Data)
- * FEATURE 2: Dynamic Search & Filtering Engine
- * FEATURE 3: Algorithmic Sport Categorization (Rails)
- * FEATURE 4: Interactive Loading State Skeletons
- * FEATURE 5: Fallback Empty State Engine
- * FEATURE 6: Hardware-Accelerated Rail Navigation
- * FEATURE 7: Spotify Cross-Promotion Banner
- * FEATURE 8: App Download Conversion Banner
- * FEATURE 9: Mobile-First Responsive Grid
+ * FEATURE 2: State Hydration Failsafe (Eliminates infinite loading loop race conditions)
+ * FEATURE 3: Admin God-Mode Injection (Direct event mutation from the feed)
+ * FEATURE 4: Strict "See All" Exploration Routing (Passes global category queries)
+ * FEATURE 5: Dynamic Search & Filtering Engine
+ * FEATURE 6: Algorithmic Sport Categorization (Rails)
+ * FEATURE 7: Fallback Empty State Engine
+ * FEATURE 8: Hardware-Accelerated Rail Navigation (Framer Motion)
+ * FEATURE 9: Spotify Cross-Promotion Banner
+ * FEATURE 10: App Download Conversion Banner
+ * FEATURE 11: Touch/Swipe Optimized Snap-to-Grid
+ * FEATURE 12: Image 404 Cascade Prevention (Strict key mapping)
  */
 
 export default function Home() {
     const navigate = useNavigate();
     
     // Local App State
-    const { searchQuery, setLocationDropdownOpen, setSearchQuery } = useAppStore();
+    const { searchQuery, setLocationDropdownOpen, setSearchQuery, setExploreCategory } = useAppStore();
     
     // Shared Market State (Real-Time Firestore Pipe)
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
-    // FEATURE 1: Initialize Real-Time Listener
+    // Admin Authentication State
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [adminModalOpen, setAdminModalOpen] = useState(false);
+    const [selectedAdminEvent, setSelectedAdminEvent] = useState(null);
+
+    // FEATURE 2: Bulletproof Infinite Loader Resolution
+    const [showLoader, setShowLoader] = useState(true);
+
     useEffect(() => {
         const unsubscribe = initMarketListener();
-        // Cleanup the WebSocket connection when the component unmounts
         return () => {
             if (unsubscribe) unsubscribe();
         };
     }, [initMarketListener]);
 
-    // FEATURE 2: Dynamic Search Engine
+    // Failsafe: Kill loader instantly if data exists, or timeout after 5 seconds for empty DBs
+    useEffect(() => {
+        if (activeListings && activeListings.length > 0) {
+            setShowLoader(false);
+        }
+        const failsafeTimer = setTimeout(() => setShowLoader(false), 5000);
+        return () => clearTimeout(failsafeTimer);
+    }, [activeListings]);
+
+    // FEATURE 3: Admin God-Mode Identity Verification
+    useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            if (user && user.email) {
+                const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+                setIsAdmin(validAdmins.includes(user.email.toLowerCase()));
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribeAuth();
+    }, []);
+
+    // FEATURE 5: Dynamic Search Engine
     const filteredMatches = useMemo(() => {
         if (!searchQuery) return activeListings;
         const q = searchQuery.toLowerCase();
         return activeListings.filter(m => {
-            const searchString = `${m.title} ${m.team1} ${m.team2} ${m.stadium} ${m.location} ${m.sportCategory}`.toLowerCase();
+            const searchString = `${m.title} ${m.eventName} ${m.stadium} ${m.location} ${m.sportCategory}`.toLowerCase();
             return searchString.includes(q);
         });
     }, [activeListings, searchQuery]);
 
-    // FEATURE 3: Algorithmic Categorization
+    // FEATURE 6: Algorithmic Categorization
     const trendingMatches = useMemo(() => filteredMatches.slice(0, 8), [filteredMatches]);
     
     const cricketMatches = useMemo(() => 
-        filteredMatches.filter(m => m.sportCategory === 'Cricket'), 
+        filteredMatches.filter(m => {
+            const str = `${m.title} ${m.sportCategory}`.toLowerCase();
+            return str.includes('cricket') || str.includes('t20') || str.includes('test');
+        }), 
     [filteredMatches]);
 
-    // FEATURE 6: Reusable Dynamic Event Rail
-    const EventRail = ({ title, events }) => {
+    const kabaddiMatches = useMemo(() => 
+        filteredMatches.filter(m => {
+            const str = `${m.title} ${m.sportCategory}`.toLowerCase();
+            return str.includes('kabaddi') || str.includes('pkl');
+        }), 
+    [filteredMatches]);
+
+    // FEATURE 8: Reusable Dynamic Event Rail
+    const EventRail = ({ title, events, categoryQuery }) => {
         const scrollRef = useRef(null);
         
         const scroll = (direction) => {
@@ -79,23 +123,52 @@ export default function Home() {
                 className="mb-10 md:mb-14 relative group"
             >
                 <div className="flex items-center justify-between mb-4 md:mb-5">
-                    <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">{title}</h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">{title}</h2>
+                        {isAdmin && (
+                            <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
+                                <ShieldAlert size={12} /> Admin
+                            </span>
+                        )}
+                    </div>
+                    {/* FEATURE 4: Strict "See All" Exploration Routing */}
                     {events.length > 4 && (
-                        <button className="text-[14px] font-bold text-[#0064d2] hover:underline hidden md:block">
+                        <button 
+                            onClick={() => {
+                                setExploreCategory(categoryQuery || title);
+                                setSearchQuery(categoryQuery === 'Trending' ? '' : categoryQuery);
+                                navigate('/explore');
+                            }}
+                            className="text-[14px] font-bold text-[#0064d2] hover:underline hidden md:block"
+                        >
                             See all
                         </button>
                     )}
                 </div>
                 
                 <div className="relative">
-                    <div ref={scrollRef} className="flex overflow-x-auto hide-scrollbar space-x-4 md:space-x-5 pb-4 snap-x">
+                    <div ref={scrollRef} className="flex overflow-x-auto custom-scrollbar space-x-4 md:space-x-5 pb-6 snap-x">
                         {events.map((event, index) => (
-                            <ViagogoEventCard 
-                                // STRICT FALLBACK KEY FIX: Ensures mapping never crashes if document ID is malformed
-                                key={event?.id || `event-fallback-${index}`} 
-                                event={event} 
-                                onClick={() => navigate(`/event?id=${event?.id}`)} 
-                            />
+                            <div key={event?.id || `event-fallback-${index}`} className="relative group/admin snap-start">
+                                <ViagogoEventCard 
+                                    event={event} 
+                                    onClick={() => navigate(`/event?id=${event?.id}`)} 
+                                />
+                                {/* FEATURE 3: Floating Admin Edit Injector */}
+                                {isAdmin && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedAdminEvent(event);
+                                            setAdminModalOpen(true);
+                                        }}
+                                        className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2 rounded-full shadow-[0_4px_15px_rgba(220,38,38,0.4)] opacity-0 group-hover/admin:opacity-100 transition-all hover:scale-110 hover:bg-red-700"
+                                        title="God Mode: Edit Event"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                )}
+                            </div>
                         ))}
                     </div>
                     
@@ -114,6 +187,14 @@ export default function Home() {
 
     return (
         <div className="w-full bg-white pb-10 md:pb-20 font-sans text-[#1a1a1a]">
+            
+            {/* INJECT: Global Admin Edit Modal */}
+            <AdminEditEventModal 
+                isOpen={adminModalOpen} 
+                onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} 
+                eventData={selectedAdminEvent} 
+            />
+
             <div className="max-w-[1400px] mx-auto px-4 md:px-8">
                 
                 {/* 1. HERO CAROUSEL */}
@@ -126,8 +207,8 @@ export default function Home() {
                     <ViagogoFilterBar />
                 </div>
 
-                {/* FEATURE 4: Loading State UI */}
-                {isLoading ? (
+                {/* FEATURE 2: Failsafe Loading State UI */}
+                {showLoader ? (
                     <div className="w-full py-24 flex flex-col items-center justify-center bg-[#f8f9fa] rounded-[16px] mb-12">
                         <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={40} />
                         <h3 className="text-[18px] font-black text-[#1a1a1a]">Syncing Global Markets</h3>
@@ -135,7 +216,7 @@ export default function Home() {
                     </div>
                 ) : (
                     <>
-                        {/* FEATURE 5: Empty State UI for Dynamic Matches */}
+                        {/* FEATURE 7: Empty State UI for Dynamic Matches */}
                         {filteredMatches.length === 0 ? (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full py-20 flex flex-col items-center justify-center bg-[#fcfcfc] border border-[#e2e2e2] rounded-[16px] mb-12 text-center px-6">
                                 <div className="w-16 h-16 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-4">
@@ -151,10 +232,10 @@ export default function Home() {
                             </motion.div>
                         ) : (
                             <AnimatePresence>
-                                {/* STRICT ANIMATION KEY FIX: Added unique static keys to prevent AnimatePresence mapping crashes */}
+                                {/* FEATURE 12: Strict Key Mapping applied inside EventRail */}
                                 
                                 {/* DYNAMIC REAL-TIME RAILS */}
-                                <EventRail key="trending-rail" title="Trending Now" events={trendingMatches} />
+                                <EventRail key="trending-rail" title="Trending Now" events={trendingMatches} categoryQuery="Trending" />
                                 
                                 {/* SPOTIFY PROMO BANNER */}
                                 <motion.div key="spotify-promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
@@ -173,7 +254,8 @@ export default function Home() {
                                     </button>
                                 </motion.div>
 
-                                <EventRail key="cricket-rail" title="Top Cricket Matches" events={cricketMatches} />
+                                <EventRail key="cricket-rail" title="Top Cricket Matches" events={cricketMatches} categoryQuery="Cricket" />
+                                <EventRail key="kabaddi-rail" title="Pro Kabaddi League" events={kabaddiMatches} categoryQuery="Kabaddi" />
                             </AnimatePresence>
                         )}
                     </>
@@ -184,16 +266,21 @@ export default function Home() {
                     <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] mb-4 md:mb-5 tracking-tight">Popular categories</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                         {[
-                            { name: 'T20 Cricket', img: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80' },
-                            { name: 'Test Matches', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
-                            { name: 'Pro Kabaddi', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80' },
+                            { name: 'IPL Cricket', img: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80' },
+                            { name: 'World Cup', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
+                            { name: 'Kabaddi', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80' },
                             { name: 'Football', img: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80' }
                         ].map((cat, idx) => (
                             <ViagogoCategoryCard 
                                 key={idx} 
                                 name={cat.name} 
                                 img={cat.img} 
-                                onClick={() => { setLocationDropdownOpen(false); setSearchQuery(cat.name.split(' ')[0]); }} 
+                                onClick={() => { 
+                                    setLocationDropdownOpen(false); 
+                                    setSearchQuery(cat.name.split(' ')[0]); 
+                                    setExploreCategory(cat.name.split(' ')[0]);
+                                    navigate('/explore');
+                                }} 
                             />
                         ))}
                     </div>
