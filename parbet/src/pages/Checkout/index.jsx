@@ -1,29 +1,28 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ShieldCheck, CreditCard, Ticket, Clock, Check, 
     ChevronDown, ChevronRight, ChevronUp, Lock, MapPin, 
-    Info, Zap, UploadCloud, Building, XCircle,
-    CheckCircle2, ShieldAlert, Navigation, Smartphone, Loader2,
-    AlertTriangle, ArrowLeft
+    Zap, UploadCloud, Building, CheckCircle2, ShieldAlert, 
+    Navigation, Smartphone, Loader2, AlertTriangle, ArrowLeft, Info
 } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
-import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 
 /**
  * FEATURE 1: Navigation Trap (Interprets and blocks browser back button)
- * FEATURE 2: Atomic State Lock (reservedListing metadata capture)
- * FEATURE 3: Explicit Cancel & Release Logic (Restores inventory visibility)
- * FEATURE 4: Razorpay L3 Secure Redirection
- * FEATURE 5: Real-time GST & Platform Fee Escrow Logic (15% + 18%)
- * FEATURE 6: PocketBase Secure Receipt Vault for Bank Transfers
- * FEATURE 7: Hardware-Accelerated Progress Wizard (Framer Motion)
- * FEATURE 8: Ad-Blocker Detection & Integrity Guard
- * FEATURE 9: ISO-8601 Session Expiry Timer (10 Min)
- * FEATURE 10: Infinite Loading Loop Resolution (Fixed Auth Gates)
+ * FEATURE 2: Infinite Loading Resolution (Failsafe Auth/Fetch Gates)
+ * FEATURE 3: Atomic State Lock (reservedListing metadata capture)
+ * FEATURE 4: Explicit Cancel & Release Logic (Restores inventory visibility)
+ * FEATURE 5: Razorpay L3 Secure Redirection
+ * FEATURE 6: Real-time GST & Platform Fee Escrow Logic (15% + 18%)
+ * FEATURE 7: PocketBase Secure Receipt Vault for Bank Transfers
+ * FEATURE 8: Hardware-Accelerated Progress Wizard (Framer Motion)
+ * FEATURE 9: Ad-Blocker Detection & Integrity Guard
+ * FEATURE 10: ISO-8601 Session Expiry Timer (10 Min)
  * FEATURE 11: Dirty-State Form Persistence
  * FEATURE 12: Success Confetti & Transaction Callback Routing
  */
@@ -75,8 +74,9 @@ export default function Checkout() {
         return () => window.removeEventListener('popstate', handleBackButton);
     }, [isCheckoutLocked]);
 
-    // FEATURE 2 & 10: Metadata Capture & Loop Resolution
+    // FEATURE 2 & 3: Infinite Loader Fix & Metadata Capture
     useEffect(() => {
+        // FAILSAFE: If not authenticated, kill loader immediately and demand auth
         if (!isAuthenticated) {
             setIsLoading(false);
             openAuthModal();
@@ -87,7 +87,7 @@ export default function Checkout() {
             try {
                 setIsLoading(true);
                 
-                // If already locked, we skip re-fetching to maintain state integrity
+                // If already locked from the Event page, use the vault data directly
                 if (isCheckoutLocked && reservedListing) {
                     setIsLoading(false);
                     return;
@@ -98,6 +98,7 @@ export default function Checkout() {
                     return;
                 }
 
+                // If user refreshed directly on checkout, re-fetch and lock
                 const docRef = doc(db, 'events', eventId);
                 const docSnap = await getDoc(docRef);
                 
@@ -140,16 +141,17 @@ export default function Checkout() {
                 }
             } catch (err) {
                 console.error("[Checkout Guard] Fatal Error:", err);
-                setError('Establishment of secure checkout session failed.');
+                setError('Establishment of secure checkout session failed. Please check network.');
             } finally {
+                // FAILSAFE: Always kill loader regardless of outcome
                 setIsLoading(false);
             }
         };
 
         syncInventoryLock();
-    }, [eventId, tierId, qtyParams, isAuthenticated, user, isCheckoutLocked]);
+    }, [eventId, tierId, qtyParams, isAuthenticated, user, isCheckoutLocked, reservedListing]);
 
-    // FEATURE 9: Precision Countdown
+    // FEATURE 10: Precision Countdown
     useEffect(() => {
         if (!checkoutExpiration) return;
         const interval = setInterval(() => {
@@ -166,7 +168,7 @@ export default function Checkout() {
         return () => clearInterval(interval);
     }, [checkoutExpiration]);
 
-    // Cost Computation
+    // FEATURE 6: Dynamic Cost Computation
     const totals = useMemo(() => {
         if (!reservedListing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
         const subtotal = reservedListing.price * reservedListing.quantity;
@@ -175,12 +177,13 @@ export default function Checkout() {
         return { subtotal, fees, tax, total: subtotal + fees + tax };
     }, [reservedListing]);
 
-    // FEATURE 3: Explicit Exit Logic
+    // FEATURE 4: Explicit Exit Logic
     const handleExplicitCancel = () => {
         cancelReservation();
         navigate(eventId ? `/event?id=${eventId}` : '/');
     };
 
+    // FEATURE 7: PocketBase Upload Vault
     const handleReceiptUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -188,11 +191,14 @@ export default function Checkout() {
         try {
             const res = await uploadEventImage(file);
             setReceiptUrl(res.url);
-        } catch (err) { setError("Image upload to vault failed."); }
-        finally { setIsUploading(false); }
+        } catch (err) { 
+            setError("Image upload to secure vault failed. Check your PocketBase connection."); 
+        } finally { 
+            setIsUploading(false); 
+        }
     };
 
-    // FEATURE 4: Razorpay Transaction Dispatch
+    // FEATURE 5: Razorpay Transaction Dispatch
     const handleFinalPayment = async () => {
         if (isProcessingOrder) return;
         setIsProcessingOrder(true);
@@ -203,23 +209,36 @@ export default function Checkout() {
                 if (!window.Razorpay) throw new Error("Payment initialization failed. Please disable your browser ad-blocker.");
 
                 const options = {
-                    key: "rzp_test_your_real_key", // Use env variable in prod
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_real_key", // Fallback for local dev
                     amount: Math.round(totals.total * 100),
                     currency: "INR",
                     name: "Parbet Tickets",
                     description: `Order #${Date.now().toString().slice(-6)}`,
                     handler: async (response) => {
                         try {
+                            // Execute the atomic transaction via Zustand Store
                             await executePurchase(response.razorpay_payment_id, totals.total);
                             navigate(`/order-confirmation/${response.razorpay_payment_id}`);
-                        } catch (err) { setError(`Payment succeeded, but inventory update failed: ${err.message}`); }
+                        } catch (err) { 
+                            setError(`Payment succeeded, but inventory update failed: ${err.message}. Contact support.`); 
+                        }
                     },
-                    prefill: { email: checkoutFormData.contact.email, contact: checkoutFormData.contact.phone },
-                    theme: { color: "#1a1a1a" }
+                    prefill: { 
+                        name: checkoutFormData.delivery.fullName,
+                        email: checkoutFormData.contact.email, 
+                        contact: checkoutFormData.contact.phone 
+                    },
+                    theme: { color: "#1a1a1a" },
+                    modal: {
+                        ondismiss: function() {
+                            setIsProcessingOrder(false); 
+                        }
+                    }
                 };
                 new window.Razorpay(options).open();
             } else {
                 if (!receiptUrl) throw new Error("Transfer proof is mandatory for manual approval.");
+                // Execute atomic transaction for bank transfer
                 await executePurchase(`manual_${Date.now()}`, totals.total);
                 navigate('/order-pending');
             }
@@ -243,7 +262,7 @@ export default function Checkout() {
             <AnimatePresence>
                 {isCancelModalOpen && (
                     <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[28px] p-8 max-w-md w-full shadow-2xl border border-red-50 text-center">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[28px] p-8 max-w-md w-full shadow-2xl border border-red-50 text-center">
                             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <AlertTriangle className="text-red-600" size={40} />
                             </div>
@@ -252,7 +271,7 @@ export default function Checkout() {
                                 Going back will release your tickets. Other fans will be able to buy them immediately. Are you sure?
                             </p>
                             <div className="flex flex-col gap-3">
-                                <button onClick={() => setIsCancelModalOpen(false)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[14px] shadow-lg">No, Keep Reservation</button>
+                                <button onClick={() => setIsCancelModalOpen(false)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[14px] shadow-lg hover:bg-black transition-colors">No, Keep Reservation</button>
                                 <button onClick={handleExplicitCancel} className="w-full bg-white text-red-600 border border-red-200 font-bold py-4 rounded-[14px] hover:bg-red-50 transition-colors">Yes, Cancel & Go Back</button>
                             </div>
                         </motion.div>
@@ -276,11 +295,13 @@ export default function Checkout() {
 
             <div className="max-w-[1300px] mx-auto mt-10 px-4 flex flex-col lg:flex-row gap-10">
                 <div className="flex-1 space-y-6">
-                    {error && (
-                        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="bg-red-50 border-l-[6px] border-red-600 text-red-800 p-5 rounded-[12px] font-bold flex items-center shadow-lg">
-                            <ShieldAlert size={24} className="mr-4 shrink-0" /> {error}
-                        </motion.div>
-                    )}
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ opacity: 0 }} className="bg-red-50 border-l-[6px] border-red-600 text-red-800 p-5 rounded-[12px] font-bold flex items-center shadow-lg">
+                                <ShieldAlert size={24} className="mr-4 shrink-0" /> {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <CheckoutStep number={1} title="Confirm Contact" active={checkoutStep === 1} done={checkoutStep > 1} onClick={() => checkoutStep > 1 && setCheckoutStep(1)}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
@@ -318,7 +339,7 @@ export default function Checkout() {
                                             <h3 className="text-[22px] font-black text-[#8cc63f] font-mono">parbet.escrow@icici</h3>
                                         </div>
                                         <div className="relative h-44 border-2 border-dashed border-gray-300 rounded-[24px] flex flex-col items-center justify-center bg-white hover:border-[#8cc63f] transition-all cursor-pointer overflow-hidden group">
-                                            <input type="file" onChange={handleReceiptUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                            <input type="file" accept="image/*,.pdf" onChange={handleReceiptUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                             {isUploading ? <Loader2 className="animate-spin text-[#8cc63f]" size={40} /> : receiptUrl ? <CheckCircle2 className="text-[#458731]" size={40} /> : <UploadCloud size={40} className="text-gray-300 group-hover:text-[#8cc63f]" />}
                                             <p className="text-[14px] font-black mt-3 text-gray-500">{receiptUrl ? 'Transfer Proof Attached' : 'Upload Payment Screenshot'}</p>
                                         </div>
@@ -328,8 +349,8 @@ export default function Checkout() {
 
                             <button 
                                 onClick={handleFinalPayment} 
-                                disabled={isProcessingOrder || isUploading}
-                                className="w-full bg-[#8cc63f] text-white font-black py-5 rounded-[20px] text-[18px] shadow-2xl shadow-[#8cc63f]/30 hover:bg-[#7ab335] active:scale-95 transition-all mt-4 flex items-center justify-center gap-3 disabled:opacity-50"
+                                disabled={isProcessingOrder || (paymentMethod === 'bank_transfer' && !receiptUrl) || isUploading}
+                                className="w-full bg-[#8cc63f] text-white font-black py-5 rounded-[20px] text-[18px] shadow-2xl shadow-[#8cc63f]/30 hover:bg-[#7ab335] active:scale-95 transition-all mt-4 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isProcessingOrder ? <Loader2 className="animate-spin" /> : <Lock size={20} />}
                                 Pay ₹{Math.round(totals.total).toLocaleString()}
@@ -351,15 +372,15 @@ export default function Checkout() {
                                     <Ticket size={40} className="text-gray-300" />
                                 </div>
                                 <div className="space-y-1.5 flex-1 min-w-0">
-                                    <h3 className="font-black text-[20px] leading-tight truncate text-[#1a1a1a]">{reservedListing?.eventName}</h3>
-                                    <p className="text-[14px] text-[#8cc63f] font-black uppercase tracking-wide">{reservedListing?.tierName}</p>
-                                    <p className="text-[13px] text-gray-400 font-bold flex items-center gap-1.5 truncate"><MapPin size={14} className="shrink-0" /> {reservedListing?.eventLoc}</p>
+                                    <h3 className="font-black text-[20px] leading-tight truncate text-[#1a1a1a]">{reservedListing?.eventName || 'Loading...'}</h3>
+                                    <p className="text-[14px] text-[#8cc63f] font-black uppercase tracking-wide">{reservedListing?.tierName || '---'}</p>
+                                    <p className="text-[13px] text-gray-400 font-bold flex items-center gap-1.5 truncate"><MapPin size={14} className="shrink-0" /> {reservedListing?.eventLoc || '---'}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-5 border-t border-gray-100 pt-8">
                                 <div className="flex justify-between items-center p-4 bg-gray-50 rounded-[18px]">
-                                    <span className="text-[15px] font-bold text-gray-500">Tickets (x{reservedListing?.quantity})</span>
+                                    <span className="text-[15px] font-bold text-gray-500">Tickets (x{reservedListing?.quantity || 0})</span>
                                     <span className="font-black text-[18px]">₹{totals.subtotal.toLocaleString()}</span>
                                 </div>
                                 <div className="px-2 space-y-4">
