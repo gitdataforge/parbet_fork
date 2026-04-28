@@ -15,6 +15,9 @@ import {
     signInWithCustomToken
 } from 'firebase/auth';
 
+// INJECTED: We must import the UI store to synchronize the auth state globally.
+import { useAppStore } from './useStore';
+
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
@@ -47,6 +50,7 @@ export const useMainStore = create((set, get) => ({
     /**
      * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
      * This is the master lock. It prevents any data sync until a valid UID is granted.
+     * CRITICAL BUGFIX: Now synchronizes the verified Firebase auth state directly into the UI store (useAppStore).
      */
     initAuth: async () => {
         set({ authLoading: true });
@@ -56,10 +60,18 @@ export const useMainStore = create((set, get) => ({
                 // LOCK RELEASED: Valid identity confirmed
                 set({ user, isAuthenticated: true, authLoading: false });
                 
+                // CRITICAL FIX: Explicitly hydrate the UI store to prevent infinite login loops during checkout
+                useAppStore.getState().setUser(user);
+                useAppStore.getState().setAuth(true);
+                
                 // TRIGGER: Start data pipeline now that permissions are granted
                 get().startDataListeners(user.uid);
             } else {
-                // If no user, perform auto-login to get a UID
+                // If no user, clear both stores completely
+                useAppStore.getState().setUser(null);
+                useAppStore.getState().setAuth(false);
+
+                // Perform auto-login to get a UID for public browsing
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
@@ -182,6 +194,11 @@ export const useMainStore = create((set, get) => ({
     logout: async () => {
         get().stopListeners();
         await auth.signOut();
+        
+        // Sync logout to UI Store
+        useAppStore.getState().setUser(null);
+        useAppStore.getState().setAuth(false);
+        
         set({ 
             user: null, 
             isAuthenticated: false, 
