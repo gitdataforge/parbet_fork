@@ -46,6 +46,7 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 14: Real-time Secure Notification Engine (Batch updates & unread counters)
  * FEATURE 15: Strict Singleton Network Interceptor (Fixes infinite QUIC loops)
  * FEATURE 16: Admin Config Hydration (Home Banners)
+ * FEATURE 17: Expanded Viagogo Checkout Schema (Billing, Gifts, Timer States)
  */
 
 export const useAppStore = create((set, get) => ({
@@ -108,7 +109,9 @@ export const useAppStore = create((set, get) => ({
     isCheckoutLocked: false,
     reservedListing: null,
     checkoutSessionId: null,
+    isTimerStarted: false, // NEW: Controls the 10-minute Viagogo UI modal lock
     
+    // FEATURE 17: Expanded Form Payload matching 1:1 Viagogo Checkout
     checkoutFormData: {
         contact: {
             email: '',
@@ -122,13 +125,16 @@ export const useAppStore = create((set, get) => ({
             fullName: '',
             phone: ''
         },
-        address: {
+        billing: {
             country: 'India',
-            line1: '',
-            line2: '',
+            address: '',
             city: '',
             state: '',
-            zip: ''
+            postal: ''
+        },
+        preferences: {
+            isGift: 'No',
+            isFirstTime: "Yes, and I can't wait!"
         }
     },
 
@@ -281,9 +287,10 @@ export const useAppStore = create((set, get) => ({
             isCheckoutLocked: true,
             reservedListing: listingData,
             checkoutSessionId: sessionId,
-            checkoutStep: 1
+            checkoutStep: 1,
+            isTimerStarted: false // Require user to click "Start"
         });
-        get().startCheckoutTimer();
+        // We no longer auto-start the timer here; the UI button triggers `startCheckoutTimer`
         console.log(`[Security Protocol] Checkout Hydrated & Locked: ${sessionId}`);
     },
 
@@ -294,6 +301,7 @@ export const useAppStore = create((set, get) => ({
             checkoutExpiration: null,
             checkoutSessionId: null,
             checkoutStep: 1,
+            isTimerStarted: false,
             razorpayOrderId: null
         });
         console.log(`[Security Protocol] Reservation Released.`);
@@ -343,16 +351,15 @@ export const useAppStore = create((set, get) => ({
     }),
 
     startCheckoutTimer: () => {
-        if (!get().checkoutExpiration) {
-            const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
-            set({ checkoutExpiration: tenMinutesFromNow });
-        }
+        const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
+        set({ checkoutExpiration: tenMinutesFromNow, isTimerStarted: true });
     },
     
     resetCheckoutTimer: () => set({ 
         checkoutExpiration: null, 
         checkoutStep: 1, 
         isCheckoutLocked: false,
+        isTimerStarted: false,
         reservedListing: null 
     }),
 
@@ -411,14 +418,9 @@ export const useAppStore = create((set, get) => ({
         return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
-    /**
-     * FEATURE 15: Strict Singleton Network Interceptor
-     * Prevents net::ERR_QUIC_PROTOCOL_ERROR by ensuring only ONE active listener exists
-     * across the entire application lifecycle.
-     */
     initSellerTicketsListener: () => {
         const state = get();
-        if (state.isListenerActive) return; // Strict singleton lock
+        if (state.isListenerActive) return; 
         set({ isListenerActive: true });
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -487,13 +489,12 @@ export const useAppStore = create((set, get) => ({
             });
         }, (error) => {
             console.error("[Parbet Database] Sync Failure:", error.message);
-            set({ apiError: error.message, isLoadingMatches: false, isListenerActive: false }); // Reset lock on error
+            set({ apiError: error.message, isLoadingMatches: false, isListenerActive: false });
         });
 
         set({ unsubscribeSellerTickets: unsubscribe });
     },
 
-    // FEATURE 16: Fetch Admin Banners for Home Page
     fetchHomeBanners: async () => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         try {
@@ -541,7 +542,6 @@ export const useAppStore = create((set, get) => ({
                 userCurrency: getCurrencyFromCountry(country),
                 strictLocation: { ...geo, city }
             });
-            // liveMatches array populated through listener automatically
         } catch (error) {
             console.error("Critical State Failure:", error);
             const fallbackCity = cityOverride || localStorage.getItem('parbet_manual_city') || "Global";
@@ -615,7 +615,7 @@ export const useAppStore = create((set, get) => ({
                 });
             });
 
-            set({ isCheckingOut: false, isCheckoutLocked: false, reservedListing: null });
+            set({ isCheckingOut: false, isCheckoutLocked: false, reservedListing: null, isTimerStarted: false });
             return { success: true };
         } catch (error) {
             set({ isCheckingOut: false });
