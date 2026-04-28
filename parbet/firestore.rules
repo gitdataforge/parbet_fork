@@ -36,7 +36,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.sellerId);
     }
 
-    // FEATURE 6: Live Ticket Feed Authorization (Fixes useStore.js:396 crash)
+    // FEATURE 6: Live Ticket Feed Authorization
     match /tickets/{ticketId} {
       allow read: if true; // Public access required for global market sync
       allow create, update: if isAuthenticated();
@@ -68,6 +68,12 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
 
+    // FEATURE 11: Platform Config Security (Dynamic Banners & Promotions)
+    match /platform_config/{configId} {
+      allow read: if true; // Public read for rendering banners on home page
+      allow write: if isAdmin(); // Strictly locked to God-Mode Admins
+    }
+
     // =========================================================================
     // CANVAS ARTIFACT FALLBACK (Required for Internal Routing and Previews)
     // =========================================================================
@@ -94,6 +100,12 @@ service cloud.firestore {
         ));
         allow update, delete: if false;
       }
+
+      // FEATURE 11 Canvas Fallback: Platform Config Security
+      match /public/data/platform_config/{configId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
       
       match /users/{userId}/{document=**} {
         allow read: if isAdmin() || isOwner(userId);
@@ -101,7 +113,7 @@ service cloud.firestore {
       }
     }
 
-    // FEATURE 11: Absolute Catch-All Deny Rules for Rogue Path Execution
+    // FEATURE 12: Absolute Catch-All Deny Rules for Rogue Path Execution
     match /{document=**} {
       allow read, write: if false;
     }
