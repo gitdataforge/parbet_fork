@@ -2,32 +2,28 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    ShieldCheck, CreditCard, Ticket, Clock, Check, 
-    ChevronDown, ChevronRight, ChevronUp, Lock, MapPin, 
-    Zap, UploadCloud, Building, CheckCircle2, ShieldAlert, 
-    Navigation, Smartphone, Loader2, AlertTriangle, ArrowLeft, Info
+    CreditCard, Ticket, Clock, Check, Lock, MapPin, 
+    UploadCloud, Building, CheckCircle2, ShieldAlert, 
+    Loader2, AlertTriangle, Info, Eye, Zap, X
 } from 'lucide-react';
-import CryptoJS from 'crypto-js'; // FEATURE 13: Cryptographic Signature Verification
+import CryptoJS from 'crypto-js';
 import { useAppStore } from '../../store/useStore';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
-import { loadRazorpayScript } from '../../utils/razorpay'; // FEATURE 5: Dynamic SDK Loader
+import { loadRazorpayScript } from '../../utils/razorpay';
 
 /**
- * FEATURE 1: React Router Native Payload Hydration
- * FEATURE 2: Navigation Trap (Blocks browser back button)
- * FEATURE 3: Infinite Loading Resolution (Failsafe Auth Gates)
- * FEATURE 4: Explicit Cancel & Release Logic
- * FEATURE 5: Razorpay SDK Dynamic Injection & L3 Secure Redirection
- * FEATURE 6: Real-time GST & Platform Fee Escrow Logic
+ * FEATURE 1: 1:1 Viagogo Enterprise UI Replication (Grid, Typography, Colors)
+ * FEATURE 2: Initial 10-Minute Lock Modal ("You have 10 minutes to complete...")
+ * FEATURE 3: Progressive Checkout Accordion (Contact -> Billing -> Payment)
+ * FEATURE 4: Sticky Viagogo Right Column Order Summary
+ * FEATURE 5: Dynamic Ticket Details Modal popup
+ * FEATURE 6: Seamless Razorpay L3 Secure Integration
  * FEATURE 7: PocketBase Secure Receipt Vault for Bank Transfers
- * FEATURE 8: Hardware-Accelerated Progress Wizard
- * FEATURE 9: Ad-Blocker Detection & Integrity Guard
- * FEATURE 10: ISO-8601 Session Expiry Timer
- * FEATURE 11: Dirty-State Form Persistence
- * FEATURE 12: Success Confetti & Transaction Callback Routing
- * FEATURE 13: Client-Side HMAC SHA256 Signature Verification
+ * FEATURE 8: Native Router Payload Hydration
+ * FEATURE 9: Navigation Trap (Blocks browser back button)
+ * FEATURE 10: Client-Side HMAC SHA256 Signature Verification
  */
 
 export default function Checkout() {
@@ -49,29 +45,37 @@ export default function Checkout() {
 
     const [localListing, setLocalListing] = useState(location.state?.reservedListing || null);
 
-    // Internal UI States
+    // Core UI States
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    
+    // Viagogo Specific UI States
+    const [isTimerStarted, setIsTimerStarted] = useState(false);
+    const [priceLockedMsg, setPriceLockedMsg] = useState(false);
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    
+    // Form States
     const [paymentMethod, setPaymentMethod] = useState('card');
-    const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
     const [isProcessingOrder, setIsProcessingOrder] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [receiptUrl, setReceiptUrl] = useState('');
-    const [timeLeft, setTimeLeft] = useState('');
+    const [timeLeft, setTimeLeft] = useState('10:00');
+    
+    // Viagogo Form Fields
+    const [giftSelection, setGiftSelection] = useState('No');
+    const [firstTimeSelection, setFirstTimeSelection] = useState('Yes, and I can\'t wait!');
+    const [billingAddress, setBillingAddress] = useState({ country: 'India', address: '', city: '', state: '', postal: '' });
 
     useEffect(() => {
         if (!localListing) return;
-
         const handleBackButton = (e) => {
             e.preventDefault();
             window.history.pushState(null, null, window.location.pathname + window.location.search);
             setIsCancelModalOpen(true);
         };
-
         window.history.pushState(null, null, window.location.pathname + window.location.search);
         window.addEventListener('popstate', handleBackButton);
-        
         return () => window.removeEventListener('popstate', handleBackButton);
     }, [localListing]);
 
@@ -85,24 +89,18 @@ export default function Checkout() {
         const syncInventoryLock = async () => {
             try {
                 setIsLoading(true);
-                
                 if (location.state && location.state.reservedListing) {
                     const payload = location.state.reservedListing;
                     setLocalListing(payload);
                     hydrateCheckoutPayload(payload);
-                    
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
                     }
-                    
                     setIsLoading(false);
                     return;
                 }
 
-                if (!eventId || !tierId) {
-                    navigate('/');
-                    return;
-                }
+                if (!eventId || !tierId) { navigate('/'); return; }
 
                 const docRef = doc(db, 'events', eventId);
                 const docSnap = await getDoc(docRef);
@@ -110,17 +108,9 @@ export default function Checkout() {
                 if (docSnap.exists()) {
                     const eventData = docSnap.data();
                     const tierData = eventData.ticketTiers?.find(t => t.id === tierId);
-                    
-                    if (!tierData) {
-                        setError('This ticket tier has expired or is no longer available.');
-                        return;
-                    }
-
+                    if (!tierData) { setError('This ticket tier has expired.'); return; }
                     const requestedQty = Number(qtyParams);
-                    if (tierData.quantity < requestedQty) {
-                        setError(`Inventory mismatch: Only ${tierData.quantity} tickets remaining.`);
-                        return;
-                    }
+                    if (tierData.quantity < requestedQty) { setError(`Only ${tierData.quantity} tickets remaining.`); return; }
 
                     const captureData = {
                         id: docSnap.id,
@@ -137,7 +127,6 @@ export default function Checkout() {
 
                     setLocalListing(captureData);
                     hydrateCheckoutPayload(captureData);
-
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
                     }
@@ -145,7 +134,6 @@ export default function Checkout() {
                     setError('The event marketplace listing is no longer active.');
                 }
             } catch (err) {
-                console.error("[Checkout Guard] Fatal Error:", err);
                 setError('Establishment of secure checkout session failed. Please check network.');
             } finally {
                 setIsLoading(false);
@@ -155,8 +143,9 @@ export default function Checkout() {
         syncInventoryLock();
     }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state, hydrateCheckoutPayload]); 
 
+    // Precision Timer (Starts only after user clicks "Start" in Viagogo modal)
     useEffect(() => {
-        if (!checkoutExpiration) return;
+        if (!checkoutExpiration || !isTimerStarted) return;
         const interval = setInterval(() => {
             const diff = checkoutExpiration - Date.now();
             if (diff <= 0) {
@@ -166,10 +155,10 @@ export default function Checkout() {
             }
             const mins = Math.floor(diff / 60000);
             const secs = Math.floor((diff % 60000) / 1000);
-            setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+            setTimeLeft(`${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`);
         }, 1000);
         return () => clearInterval(interval);
-    }, [checkoutExpiration]);
+    }, [checkoutExpiration, isTimerStarted]);
 
     const totals = useMemo(() => {
         if (!localListing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
@@ -182,6 +171,12 @@ export default function Checkout() {
     const handleExplicitCancel = () => {
         cancelReservation();
         navigate(eventId ? `/event?id=${eventId}` : '/');
+    };
+
+    const handleStartTimer = () => {
+        setIsTimerStarted(true);
+        setPriceLockedMsg(true);
+        setTimeout(() => setPriceLockedMsg(false), 4000);
     };
 
     const handleReceiptUpload = async (e) => {
@@ -198,51 +193,40 @@ export default function Checkout() {
         }
     };
 
-    // FEATURE 13: Local Cryptographic Signature Verification
     const verifySignature = (paymentId, orderId, signature) => {
         const secret = import.meta.env.VITE_RAZORPAY_SECRET;
         if (!secret) return false;
-        
         const generatedSignature = CryptoJS.HmacSHA256(`${orderId}|${paymentId}`, secret).toString(CryptoJS.enc.Hex);
         return generatedSignature === signature;
     };
 
-    // FEATURE 5: Serverless Razorpay Transaction Dispatch
     const handleFinalPayment = async () => {
         if (isProcessingOrder) return;
         setIsProcessingOrder(true);
         setError('');
 
         try {
-            if (paymentMethod === 'card' || paymentMethod === 'upi') {
-                
-                // Dynamically load the SDK
+            if (paymentMethod === 'card') {
                 const isSdkLoaded = await loadRazorpayScript();
-                if (!isSdkLoaded) {
-                    throw new Error("Payment initialization failed. Please disable your browser ad-blocker.");
-                }
+                if (!isSdkLoaded) throw new Error("Payment initialization failed. Please disable your browser ad-blocker.");
 
-                // Generate a pseudo-order ID for client-side tracking (Razorpay requires a real one from a server for full API compliance, but we simulate the flow here)
                 const pseudoOrderId = `order_${Date.now()}`;
-
                 const options = {
                     key: import.meta.env.VITE_RAZORPAY_KEY_ID, 
-                    amount: Math.round(totals.total * 100), // Amount in paise
+                    amount: Math.round(totals.total * 100),
                     currency: "INR",
                     name: "Parbet Tickets",
                     description: `Order #${pseudoOrderId}`,
                     handler: async (response) => {
                         try {
                             const paymentId = response.razorpay_payment_id;
-                            
-                            // Log the order to Firestore
                             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                             const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                             
                             await setDoc(orderRef, {
                                 buyerId: user.uid,
                                 buyerEmail: checkoutFormData.contact.email,
-                                buyerName: checkoutFormData.delivery.fullName,
+                                buyerName: billingAddress.address || checkoutFormData.contact.email,
                                 eventId: localListing.eventId,
                                 eventName: localListing.eventName,
                                 tierId: localListing.tierId,
@@ -254,26 +238,16 @@ export default function Checkout() {
                                 createdAt: serverTimestamp()
                             });
 
-                            // Execute atomic inventory update
                             await executePurchase(paymentId, totals.total, localListing);
                             navigate(`/order-confirmation/${paymentId}`);
-                            
                         } catch (err) { 
-                            setError(`Payment succeeded, but inventory update failed: ${err.message}. Contact support.`); 
+                            setError(`Payment succeeded, but inventory update failed: ${err.message}.`); 
                             setIsProcessingOrder(false);
                         }
                     },
-                    prefill: { 
-                        name: checkoutFormData.delivery.fullName,
-                        email: checkoutFormData.contact.email, 
-                        contact: checkoutFormData.delivery.phone 
-                    },
-                    theme: { color: "#1a1a1a" },
-                    modal: {
-                        ondismiss: function() {
-                            setIsProcessingOrder(false); 
-                        }
-                    }
+                    prefill: { email: checkoutFormData.contact.email, contact: checkoutFormData.delivery.phone },
+                    theme: { color: "#3B7A1A" },
+                    modal: { ondismiss: function() { setIsProcessingOrder(false); } }
                 };
 
                 const rzp = new window.Razorpay(options);
@@ -285,7 +259,6 @@ export default function Checkout() {
                 
             } else {
                 if (!receiptUrl) throw new Error("Transfer proof is mandatory for manual approval.");
-                
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                 const pseudoPaymentId = `manual_${Date.now()}`;
@@ -293,7 +266,7 @@ export default function Checkout() {
                 await setDoc(orderRef, {
                     buyerId: user.uid,
                     buyerEmail: checkoutFormData.contact.email,
-                    buyerName: checkoutFormData.delivery.fullName,
+                    buyerName: billingAddress.address || checkoutFormData.contact.email,
                     eventId: localListing.eventId,
                     eventName: localListing.eventName,
                     tierId: localListing.tierId,
@@ -316,209 +289,358 @@ export default function Checkout() {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F6F8]">
-            <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={48} />
-            <h3 className="text-[16px] font-black text-[#1a1a1a] tracking-widest uppercase">Initializing Secured Vault</h3>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+            <Loader2 className="animate-spin text-[#427A1A] mb-4" size={48} />
+            <h3 className="text-[16px] font-bold text-[#1a1a1a] tracking-widest uppercase">Securing Tickets</h3>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-[#F4F6F8] pb-24 font-sans selection:bg-[#8cc63f]/30">
+        <div className="min-h-screen bg-white font-sans text-[#1a1a1a] relative pb-20">
             
+            {/* Viagogo Initial Lock Modal */}
+            <AnimatePresence>
+                {!isTimerStarted && !isLoading && (
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4">
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[16px] p-8 max-w-sm w-full shadow-2xl text-center">
+                            <div className="w-16 h-16 bg-[#eaf4d9] rounded-[12px] flex items-center justify-center mx-auto mb-6">
+                                <Lock className="text-[#427A1A]" size={32} />
+                            </div>
+                            <h2 className="text-[22px] font-bold text-[#1a1a1a] mb-3 leading-tight">You have 10 minutes to complete your purchase</h2>
+                            <p className="text-[#333] text-[15px] font-normal mb-8">The price of your tickets will be locked during this time</p>
+                            <button onClick={handleStartTimer} className="w-full bg-[#3B7A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors">Start</button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Safety Cancel Modal */}
             <AnimatePresence>
                 {isCancelModalOpen && (
-                    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[28px] p-8 max-w-md w-full shadow-2xl border border-red-50 text-center">
-                            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <AlertTriangle className="text-red-600" size={40} />
-                            </div>
-                            <h2 className="text-[24px] font-black text-[#1a1a1a] mb-3">Cancel Reservation?</h2>
-                            <p className="text-[#54626c] font-medium mb-8 leading-relaxed">
-                                Going back will release your tickets. Other fans will be able to buy them immediately. Are you sure?
-                            </p>
+                    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[16px] p-8 max-w-md w-full shadow-2xl text-center">
+                            <h2 className="text-[24px] font-bold text-[#1a1a1a] mb-3">Release Tickets?</h2>
+                            <p className="text-[#333] mb-8">Going back will release your tickets. Other fans will be able to buy them immediately.</p>
                             <div className="flex flex-col gap-3">
-                                <button onClick={() => setIsCancelModalOpen(false)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[14px] shadow-lg hover:bg-black transition-colors">No, Keep Reservation</button>
-                                <button onClick={handleExplicitCancel} className="w-full bg-white text-red-600 border border-red-200 font-bold py-4 rounded-[14px] hover:bg-red-50 transition-colors">Yes, Cancel & Go Back</button>
+                                <button onClick={() => setIsCancelModalOpen(false)} className="w-full bg-[#3B7A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors">No, Keep Reservation</button>
+                                <button onClick={handleExplicitCancel} className="w-full bg-white text-[#d32f2f] border border-[#d32f2f] font-bold py-3.5 rounded-[8px] hover:bg-red-50 transition-colors">Yes, Cancel & Go Back</button>
                             </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
 
-            <header className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-40 px-6 py-4 shadow-sm">
-                <div className="max-w-[1300px] mx-auto flex justify-between items-center">
-                    <div className="flex items-center gap-6">
-                        <button onClick={() => setIsCancelModalOpen(true)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500">
-                            <ArrowLeft size={24} />
-                        </button>
-                        <h1 className="text-[24px] font-black tracking-tighter text-[#1a1a1a]">par<span className="text-[#8cc63f]">bet</span></h1>
+            {/* Ticket Details Modal */}
+            <AnimatePresence>
+                {detailsModalOpen && (
+                    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4">
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="bg-white rounded-[12px] p-6 max-w-lg w-full shadow-2xl relative">
+                            <button onClick={() => setDetailsModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black">
+                                <X size={24} />
+                            </button>
+                            <div className="flex justify-between items-start mb-6 pr-8">
+                                <div>
+                                    <p className="text-[12px] text-[#ff0066] font-medium mb-1">Next weekend • Closing Night</p>
+                                    <h3 className="font-bold text-[18px] text-[#1a1a1a] leading-tight mb-1">{localListing?.eventName || 'Event Name'}</h3>
+                                    <p className="text-[13px] text-gray-500">Sun 10 May • 18:00</p>
+                                    <p className="text-[13px] text-gray-500">{localListing?.eventLoc || 'Venue, City'}</p>
+                                </div>
+                                <img src={localListing?.imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=200"} alt="Event" className="w-20 h-14 object-cover rounded-[6px]" />
+                            </div>
+                            
+                            <div className="inline-flex items-center bg-[#f0f9f0] text-[#3B7A1A] border border-[#d4edda] px-2.5 py-1 rounded-[4px] text-[12px] font-bold mb-6">
+                                <Smartphone size={14} className="mr-1.5" /> E-Ticket
+                            </div>
+
+                            <h4 className="font-bold text-[16px] mb-1">Section {localListing?.tierName || 'General Admission'}</h4>
+                            <p className="text-[14px] text-gray-500 mb-6">{localListing?.quantity} tickets</p>
+
+                            <div className="space-y-4 border-t border-gray-100 pt-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-[8px] flex items-center justify-center shrink-0"><CheckCircle2 size={20} className="text-gray-600" /></div>
+                                    <span className="font-bold text-[14px]">Reserved Seating</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-[8px] flex items-center justify-center shrink-0"><Eye size={20} className="text-gray-600" /></div>
+                                    <span className="font-bold text-[14px]">Clear view</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-100 rounded-[8px] flex items-center justify-center shrink-0"><Zap size={20} className="text-gray-600" /></div>
+                                    <span className="font-bold text-[14px]">Instant download ticket</span>
+                                </div>
+                            </div>
+                        </motion.div>
                     </div>
-                    <div className="flex items-center bg-red-50 text-red-600 px-5 py-2.5 rounded-full border border-red-100 font-black">
-                        <Clock size={18} className="mr-2 animate-pulse" /> {timeLeft || '10:00'}
+                )}
+            </AnimatePresence>
+
+            {/* Price Lock Toast */}
+            <AnimatePresence>
+                {priceLockedMsg && (
+                    <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }} className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#1a1a1a] text-white px-6 py-3 rounded-full font-bold shadow-xl flex items-center gap-2">
+                        <Lock size={16} className="text-[#8cc63f]" /> Your price is locked now
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Viagogo Global Header */}
+            <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-40 px-4 md:px-8 py-4 flex justify-between items-center">
+                <h1 className="text-[24px] font-black tracking-tighter text-[#1a1a1a] cursor-pointer" onClick={() => setIsCancelModalOpen(true)}>Checkout</h1>
+                <div className="flex items-center gap-4 text-[14px] font-bold text-[#1a1a1a]">
+                    <div className="flex items-center gap-2">
+                        <Clock size={18} /> {timeLeft} <Info size={14} className="text-gray-400" />
                     </div>
+                    <span className="hidden md:inline">INR</span>
+                    <span className="hidden md:inline">EN <ChevronDown size={14} className="inline ml-1" /></span>
                 </div>
             </header>
 
-            <div className="max-w-[1300px] mx-auto mt-10 px-4 flex flex-col lg:flex-row gap-10">
-                <div className="flex-1 space-y-6">
-                    <AnimatePresence>
-                        {error && (
-                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ opacity: 0 }} className="bg-red-50 border-l-[6px] border-red-600 text-red-800 p-5 rounded-[12px] font-bold flex items-center shadow-lg">
-                                <ShieldAlert size={24} className="mr-4 shrink-0" /> {error}
-                            </motion.div>
+            {/* Two-Column Checkout Layout */}
+            <div className="max-w-[1100px] mx-auto mt-8 px-4 flex flex-col lg:flex-row gap-12">
+                
+                {/* LEFT COLUMN: Forms */}
+                <div className="flex-1 space-y-8">
+                    {error && (
+                        <div className="bg-red-50 border-l-[4px] border-[#d32f2f] text-[#d32f2f] p-4 rounded-r-[8px] font-medium flex items-center text-[14px]">
+                            <AlertTriangle size={20} className="mr-3 shrink-0" /> {error}
+                        </div>
+                    )}
+
+                    {/* Step 1: Contact Information */}
+                    <div>
+                        <h2 className="text-[22px] font-bold text-[#1a1a1a] mb-2">Contact information</h2>
+                        <p className="text-[14px] text-gray-500 mb-6">We'll use this information to send you updates on your order.</p>
+                        
+                        <div className="bg-[#f7f7f7] rounded-[8px] p-4 mb-6 border border-gray-100">
+                            <div className="mb-4">
+                                <label className="text-[12px] text-gray-500 block mb-1">Email</label>
+                                <input type="email" value={checkoutFormData.contact.email} onChange={(e) => updateCheckoutFormData('contact', { email: e.target.value })} className="w-full bg-transparent border-b border-gray-300 focus:border-[#3B7A1A] outline-none py-1 font-bold text-[#1a1a1a] transition-colors" />
+                            </div>
+                            <div>
+                                <label className="text-[12px] text-gray-500 block mb-1">Phone</label>
+                                <input type="tel" value={checkoutFormData.delivery.phone} onChange={(e) => updateCheckoutFormData('delivery', { phone: e.target.value })} className="w-full bg-transparent border-b border-gray-300 focus:border-[#3B7A1A] outline-none py-1 font-bold text-[#1a1a1a] transition-colors" />
+                            </div>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-[8px] p-5 mb-6">
+                            <h4 className="font-bold text-[15px] mb-3">Buying this as a gift?</h4>
+                            <div className="space-y-3 mb-6">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${giftSelection === 'Yes' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {giftSelection === 'Yes' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <span className="text-[14px]">Yes</span>
+                                    <input type="radio" className="hidden" checked={giftSelection === 'Yes'} onChange={() => setGiftSelection('Yes')} />
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${giftSelection === 'No' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {giftSelection === 'No' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <span className="text-[14px]">No</span>
+                                    <input type="radio" className="hidden" checked={giftSelection === 'No'} onChange={() => setGiftSelection('No')} />
+                                </label>
+                            </div>
+
+                            <h4 className="font-bold text-[15px] mb-3">Is this your first time seeing {localListing?.eventName?.split(' ')[0] || 'this artist'}?</h4>
+                            <div className="space-y-3">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${firstTimeSelection === 'Yes, and I can\'t wait!' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {firstTimeSelection === 'Yes, and I can\'t wait!' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <span className="text-[14px]">Yes, and I can't wait!</span>
+                                    <input type="radio" className="hidden" checked={firstTimeSelection === 'Yes, and I can\'t wait!'} onChange={() => setFirstTimeSelection('Yes, and I can\'t wait!')} />
+                                </label>
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${firstTimeSelection === 'No' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {firstTimeSelection === 'No' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <span className="text-[14px]">No, I've seen them before</span>
+                                    <input type="radio" className="hidden" checked={firstTimeSelection === 'No'} onChange={() => setFirstTimeSelection('No')} />
+                                </label>
+                            </div>
+                        </div>
+                        {checkoutStep === 1 && (
+                            <button onClick={() => setCheckoutStep(2)} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
                         )}
-                    </AnimatePresence>
+                    </div>
 
-                    <CheckoutStep number={1} title="Confirm Contact" active={checkoutStep === 1} done={checkoutStep > 1} onClick={() => checkoutStep > 1 && setCheckoutStep(1)}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                            <FloatingInput label="First Name" value={checkoutFormData.contact.firstName} onChange={(v) => updateCheckoutFormData('contact', { firstName: v })} autoComplete="given-name" />
-                            <FloatingInput label="Last Name" value={checkoutFormData.contact.lastName} onChange={(v) => updateCheckoutFormData('contact', { lastName: v })} autoComplete="family-name" />
-                            <div className="md:col-span-2">
-                                <FloatingInput label="Email Address for Digital Delivery" type="email" value={checkoutFormData.contact.email} onChange={(v) => updateCheckoutFormData('contact', { email: v })} autoComplete="email" />
+                    {/* Step 2: Billing Address */}
+                    {checkoutStep >= 2 && (
+                        <div className="pt-6 border-t border-gray-200">
+                            <h2 className="text-[22px] font-bold text-[#1a1a1a] mb-6">Billing address</h2>
+                            <div className="space-y-4 mb-6">
+                                <div className="border border-gray-300 rounded-[8px] px-3 py-2 bg-white relative">
+                                    <label className="text-[11px] text-gray-500 block">Country</label>
+                                    <select value={billingAddress.country} onChange={(e) => setBillingAddress({...billingAddress, country: e.target.value})} className="w-full bg-transparent outline-none text-[15px] font-medium appearance-none">
+                                        <option value="India">India</option>
+                                        <option value="US">United States</option>
+                                    </select>
+                                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                                </div>
+                                <div className="border border-gray-300 rounded-[8px] px-3 py-3 bg-white">
+                                    <input type="text" placeholder="Address" value={billingAddress.address} onChange={(e) => setBillingAddress({...billingAddress, address: e.target.value})} className="w-full outline-none text-[15px]" />
+                                </div>
+                                <div className="border border-gray-300 rounded-[8px] px-3 py-3 bg-white">
+                                    <input type="text" placeholder="Apartment, suite, etc. (optional)" className="w-full outline-none text-[15px]" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="border border-gray-300 rounded-[8px] px-3 py-3 bg-white">
+                                        <input type="text" placeholder="City" value={billingAddress.city} onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})} className="w-full outline-none text-[15px]" />
+                                    </div>
+                                    <div className="border border-gray-300 rounded-[8px] px-3 py-3 bg-white">
+                                        <input type="text" placeholder="State or Province" value={billingAddress.state} onChange={(e) => setBillingAddress({...billingAddress, state: e.target.value})} className="w-full outline-none text-[15px]" />
+                                    </div>
+                                </div>
+                                <div className="border border-gray-300 rounded-[8px] px-3 py-3 bg-white">
+                                    <input type="text" placeholder="Postal Code" value={billingAddress.postal} onChange={(e) => setBillingAddress({...billingAddress, postal: e.target.value})} className="w-full outline-none text-[15px]" />
+                                </div>
                             </div>
-                            <button onClick={() => setCheckoutStep(2)} className="md:col-span-2 bg-[#1a1a1a] text-white font-black py-4 rounded-[16px] shadow-xl hover:bg-black transition-all mt-2">Next Step</button>
+                            {checkoutStep === 2 && (
+                                <button onClick={() => setCheckoutStep(3)} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
+                            )}
                         </div>
-                    </CheckoutStep>
+                    )}
 
-                    <CheckoutStep number={2} title="Delivery Details" active={checkoutStep === 2} done={checkoutStep > 2} onClick={() => checkoutStep > 2 && setCheckoutStep(2)}>
-                        <div className="space-y-6 mt-6">
-                            <div className="p-6 bg-blue-50 border border-blue-100 rounded-[20px] flex gap-5">
-                                <Smartphone size={32} className="text-blue-600 shrink-0" />
-                                <p className="text-blue-800 text-[14px] font-bold leading-relaxed">Tickets will be transferred directly to your official venue app/account associated with your mobile number.</p>
-                            </div>
-                            <FloatingInput label="Recipient Full Name" value={checkoutFormData.delivery.fullName} onChange={(v) => updateCheckoutFormData('delivery', { fullName: v })} />
-                            <FloatingInput label="Mobile Phone" type="tel" value={checkoutFormData.delivery.phone} onChange={(v) => updateCheckoutFormData('delivery', { phone: v })} />
-                            <button onClick={() => setCheckoutStep(3)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[16px] shadow-xl hover:bg-black transition-all">Next Step</button>
-                        </div>
-                    </CheckoutStep>
-
-                    <CheckoutStep number={3} title="Secured Payment" active={checkoutStep === 3} done={checkoutStep > 3}>
-                        <div className="space-y-5 mt-6">
-                            <PaymentCard icon={<CreditCard />} label="Card / UPI / NetBanking" desc="Instant delivery via Razorpay L3 Secure" active={paymentMethod === 'card'} onClick={() => setPaymentMethod('card')} />
-                            <PaymentCard icon={<Building />} label="Manual Bank Transfer (Zero Fee)" desc="Approval required (2-4 hours)" active={paymentMethod === 'bank_transfer'} onClick={() => setPaymentMethod('bank_transfer')} />
+                    {/* Step 3: Payment Method */}
+                    {checkoutStep >= 3 && (
+                        <div className="pt-6 border-t border-gray-200">
+                            <h2 className="text-[22px] font-bold text-[#1a1a1a] mb-2">Select payment method</h2>
+                            <p className="text-[14px] font-bold text-[#1a1a1a] mb-4">Add new payment method</p>
                             
-                            <AnimatePresence>
-                                {paymentMethod === 'bank_transfer' && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-4 space-y-4">
-                                        <div className="bg-gray-50 border-2 border-dashed border-gray-200 p-6 rounded-[24px] text-center">
-                                            <p className="text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Escrow UPI Address</p>
-                                            <h3 className="text-[22px] font-black text-[#8cc63f] font-mono">parbet.escrow@icici</h3>
-                                        </div>
-                                        <div className="relative h-44 border-2 border-dashed border-gray-300 rounded-[24px] flex flex-col items-center justify-center bg-white hover:border-[#8cc63f] transition-all cursor-pointer overflow-hidden group">
-                                            <input type="file" accept="image/*,.pdf" onChange={handleReceiptUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                                            {isUploading ? <Loader2 className="animate-spin text-[#8cc63f]" size={40} /> : receiptUrl ? <CheckCircle2 className="text-[#458731]" size={40} /> : <UploadCloud size={40} className="text-gray-300 group-hover:text-[#8cc63f]" />}
-                                            <p className="text-[14px] font-black mt-3 text-gray-500">{receiptUrl ? 'Transfer Proof Attached' : 'Upload Payment Screenshot'}</p>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            <div className="border border-gray-300 rounded-[8px] overflow-hidden mb-4">
+                                {/* Razorpay Credit/Debit/UPI Option */}
+                                <label className={`flex items-center p-4 cursor-pointer border-b border-gray-200 transition-colors ${paymentMethod === 'card' ? 'bg-[#f8f9fa]' : 'bg-white hover:bg-gray-50'}`}>
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'card' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {paymentMethod === 'card' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <CreditCard size={24} className="text-gray-600 mr-3" />
+                                    <span className="text-[15px] font-medium text-[#1a1a1a]">Credit / debit card / UPI</span>
+                                </label>
+                                
+                                {/* Manual Bank Transfer Option */}
+                                <label className={`flex items-center p-4 cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'bg-[#f8f9fa]' : 'bg-white hover:bg-gray-50'}`}>
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'bank_transfer' ? 'border-[#3B7A1A]' : 'border-gray-300'}`}>
+                                        {paymentMethod === 'bank_transfer' && <div className="w-2.5 h-2.5 bg-[#3B7A1A] rounded-full" />}
+                                    </div>
+                                    <Building size={24} className="text-gray-600 mr-3" />
+                                    <span className="text-[15px] font-medium text-[#1a1a1a]">Manual Bank Transfer</span>
+                                </label>
+                            </div>
+
+                            {paymentMethod === 'bank_transfer' && (
+                                <div className="mb-6 p-5 border border-gray-200 rounded-[8px] bg-gray-50">
+                                    <p className="text-[13px] font-bold text-gray-500 uppercase tracking-wider mb-2">Escrow UPI Address</p>
+                                    <h3 className="text-[18px] font-bold text-[#1a1a1a] mb-4">parbet.escrow@icici</h3>
+                                    <div className="relative border-2 border-dashed border-gray-300 rounded-[8px] p-6 flex flex-col items-center justify-center bg-white cursor-pointer hover:bg-gray-50">
+                                        <input type="file" accept="image/*,.pdf" onChange={handleReceiptUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                        {isUploading ? <Loader2 className="animate-spin text-[#3B7A1A]" size={24} /> : receiptUrl ? <CheckCircle2 className="text-[#3B7A1A]" size={24} /> : <UploadCloud size={24} className="text-gray-400" />}
+                                        <p className="text-[13px] font-medium mt-2">{receiptUrl ? 'Transfer Proof Attached' : 'Upload Payment Screenshot'}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center p-4 border border-gray-300 rounded-[8px] mb-6">
+                                <span className="text-[15px] font-bold text-[#1a1a1a]">Gift card</span>
+                                <span className="text-[15px] font-bold text-[#0066cc] cursor-pointer">Add</span>
+                            </div>
 
                             <button 
                                 onClick={handleFinalPayment} 
                                 disabled={isProcessingOrder || (paymentMethod === 'bank_transfer' && !receiptUrl) || isUploading}
-                                className="w-full bg-[#8cc63f] text-white font-black py-5 rounded-[20px] text-[18px] shadow-2xl shadow-[#8cc63f]/30 hover:bg-[#7ab335] active:scale-95 transition-all mt-4 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px] flex justify-center items-center disabled:opacity-50"
                             >
-                                {isProcessingOrder ? <Loader2 className="animate-spin" /> : <Lock size={20} />}
-                                Pay ₹{Math.round(totals.total).toLocaleString()}
+                                {isProcessingOrder ? <Loader2 className="animate-spin mr-2" /> : null}
+                                Continue
                             </button>
+                            <p className="text-center text-[12px] text-gray-500 mt-3">Don't worry, you won't be charged yet</p>
                         </div>
-                    </CheckoutStep>
+                    )}
                 </div>
 
-                <aside className="w-full lg:w-[450px]">
-                    <div className="bg-white border border-gray-200 rounded-[32px] overflow-hidden shadow-2xl sticky top-28 border-t-8 border-t-[#8cc63f]">
-                        <div className="p-8">
-                            <div className="flex justify-between items-start mb-8">
-                                <h2 className="text-[20px] font-black uppercase tracking-widest">Order Summary</h2>
-                                <ShieldCheck className="text-[#8cc63f]" size={28} />
+                {/* RIGHT COLUMN: Sticky Order Summary */}
+                <aside className="w-full lg:w-[400px]">
+                    <div className="sticky top-24">
+                        <div className="border border-[#e2e2e2] rounded-[12px] bg-white overflow-hidden shadow-sm mb-6">
+                            {/* Top Badge */}
+                            <div className="bg-[#fff0f5] border-b border-[#ffe6ee] py-2 px-4 flex items-center justify-center gap-2">
+                                <Ticket size={16} className="text-[#ff0066]" />
+                                <span className="text-[13px] font-normal text-[#1a1a1a]">Last tickets remaining in {localListing?.tierName || 'General Admission'}</span>
+                                <Info size={14} className="text-gray-400 cursor-pointer" />
                             </div>
                             
-                            <div className="flex gap-5 mb-8">
-                                <div className="w-24 h-24 bg-gray-50 rounded-[20px] flex items-center justify-center shrink-0 border border-gray-100 shadow-inner">
-                                    <Ticket size={40} className="text-gray-300" />
+                            <div className="p-5">
+                                {/* Event Snapshot */}
+                                <div className="flex justify-between items-start pb-5 border-b border-gray-200 mb-5">
+                                    <div className="pr-4">
+                                        <p className="text-[12px] text-[#ff0066] font-medium mb-1">Next weekend • Closing Night</p>
+                                        <h3 className="font-bold text-[16px] text-[#1a1a1a] leading-tight mb-1">{localListing?.eventName || 'Loading...'}</h3>
+                                        <p className="text-[13px] text-gray-500">Sun 10 May • 18:00</p>
+                                        <p className="text-[13px] text-gray-500">{localListing?.eventLoc || '---'}</p>
+                                    </div>
+                                    <img src={localListing?.imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=200"} alt="Event" className="w-16 h-12 object-cover rounded-[6px] shrink-0" />
                                 </div>
-                                <div className="space-y-1.5 flex-1 min-w-0">
-                                    <h3 className="font-black text-[20px] leading-tight truncate text-[#1a1a1a]">{localListing?.eventName || 'Loading...'}</h3>
-                                    <p className="text-[14px] text-[#8cc63f] font-black uppercase tracking-wide">{localListing?.tierName || '---'}</p>
-                                    <p className="text-[13px] text-gray-400 font-bold flex items-center gap-1.5 truncate"><MapPin size={14} className="shrink-0" /> {localListing?.eventLoc || '---'}</p>
-                                </div>
-                            </div>
 
-                            <div className="space-y-5 border-t border-gray-100 pt-8">
-                                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-[18px]">
-                                    <span className="text-[15px] font-bold text-gray-500">Tickets (x{localListing?.quantity || 0})</span>
-                                    <span className="font-black text-[18px]">₹{totals.subtotal.toLocaleString()}</span>
+                                {/* Section & Details */}
+                                <div className="flex justify-between items-center pb-5 border-b border-gray-200 mb-5">
+                                    <div>
+                                        <h4 className="font-bold text-[15px] text-[#1a1a1a]">Section {localListing?.tierName || '---'}</h4>
+                                        <p className="text-[13px] text-gray-500">{localListing?.quantity} tickets</p>
+                                    </div>
+                                    <button onClick={() => setDetailsModalOpen(true)} className="border border-gray-300 text-[#1a1a1a] text-[13px] font-bold px-3 py-1.5 rounded-[6px] hover:bg-gray-50 transition-colors">Details</button>
                                 </div>
-                                <div className="px-2 space-y-4">
-                                    <div className="flex justify-between text-[14px] font-bold text-[#8cc63f]">
-                                        <span>Platform Service Fee</span>
-                                        <span>₹{Math.round(totals.fees).toLocaleString()}</span>
+
+                                {/* Pricing Breakdown */}
+                                <div className="space-y-1 mb-5">
+                                    <div className="flex justify-between text-[14px] text-[#1a1a1a]">
+                                        <span>Tickets</span>
+                                        <span>{localListing?.quantity} × INR{Math.round(localListing?.price || 0).toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between text-[14px] font-bold text-gray-300">
-                                        <span>Estimated GST</span>
-                                        <span>₹{Math.round(totals.tax).toLocaleString()}</span>
-                                    </div>
+                                    <p className="text-[12px] text-gray-500">Tax, handling fee, and booking fee not included</p>
                                 </div>
-                                <div className="pt-8 border-t-2 border-dashed border-gray-100 flex justify-between items-end">
-                                    <div className="space-y-1">
-                                        <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest block">Total Amount</span>
-                                        <span className="text-[38px] font-black text-[#1a1a1a] leading-none">₹{Math.round(totals.total).toLocaleString()}</span>
+
+                                {/* Quantity & Confirm */}
+                                <div className="flex gap-3">
+                                    <div className="border border-gray-300 rounded-[6px] px-3 py-2 flex items-center justify-between w-20 bg-white">
+                                        <span className="text-[15px] font-medium">{localListing?.quantity}</span>
+                                        <ChevronDown size={16} className="text-gray-500" />
                                     </div>
-                                    <Zap size={40} className="text-[#8cc63f] opacity-20 mb-1" />
+                                    <button className="flex-1 bg-[#427A1A] text-white font-bold rounded-[6px] text-[15px] hover:bg-[#2F6114] transition-colors">Confirm Quantity</button>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-[#1a1a1a] p-4 text-center">
-                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">Secured by Parbet Escrow Infrastructure</p>
+
+                        {/* Guarantees */}
+                        <div className="space-y-6 px-2">
+                            <div className="flex items-start gap-4">
+                                <div className="w-6 h-6 rounded-full bg-[#0066cc] flex items-center justify-center shrink-0 mt-0.5"><Check size={14} className="text-white" /></div>
+                                <div>
+                                    <h4 className="font-bold text-[14px] text-[#1a1a1a] mb-1">100% Order Guarantee</h4>
+                                    <p className="text-[13px] text-gray-500 leading-relaxed">We back every order so you can buy and sell tickets with 100% confidence.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <div className="w-6 h-6 bg-gray-100 rounded-[4px] flex items-center justify-center shrink-0 mt-0.5"><Ticket size={14} className="text-[#1a1a1a]" /></div>
+                                <div>
+                                    <h4 className="font-bold text-[14px] text-[#1a1a1a] mb-1">Resell Anytime</h4>
+                                    <p className="text-[13px] text-gray-500 leading-relaxed">Not sure if you can make it to this event? No worries! You can <span className="text-[#0066cc] cursor-pointer hover:underline">resell your tickets</span> on parbet at any time.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </aside>
             </div>
-        </div>
-    );
-}
 
-function CheckoutStep({ number, title, active, done, children, onClick }) {
-    return (
-        <div className={`bg-white border-2 rounded-[28px] overflow-hidden transition-all duration-500 ${active ? 'border-[#1a1a1a] shadow-2xl' : 'border-gray-100 opacity-60'}`}>
-            <div onClick={onClick} className={`p-7 flex items-center justify-between ${onClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}>
-                <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-black transition-all ${done ? 'bg-[#8cc63f] text-white shadow-lg shadow-[#8cc63f]/20' : active ? 'bg-[#1a1a1a] text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}>
-                        {done ? <Check size={24} strokeWidth={4} /> : number}
-                    </div>
-                    <h3 className={`text-[20px] font-black tracking-tight ${active ? 'text-[#1a1a1a]' : 'text-gray-400'}`}>{title}</h3>
+            {/* Global Footer */}
+            <footer className="max-w-[1300px] mx-auto mt-20 px-4 pt-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-[13px] text-gray-500 gap-4">
+                <div className="flex gap-4">
+                    <span className="hover:underline cursor-pointer">User Agreement</span>
+                    <span className="hover:underline cursor-pointer">Privacy Notice</span>
+                    <span className="hover:underline cursor-pointer">Cookie Notice</span>
                 </div>
-                {done && <span className="text-[13px] font-black text-[#8cc63f] uppercase tracking-widest hover:underline">Modify</span>}
-            </div>
-            {active && <div className="px-7 pb-10 border-t border-gray-50">{children}</div>}
-        </div>
-    );
-}
-
-function FloatingInput({ label, type = 'text', value, onChange, autoComplete = 'off' }) {
-    return (
-        <div className="relative group">
-            <input 
-                type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder=" " autoComplete={autoComplete}
-                className="w-full bg-gray-50 border-2 border-transparent rounded-[18px] px-6 pt-8 pb-3 font-bold text-[#1a1a1a] outline-none focus:bg-white focus:border-[#1a1a1a] transition-all shadow-inner"
-            />
-            <label className="absolute left-6 top-3 text-[11px] font-black text-gray-400 uppercase tracking-widest pointer-events-none group-focus-within:text-[#1a1a1a] transition-all">
-                {label}
-            </label>
-        </div>
-    );
-}
-
-function PaymentCard({ icon, label, desc, active, onClick }) {
-    return (
-        <div onClick={onClick} className={`p-6 rounded-[24px] border-2 cursor-pointer transition-all flex items-center gap-5 ${active ? 'border-[#8cc63f] bg-[#eaf4d9] shadow-inner' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
-            <div className={`w-6 h-6 rounded-full border-4 shrink-0 transition-colors ${active ? 'border-[#458731] bg-white' : 'border-gray-200'}`} />
-            <div className="p-3 bg-white rounded-[16px] shadow-sm border border-gray-100 text-gray-700">{icon}</div>
-            <div className="min-w-0 flex-1">
-                <h4 className="font-black text-[16px] text-[#1a1a1a] truncate">{label}</h4>
-                <p className="text-[13px] text-gray-500 font-medium truncate">{desc}</p>
-            </div>
+                <div className="flex items-center gap-1.5 font-bold text-[#1a1a1a]">
+                    <ShieldCheck size={16} /> Every order is 100% guaranteed
+                </div>
+            </footer>
         </div>
     );
 }
