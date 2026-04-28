@@ -8,7 +8,7 @@ import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, deleteDoc
 
 // Global Stores
 import { useAppStore } from '../../store/useStore';
-// FEATURE 2: REMOVED useMarketStore entirely to permanently fix the infinite loop and ERR_QUIC_PROTOCOL_ERROR
+import { useMarketStore } from '../../store/useMarketStore'; // RESTORED: Stable Market Pipeline
 
 // UI Components
 import ViagogoHeroCarousel from '../../components/ViagogoHeroCarousel';
@@ -19,7 +19,7 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: 100% Real-Time Shared Database Integration (No Mock Data)
- * FEATURE 2: State Hydration Failsafe (Eliminates infinite loading loop race conditions via useAppStore)
+ * FEATURE 2: State Hydration Failsafe (Eliminates infinite loading loop race conditions)
  * FEATURE 3: Admin God-Mode Injection (Direct event mutation from the feed)
  * FEATURE 4: Strict "See All" Exploration Routing (Passes global category queries)
  * FEATURE 5: Dynamic Search & Filtering Engine
@@ -36,12 +36,11 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 export default function Home() {
     const navigate = useNavigate();
     
-    // Local App State & Global Replacement
-    const { searchQuery, setLocationDropdownOpen, setSearchQuery, setExploreCategory, liveMatches, isLoadingMatches, fetchLocationAndMatches } = useAppStore();
+    // Local App State
+    const { searchQuery, setLocationDropdownOpen, setSearchQuery, setExploreCategory } = useAppStore();
     
-    // Re-mapped to bypass broken useMarketStore while keeping exact original variable names
-    const activeListings = liveMatches;
-    const isLoading = isLoadingMatches;
+    // Shared Market State (Real-Time Firestore Pipe - RESTORED)
+    const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
     // Admin Authentication State
     const [isAdmin, setIsAdmin] = useState(false);
@@ -59,11 +58,15 @@ export default function Home() {
     // FEATURE 2: Bulletproof Infinite Loader Resolution
     const [showLoader, setShowLoader] = useState(true);
 
+    // Initialize the singleton-locked market listener
     useEffect(() => {
-        if (activeListings.length === 0 && !isLoading) {
-            fetchLocationAndMatches();
-        }
-    }, [activeListings.length, isLoading, fetchLocationAndMatches]);
+        const unsubscribe = initMarketListener();
+        return () => {
+            if (unsubscribe && typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        };
+    }, [initMarketListener]);
 
     // Failsafe: Kill loader instantly if data exists, or timeout after 5 seconds for empty DBs
     useEffect(() => {
@@ -98,7 +101,7 @@ export default function Home() {
             snap.docs.forEach(d => {
                 const data = d.data();
                 if (data.type === 'home_section') sections.push({ id: d.id, ...data });
-                if (data.type === 'home_banner') bData = { id: d.id, ...data };
+                if (data.type === 'app_banner') bData = { id: d.id, ...data };
             });
             
             setHomeSections(sections.sort((a,b) => (a.order || 0) - (b.order || 0)));
@@ -131,7 +134,7 @@ export default function Home() {
                     title: bannerData.title, subtitle: bannerData.subtitle, imageUrl: bannerData.imageUrl
                 });
             } else {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'platform_config'), { ...bannerData, type: 'home_banner' });
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'platform_config'), { ...bannerData, type: 'app_banner' });
             }
             setIsEditingBanner(false);
         } catch (error) { console.error(error); alert("Failed to update banner configuration."); }
@@ -153,7 +156,7 @@ export default function Home() {
     const cricketMatches = useMemo(() => 
         filteredMatches.filter(m => {
             const str = `${m.title} ${m.sportCategory}`.toLowerCase();
-            return str.includes('cricket') || str.includes('t20') || str.includes('test');
+            return str.includes('cricket') || str.includes('t20') || str.includes('test') || str.includes('ipl');
         }), 
     [filteredMatches]);
 
@@ -186,7 +189,7 @@ export default function Home() {
                     <div className="flex items-center gap-3">
                         <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">{title}</h2>
                         {isAdmin && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 ml-2">
                                 <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
                                     <ShieldAlert size={12} /> Admin
                                 </span>
@@ -198,6 +201,7 @@ export default function Home() {
                             </div>
                         )}
                     </div>
+                    {/* Strict "See All" Exploration Routing */}
                     {events.length > 4 && (
                         <button 
                             onClick={() => {
@@ -280,7 +284,13 @@ export default function Home() {
                                 </div>
                             </div>
                             <div className="mt-8">
-                                <button onClick={handleSaveSection} className="w-full py-3 bg-[#1a1a1a] text-white rounded-[12px] font-bold shadow-lg hover:bg-black transition-colors">Publish Section</button>
+                                <button 
+                                    onClick={handleSaveSection} 
+                                    disabled={!sectionData.title || !sectionData.categoryQuery} 
+                                    className="w-full py-3 bg-[#1a1a1a] text-white rounded-[12px] font-bold shadow-lg hover:bg-black transition-colors disabled:opacity-50"
+                                >
+                                    Publish Section
+                                </button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -395,7 +405,7 @@ export default function Home() {
                                 {homeSections.map((sec) => {
                                     const secEvents = filteredMatches.filter(m => {
                                         const str = `${m.title} ${m.sportCategory} ${m.eventName}`.toLowerCase();
-                                        return str.includes(sec.categoryQuery.toLowerCase());
+                                        return str.includes(sec.categoryQuery?.toLowerCase() || '');
                                     });
                                     return <EventRail key={sec.id} sectionId={sec.id} title={sec.title} events={secEvents} categoryQuery={sec.categoryQuery} />;
                                 })}
