@@ -78,9 +78,9 @@ export default function Performer() {
     const navigate = useNavigate();
     const performerName = decodeURIComponent(id || 'Indian Premier League');
 
-    const { userCity, isLocationDropdownOpen, setLocationDropdownOpen } = useAppStore();
+    const { userCity, isLocationDropdownOpen, setLocationDropdownOpen, isAuthenticated } = useAppStore();
     
-    // Shared Market State (RESTORED Singleton Listener)
+    // Shared Market State
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
     // Local UI States
@@ -170,7 +170,6 @@ export default function Performer() {
         };
     }, [activeListings, performerName, userCity]);
 
-    // Derived State for Analytics & Pagination
     const viewerCount = useMemo(() => Math.floor((filteredEvents.length * 451.08) || 5413), [filteredEvents.length]);
     const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
     const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -181,7 +180,6 @@ export default function Performer() {
         return performerName;
     };
 
-    // FEATURE 4: Admin God-Mode Data Pre-fill
     const handleCreateNew = () => {
         setSelectedAdminEvent({
             t1: performerName,
@@ -192,10 +190,17 @@ export default function Performer() {
         setAdminModalOpen(true);
     };
 
+    // CRITICAL BUGFIX: The button click was not utilizing the routing fixes established in Event/index.jsx
+    const handleEventClick = (e, mId) => {
+        e.stopPropagation();
+        // Since Performer is an aggregate page, we send them to the specific Event Page
+        // We do not need to verify auth here, as they are not booking yet. They just want to see the stadium map.
+        navigate(`/event?id=${mId}`);
+    };
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-white font-sans text-[#1a1a1a]">
             
-            {/* INJECT: Global Admin Edit Modal */}
             <AdminEditEventModal 
                 isOpen={adminModalOpen} 
                 onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} 
@@ -224,7 +229,6 @@ export default function Performer() {
                             <span className="text-[14px] font-bold">10.8K</span>
                             <Heart size={16} />
                         </div>
-                        {/* FEATURE 4: Admin Create Listing Trigger */}
                         {isAdmin && (
                             <button onClick={handleCreateNew} className="bg-[#8cc63f] text-[#1a1a1a] px-5 py-2.5 rounded-full font-black flex items-center gap-2 hover:bg-white transition-colors shadow-lg shadow-[#8cc63f]/20 shrink-0 text-[14px]">
                                 <PlusCircle size={18} /> Add Listing
@@ -308,10 +312,9 @@ export default function Performer() {
                             return (
                                 <div 
                                     key={m.id} 
-                                    onClick={() => navigate(`/event?id=${m.id}`)}
+                                    onClick={(e) => handleEventClick(e, m.id)}
                                     className="relative bg-white border border-[#e2e2e2] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md hover:border-[#8cc63f] transition-all cursor-pointer group/item"
                                 >
-                                    {/* FEATURE 4: Hover Admin Edit Injector */}
                                     {isAdmin && (
                                         <button
                                             onClick={(e) => {
