@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Loader2, AlertCircle, Pencil, ShieldAlert, PlusCircle, LayoutTemplate, X, Trash2 } from 'lucide-react';
+import { ChevronDown, Loader2, AlertCircle, Pencil, ShieldAlert, PlusCircle, LayoutTemplate, X, Trash2, Image as ImageIcon, Grid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
@@ -16,7 +16,7 @@ import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 import ViagogoEventCard from '../../components/ViagogoEventCard';
 import ViagogoCategoryCard from '../../components/ViagogoCategoryCard';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
-import AppPromo from '../../components/AppPromo'; // INJECTED: New Modular Viagogo Promo Component
+import AppPromo from '../../components/AppPromo';
 
 /**
  * FEATURE 1: 100% Real-Time Shared Database Integration
@@ -32,18 +32,30 @@ import AppPromo from '../../components/AppPromo'; // INJECTED: New Modular Viago
  * FEATURE 11: Touch/Swipe Optimized Snap-to-Grid
  * FEATURE 12: Image 404 Cascade Prevention
  * FEATURE 13: Dynamic Home Sections (Admins can build custom rails on the fly)
+ * FEATURE 14: Dynamic Hero Banners (Admin Editable)
+ * FEATURE 15: Dynamic Popular Categories (Admin Editable)
  */
+
+// Default Fallback Data if Firestore is empty
+const DEFAULT_HEROES = [
+    { id: '1', title: 'TATA IPL 2026', query: 'IPL', imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80' },
+    { id: '2', title: 'ICC T20 World Cup', query: 'ICC', imageUrl: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80' },
+    { id: '3', title: 'Pro Kabaddi League', query: 'Kabaddi', imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80' }
+];
+
+const DEFAULT_CATEGORIES = [
+    { id: '1', name: 'IPL Cricket', query: 'IPL', imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80' },
+    { id: '2', name: 'World Cup', query: 'World Cup', imageUrl: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
+    { id: '3', name: 'Kabaddi', query: 'Kabaddi', imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80' },
+    { id: '4', name: 'Football', query: 'Football', imageUrl: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80' }
+];
 
 export default function Home() {
     const navigate = useNavigate();
     
-    // Local App State
     const { searchQuery, setLocationDropdownOpen, setSearchQuery, setExploreCategory } = useAppStore();
-    
-    // Shared Market State
     const { activeListings, initMarketListener } = useMarketStore();
 
-    // Admin Authentication State
     const [isAdmin, setIsAdmin] = useState(false);
     const [adminModalOpen, setAdminModalOpen] = useState(false);
     const [selectedAdminEvent, setSelectedAdminEvent] = useState(null);
@@ -53,21 +65,25 @@ export default function Home() {
     const [sectionData, setSectionData] = useState({ title: '', categoryQuery: '', order: 0 });
     const [homeSections, setHomeSections] = useState([]);
 
+    // NEW: Dynamic Hero & Category States
+    const [isEditingHeroes, setIsEditingHeroes] = useState(false);
+    const [isEditingCategories, setIsEditingCategories] = useState(false);
+    const [heroConfig, setHeroConfig] = useState([]);
+    const [categoryConfig, setCategoryConfig] = useState([]);
+    const [heroDocId, setHeroDocId] = useState(null);
+    const [categoryDocId, setCategoryDocId] = useState(null);
+
     const [showLoader, setShowLoader] = useState(true);
 
     useEffect(() => {
         const unsubscribe = initMarketListener();
         return () => {
-            if (unsubscribe && typeof unsubscribe === 'function') {
-                unsubscribe();
-            }
+            if (unsubscribe && typeof unsubscribe === 'function') unsubscribe();
         };
     }, [initMarketListener]);
 
     useEffect(() => {
-        if (activeListings && activeListings.length > 0) {
-            setShowLoader(false);
-        }
+        if (activeListings && activeListings.length > 0) setShowLoader(false);
         const failsafeTimer = setTimeout(() => setShowLoader(false), 5000);
         return () => clearTimeout(failsafeTimer);
     }, [activeListings]);
@@ -84,20 +100,44 @@ export default function Home() {
         return () => unsubscribeAuth();
     }, []);
 
+    // Master Config Fetcher (Fetches Sections, Heroes, and Categories)
     useEffect(() => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'platform_config');
+        
         const unsub = onSnapshot(configRef, (snap) => {
             const sections = [];
+            let hConfig = [];
+            let cConfig = [];
+            let hId = null;
+            let cId = null;
+
             snap.docs.forEach(d => {
                 const data = d.data();
                 if (data.type === 'home_section') sections.push({ id: d.id, ...data });
+                if (data.type === 'hero_banners') {
+                    hConfig = data.slides || [];
+                    hId = d.id;
+                }
+                if (data.type === 'popular_categories') {
+                    cConfig = data.categories || [];
+                    cId = d.id;
+                }
             });
+            
             setHomeSections(sections.sort((a,b) => (a.order || 0) - (b.order || 0)));
+            
+            // Set fetched data, or fallback if document doesn't exist yet
+            setHeroConfig(hConfig.length > 0 ? hConfig : DEFAULT_HEROES);
+            setHeroDocId(hId);
+            
+            setCategoryConfig(cConfig.length > 0 ? cConfig : DEFAULT_CATEGORIES);
+            setCategoryDocId(cId);
         });
         return () => unsub();
     }, []);
 
+    // --- Admin Save Handlers ---
     const handleSaveSection = async () => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         try {
@@ -113,6 +153,31 @@ export default function Home() {
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', id));
     };
 
+    const handleSaveHeroes = async () => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        try {
+            if (heroDocId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', heroDocId), { slides: heroConfig });
+            } else {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'platform_config'), { type: 'hero_banners', slides: heroConfig });
+            }
+            setIsEditingHeroes(false);
+        } catch(err) { console.error(err); alert("Failed to save heroes."); }
+    };
+
+    const handleSaveCategories = async () => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        try {
+            if (categoryDocId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', categoryDocId), { categories: categoryConfig });
+            } else {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'platform_config'), { type: 'popular_categories', categories: categoryConfig });
+            }
+            setIsEditingCategories(false);
+        } catch(err) { console.error(err); alert("Failed to save categories."); }
+    };
+
+    // --- Dynamic Search Engine ---
     const filteredMatches = useMemo(() => {
         if (!searchQuery) return activeListings;
         const q = searchQuery.toLowerCase();
@@ -150,11 +215,7 @@ export default function Home() {
         if (events.length === 0) return null;
 
         return (
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                className="mb-10 md:mb-14 relative group"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10 md:mb-14 relative group">
                 <div className="flex items-center justify-between mb-4 md:mb-5">
                     <div className="flex items-center gap-3">
                         <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">{title}</h2>
@@ -189,17 +250,10 @@ export default function Home() {
                     <div ref={scrollRef} className="flex overflow-x-auto custom-scrollbar space-x-4 md:space-x-5 pb-6 snap-x">
                         {events.map((event, index) => (
                             <div key={event?.id || `event-fallback-${index}`} className="relative group/admin snap-start">
-                                <ViagogoEventCard 
-                                    event={event} 
-                                    onClick={() => navigate(`/event?id=${event?.id}`)} 
-                                />
+                                <ViagogoEventCard event={event} onClick={() => navigate(`/event?id=${event?.id}`)} />
                                 {isAdmin && (
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedAdminEvent(event);
-                                            setAdminModalOpen(true);
-                                        }}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(event); setAdminModalOpen(true); }}
                                         className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2 rounded-full shadow-[0_4px_15px_rgba(220,38,38,0.4)] opacity-0 group-hover/admin:opacity-100 transition-all hover:scale-110 hover:bg-red-700"
                                         title="God Mode: Edit Event"
                                     >
@@ -211,10 +265,7 @@ export default function Home() {
                     </div>
                     
                     {events.length > 4 && (
-                        <button 
-                            onClick={() => scroll('right')} 
-                            className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-white border border-[#e2e2e2] rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-[#1a1a1a] hover:scale-105 transition-transform z-10 hidden lg:flex opacity-0 group-hover:opacity-100"
-                        >
+                        <button onClick={() => scroll('right')} className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-white border border-[#e2e2e2] rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-[#1a1a1a] hover:scale-105 transition-transform z-10 hidden lg:flex opacity-0 group-hover:opacity-100">
                             <ChevronDown size={24} className="-rotate-90" />
                         </button>
                     )}
@@ -226,12 +277,9 @@ export default function Home() {
     return (
         <div className="w-full bg-white font-sans text-[#1a1a1a]">
             
-            <AdminEditEventModal 
-                isOpen={adminModalOpen} 
-                onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} 
-                eventData={selectedAdminEvent} 
-            />
+            <AdminEditEventModal isOpen={adminModalOpen} onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} eventData={selectedAdminEvent} />
 
+            {/* MODAL: Add Dynamic Section */}
             <AnimatePresence>
                 {isAddingSection && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -241,47 +289,120 @@ export default function Home() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-[12px] font-black uppercase text-gray-500 mb-1 block">Section Title</label>
-                                    <input type="text" value={sectionData.title} onChange={e => setSectionData({...sectionData, title: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" placeholder="e.g. Upcoming Music Festivals" />
+                                    <input type="text" value={sectionData.title} onChange={e => setSectionData({...sectionData, title: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" />
                                 </div>
                                 <div>
                                     <label className="text-[12px] font-black uppercase text-gray-500 mb-1 block">Search Query / Category Match</label>
-                                    <input type="text" value={sectionData.categoryQuery} onChange={e => setSectionData({...sectionData, categoryQuery: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" placeholder="e.g. Festival" />
-                                    <p className="text-[11px] text-gray-500 mt-1">This keyword instantly filters global events to populate this rail.</p>
+                                    <input type="text" value={sectionData.categoryQuery} onChange={e => setSectionData({...sectionData, categoryQuery: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" />
                                 </div>
                             </div>
                             <div className="mt-8">
-                                <button 
-                                    onClick={handleSaveSection} 
-                                    disabled={!sectionData.title || !sectionData.categoryQuery} 
-                                    className="w-full py-3 bg-[#1a1a1a] text-white rounded-[12px] font-bold shadow-lg hover:bg-black transition-colors disabled:opacity-50"
-                                >
-                                    Publish Section
-                                </button>
+                                <button onClick={handleSaveSection} disabled={!sectionData.title || !sectionData.categoryQuery} className="w-full py-3 bg-[#1a1a1a] text-white rounded-[12px] font-bold shadow-lg hover:bg-black transition-colors disabled:opacity-50">Publish Section</button>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
+            {/* MODAL: Edit Hero Banners */}
+            <AnimatePresence>
+                {isEditingHeroes && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
+                            <button onClick={() => setIsEditingHeroes(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black"><X size={20}/></button>
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><ImageIcon size={20}/> Edit Hero Banners</h2>
+                            
+                            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {heroConfig.map((slide, idx) => (
+                                    <div key={idx} className="border border-gray-200 rounded-[12px] p-4 bg-gray-50">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="font-bold text-[14px]">Banner {idx + 1}</span>
+                                            <button onClick={() => setHeroConfig(heroConfig.filter((_, i) => i !== idx))} className="text-red-500 hover:underline text-[12px] font-bold">Remove</button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <input type="text" placeholder="Title (e.g. TATA IPL 2026)" value={slide.title} onChange={e => { const nc = [...heroConfig]; nc[idx].title = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={slide.query} onChange={e => { const nc = [...heroConfig]; nc[idx].query = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Image URL (Unsplash/Pocketbase)" value={slide.imageUrl} onChange={e => { const nc = [...heroConfig]; nc[idx].imageUrl = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button onClick={() => setHeroConfig([...heroConfig, { title: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-[12px] font-bold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+                                <PlusCircle size={16} /> Add New Banner
+                            </button>
+
+                            <div className="mt-8">
+                                <button onClick={handleSaveHeroes} className="w-full py-3 bg-[#458731] text-white rounded-[12px] font-bold shadow-lg shadow-[#458731]/30 hover:bg-[#366a26] transition-colors">Save Carousel Config</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* MODAL: Edit Popular Categories */}
+            <AnimatePresence>
+                {isEditingCategories && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
+                            <button onClick={() => setIsEditingCategories(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black"><X size={20}/></button>
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><Grid size={20}/> Edit Popular Categories</h2>
+                            
+                            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {categoryConfig.map((cat, idx) => (
+                                    <div key={idx} className="border border-gray-200 rounded-[12px] p-4 bg-gray-50">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="font-bold text-[14px]">Grid Item {idx + 1}</span>
+                                            <button onClick={() => setCategoryConfig(categoryConfig.filter((_, i) => i !== idx))} className="text-red-500 hover:underline text-[12px] font-bold">Remove</button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <input type="text" placeholder="Display Name (e.g. IPL Cricket)" value={cat.name} onChange={e => { const nc = [...categoryConfig]; nc[idx].name = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={cat.query} onChange={e => { const nc = [...categoryConfig]; nc[idx].query = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Image URL (Square format recommended)" value={cat.imageUrl} onChange={e => { const nc = [...categoryConfig]; nc[idx].imageUrl = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button onClick={() => setCategoryConfig([...categoryConfig, { name: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-[12px] font-bold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+                                <PlusCircle size={16} /> Add Category Item
+                            </button>
+
+                            <div className="mt-8">
+                                <button onClick={handleSaveCategories} className="w-full py-3 bg-[#458731] text-white rounded-[12px] font-bold shadow-lg shadow-[#458731]/30 hover:bg-[#366a26] transition-colors">Save Grid Config</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ADMIN GOD-MODE BAR */}
             {isAdmin && (
                 <div className="w-full bg-[#1a1a1a] text-white p-3 flex flex-wrap items-center justify-center gap-3 md:gap-6 z-50 relative shadow-md">
                     <div className="flex items-center gap-2">
                         <ShieldAlert size={16} className="text-[#8cc63f]" />
-                        <span className="font-black tracking-widest text-[11px] md:text-[12px] uppercase">Admin Mode Active</span>
+                        <span className="font-black tracking-widest text-[11px] md:text-[12px] uppercase">Admin Mode</span>
                     </div>
                     <button onClick={() => { setSelectedAdminEvent({}); setAdminModalOpen(true); }} className="bg-[#8cc63f] text-black px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white transition-colors flex items-center gap-1.5">
-                        <PlusCircle size={14} /> Add Event Listing
+                        <PlusCircle size={14} /> Add Event
                     </button>
                     <button onClick={() => setIsAddingSection(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
-                        <LayoutTemplate size={14} /> Add Dynamic Section
+                        <LayoutTemplate size={14} /> Add Rail
+                    </button>
+                    <button onClick={() => setIsEditingHeroes(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
+                        <ImageIcon size={14} /> Edit Banners
+                    </button>
+                    <button onClick={() => setIsEditingCategories(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
+                        <Grid size={14} /> Edit Grid
                     </button>
                 </div>
             )}
 
             <div className="max-w-[1400px] mx-auto px-4 md:px-8">
                 
+                {/* 1. DYNAMIC HERO CAROUSEL */}
                 <div className="pt-2 md:pt-4">
-                    <ViagogoHeroCarousel />
+                    <ViagogoHeroCarousel slides={heroConfig} />
                 </div>
 
                 <div className="mt-2 mb-6 md:mt-4 md:mb-8">
@@ -344,23 +465,19 @@ export default function Home() {
                     </>
                 )}
 
+                {/* 2. DYNAMIC POPULAR CATEGORIES */}
                 <div className="mb-10 md:mb-14">
                     <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] mb-4 md:mb-5 tracking-tight">Popular categories</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                        {[
-                            { name: 'IPL Cricket', img: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80' },
-                            { name: 'World Cup', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
-                            { name: 'Kabaddi', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80' },
-                            { name: 'Football', img: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80' }
-                        ].map((cat, idx) => (
+                        {categoryConfig.map((cat, idx) => (
                             <ViagogoCategoryCard 
                                 key={idx} 
                                 name={cat.name} 
-                                img={cat.img} 
+                                img={cat.imageUrl} 
                                 onClick={() => { 
                                     setLocationDropdownOpen(false); 
-                                    setSearchQuery(cat.name.split(' ')[0]); 
-                                    setExploreCategory(cat.name.split(' ')[0]);
+                                    setSearchQuery(cat.query); 
+                                    setExploreCategory(cat.query);
                                     navigate('/explore');
                                 }} 
                             />
@@ -370,7 +487,6 @@ export default function Home() {
 
             </div>
             
-            {/* INJECT: New 1:1 Viagogo App Promo & Subscription Banner */}
             <AppPromo />
 
         </div>
