@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, Calendar, ChevronDown, Tag, Ticket, MicVocal } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import LocationDropdown from './LocationDropdown';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * FEATURE 1: Precise 1:1 Enterprise UI Replication (Matching Viagogo exact spacing and colors)
- * FEATURE 2: Custom SVG Stroke Iconography (Rugby, Theater Masks, Music Notes)
- * FEATURE 3: Horizontal Scrolling Category Chips with Animated Focus Indicators
- * FEATURE 4: Strict Two-Row Architectural Layout (Categories Top, Pills Bottom)
- * FEATURE 5: Dynamic State Pills (Green #458731 active states for localized regions)
- * FEATURE 6: Fully Rendered Dropdown State Managers
- * FEATURE 7: Sub-pixel Font Anti-Aliasing & Typography Refinement
+ * FEATURE 1: Precise 1:1 Enterprise UI Replication
+ * FEATURE 2: Custom SVG Stroke Iconography
+ * FEATURE 3: Horizontal Scrolling Category Chips
+ * FEATURE 4: Strict Two-Row Architectural Layout
+ * FEATURE 5: Dynamic State Pills (Green #458731 active states)
+ * FEATURE 6: Fully Rendered & Functional Dropdown State Managers
+ * FEATURE 7: Sub-pixel Font Anti-Aliasing
  */
 
 export default function ViagogoFilterBar() {
@@ -19,20 +20,34 @@ export default function ViagogoFilterBar() {
         exploreCategory,
         setExploreCategory,
         isLocationDropdownOpen,
-        setLocationDropdownOpen
+        setLocationDropdownOpen,
+        exploreDateFilter,
+        setExploreDateFilter,
+        explorePriceFilter,
+        setExplorePriceFilter
     } = useAppStore();
 
-    // Isolated UI states for upcoming modal extensions
     const [isDateOpen, setIsDateOpen] = useState(false);
     const [isPriceOpen, setIsPriceOpen] = useState(false);
 
-    // FEATURE 5: Strict City-Only Name Parser for the location pill
+    const dateRef = useRef(null);
+    const priceRef = useRef(null);
+
+    // Close dropdowns on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dateRef.current && !dateRef.current.contains(event.target)) setIsDateOpen(false);
+            if (priceRef.current && !priceRef.current.contains(event.target)) setIsPriceOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const getCleanCityName = (fullLocationString) => {
         if (!fullLocationString || fullLocationString === 'Loading...') return 'Detecting...';
         return fullLocationString.split(',')[0].trim();
     };
 
-    // FEATURE 2: Custom mapped SVG and Lucide icons corresponding exactly to the visual reference
     const categories = [
         { id: 'All Events', label: 'All Events', icon: <Ticket strokeWidth={1.5} size={24} /> },
         { id: 'Sports', label: 'Sports', icon: (
@@ -46,6 +61,9 @@ export default function ViagogoFilterBar() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M9 18V5l12-2v13"/><path d="M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path d="M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
         ) }
     ];
+
+    const dateOptions = ['All dates', 'Today', 'This weekend', 'Next 7 days', 'This month'];
+    const priceOptions = ['Price', 'Under ₹2000', 'Under ₹5000', 'Under ₹10000'];
 
     return (
         <div className="w-full bg-white z-20 relative font-sans">
@@ -77,9 +95,9 @@ export default function ViagogoFilterBar() {
 
             {/* ROW 2: Rounded Filter Pills */}
             <div className="w-full bg-white border-b border-gray-200 py-3.5 shadow-sm">
-                <div className="max-w-[1400px] mx-auto px-4 md:px-8 flex items-center space-x-3 overflow-x-auto hide-scrollbar">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-8 flex items-center space-x-3 overflow-x-auto hide-scrollbar relative">
                     
-                    {/* Location Dropdown Pill (Dynamic Active State) */}
+                    {/* Location Dropdown Pill */}
                     <div className="relative shrink-0">
                         <button 
                             onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)} 
@@ -93,27 +111,65 @@ export default function ViagogoFilterBar() {
                     </div>
 
                     {/* Date Context Pill */}
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0" ref={dateRef}>
                         <button 
                             onClick={() => setIsDateOpen(!isDateOpen)}
-                            className="bg-white border border-gray-300 text-[#333333] px-4 py-1.5 h-[36px] rounded-full text-[14px] font-normal flex items-center justify-center whitespace-nowrap hover:bg-gray-50 transition-colors"
+                            className={`px-4 py-1.5 h-[36px] rounded-full text-[14px] flex items-center justify-center whitespace-nowrap transition-colors border ${exploreDateFilter !== 'All dates' ? 'bg-[#eaf4d9] border-[#8cc63f] text-[#114C2A] font-medium' : 'bg-white border-gray-300 text-[#1a1a1a] font-normal hover:bg-gray-50'}`}
                         >
-                            <Calendar size={16} strokeWidth={2} className="mr-2 text-[#54626c]"/> 
-                            All dates 
-                            <ChevronDown size={16} className={`ml-2 transition-transform text-[#54626c] ${isDateOpen ? 'rotate-180' : ''}`}/>
+                            <Calendar size={16} strokeWidth={2} className={`mr-2 ${exploreDateFilter !== 'All dates' ? 'text-[#458731]' : 'text-[#54626c]'}`}/> 
+                            {exploreDateFilter} 
+                            <ChevronDown size={16} className={`ml-2 transition-transform ${exploreDateFilter !== 'All dates' ? 'text-[#458731]' : 'text-[#54626c]'} ${isDateOpen ? 'rotate-180' : ''}`}/>
                         </button>
+
+                        <AnimatePresence>
+                            {isDateOpen && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                                    className="absolute top-[110%] left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[100]"
+                                >
+                                    {dateOptions.map(opt => (
+                                        <div 
+                                            key={opt}
+                                            onClick={() => { setExploreDateFilter(opt); setIsDateOpen(false); }}
+                                            className={`px-5 py-2.5 text-[14px] cursor-pointer transition-colors ${exploreDateFilter === opt ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-gray-50'}`}
+                                        >
+                                            {opt}
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* Price Context Pill */}
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0" ref={priceRef}>
                         <button 
                             onClick={() => setIsPriceOpen(!isPriceOpen)}
-                            className="bg-white border border-gray-300 text-[#333333] px-4 py-1.5 h-[36px] rounded-full text-[14px] font-normal flex items-center justify-center whitespace-nowrap hover:bg-gray-50 transition-colors"
+                            className={`px-4 py-1.5 h-[36px] rounded-full text-[14px] flex items-center justify-center whitespace-nowrap transition-colors border ${explorePriceFilter !== 'Price' ? 'bg-[#eaf4d9] border-[#8cc63f] text-[#114C2A] font-medium' : 'bg-white border-gray-300 text-[#1a1a1a] font-normal hover:bg-gray-50'}`}
                         >
-                            <Tag size={16} strokeWidth={2} className="mr-2 text-[#54626c]"/> 
-                            Price 
-                            <ChevronDown size={16} className={`ml-2 transition-transform text-[#54626c] ${isPriceOpen ? 'rotate-180' : ''}`}/>
+                            <Tag size={16} strokeWidth={2} className={`mr-2 ${explorePriceFilter !== 'Price' ? 'text-[#458731]' : 'text-[#54626c]'}`}/> 
+                            {explorePriceFilter} 
+                            <ChevronDown size={16} className={`ml-2 transition-transform ${explorePriceFilter !== 'Price' ? 'text-[#458731]' : 'text-[#54626c]'} ${isPriceOpen ? 'rotate-180' : ''}`}/>
                         </button>
+
+                        <AnimatePresence>
+                            {isPriceOpen && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                                    className="absolute top-[110%] left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[100]"
+                                >
+                                    {priceOptions.map(opt => (
+                                        <div 
+                                            key={opt}
+                                            onClick={() => { setExplorePriceFilter(opt); setIsPriceOpen(false); }}
+                                            className={`px-5 py-2.5 text-[14px] cursor-pointer transition-colors ${explorePriceFilter === opt ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-gray-50'}`}
+                                        >
+                                            {opt}
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                 </div>

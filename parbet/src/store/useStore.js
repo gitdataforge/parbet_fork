@@ -12,7 +12,8 @@ import {
     addDoc,
     setDoc,
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 } from 'firebase/firestore';
 
 // Helper to resolve real-world currency from reverse-geocode country codes
@@ -41,6 +42,10 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 10: Automatic Checkout Form Persistence
  * FEATURE 11: Hardware-Accelerated Modal Triggers
  * FEATURE 12: Reverse Geocode Currency Sync
+ * FEATURE 13: Centralized Dropdown State Manager (Prevents overlapping header menus)
+ * FEATURE 14: Real-time Secure Notification Engine (Batch updates & unread counters)
+ * FEATURE 15: Strict Singleton Network Interceptor (Fixes infinite QUIC loops)
+ * FEATURE 16: Admin Config Hydration (Home Banners)
  */
 
 export const useAppStore = create((set, get) => ({
@@ -57,8 +62,12 @@ export const useAppStore = create((set, get) => ({
     sellerMatches: [],
     liveMatches: [],
     trendingPerformers: [], 
+    homeBanners: [], // Admin Editable Banners
     isLoadingMatches: true,
     apiError: null,
+    
+    // SECURITY LOCK: Prevents infinite QUIC protocol crashing loops
+    isListenerActive: false,
     unsubscribeSellerTickets: null,
     
     // Strict Location & Internationalization
@@ -141,15 +150,100 @@ export const useAppStore = create((set, get) => ({
     // Explore Page Filter States
     exploreCategory: 'All Events',
     exploreDateFilter: 'All dates',
-    explorePriceFilter: 'All',
+    explorePriceFilter: 'Price',
+
+    // ------------------------------------------------------------------
+    // HEADER DROPDOWNS & NOTIFICATION ENGINE
+    // ------------------------------------------------------------------
+    activeDropdown: null, // Tracks: 'sell', 'tickets', 'profile', 'notifications', or null
+    notifications: [],
+    unreadNotificationCount: 0,
+    unsubscribeNotifications: null,
+
+    setActiveDropdown: (dropdownName) => set({ activeDropdown: dropdownName }),
+    closeAllDropdowns: () => set({ activeDropdown: null }),
+
+    initNotificationsListener: () => {
+        const state = get();
+        if (!state.user) return;
+        
+        // Clean up existing listener if any
+        if (state.unsubscribeNotifications) {
+            state.unsubscribeNotifications();
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const notifRef = collection(db, 'artifacts', appId, 'users', state.user.uid, 'notifications');
+        const q = query(notifRef);
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => {
+                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return timeB - timeA; // Descending (newest first)
+                });
+            
+            const unread = notifs.filter(n => !n.isRead).length;
+            set({ notifications: notifs, unreadNotificationCount: unread });
+        }, (error) => {
+            console.error("[Parbet Notifications] Secure sync failed:", error.message);
+        });
+
+        set({ unsubscribeNotifications: unsubscribe });
+    },
+
+    markNotificationsAsRead: async () => {
+        const state = get();
+        if (!state.user || state.unreadNotificationCount === 0) return;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const batch = writeBatch(db);
+        
+        const unreadNotifs = state.notifications.filter(n => !n.isRead);
+        unreadNotifs.forEach(notif => {
+            const notifRef = doc(db, 'artifacts', appId, 'users', state.user.uid, 'notifications', notif.id);
+            batch.update(notifRef, { isRead: true });
+        });
+
+        try {
+            await batch.commit();
+            // Optimistic UI update
+            set(prevState => ({
+                notifications: prevState.notifications.map(n => ({ ...n, isRead: true })),
+                unreadNotificationCount: 0
+            }));
+        } catch (error) {
+            console.error("[Parbet Notifications] Failed to mark batch as read:", error);
+        }
+    },
 
     // Basic Setters
     setOnboarded: () => { 
         localStorage.setItem('parbet_onboarded', 'true'); 
         set({ hasOnboarded: true }); 
     },
-    setAuth: (status) => set({ isAuthenticated: status }),
-    setUser: (user) => set({ user }),
+    
+    setAuth: (status) => {
+        set({ isAuthenticated: status });
+        if (!status) {
+            const unsub = get().unsubscribeNotifications;
+            if (unsub) unsub();
+            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null });
+        }
+    },
+    
+    setUser: (user) => {
+        set({ user });
+        if (user) {
+            get().initNotificationsListener();
+        } else {
+            const unsub = get().unsubscribeNotifications;
+            if (unsub) unsub();
+            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null });
+        }
+    },
+
     setWallet: (balance, diamonds) => set({ balance, diamonds }),
     openAuthModal: () => set({ isAuthModalOpen: true }),
     closeAuthModal: () => set({ isAuthModalOpen: false }),
@@ -167,23 +261,20 @@ export const useAppStore = create((set, get) => ({
         set({ 
             manualCity: city,
             userCity: city,
-            liveMatches: [], 
-            apiMatches: [],
-            trendingPerformers: [],
-            isLocationDropdownOpen: false,
-            isLoadingMatches: true
+            isLocationDropdownOpen: false
         });
-        get().fetchLocationAndMatches(city);
+        
+        // Force refresh data locally without triggering infinite loop
+        const state = get();
+        if (state.liveMatches.length === 0) {
+            get().fetchLocationAndMatches(city);
+        }
     },
 
     // ------------------------------------------------------------------
     // SECURE PAYLOAD HYDRATION & CHECKOUT ACTIONS
     // ------------------------------------------------------------------
     
-    /**
-     * FEATURE 2: Hydrates the checkout memory from React Router state
-     * Eliminates the 'lockCheckout is not a function' TypeError.
-     */
     hydrateCheckoutPayload: (listingData) => {
         const sessionId = `pb_sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         set({
@@ -321,10 +412,15 @@ export const useAppStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 1: Advanced Telemetry Error Logging
-     * Actively maps exact path failures to diagnose Firestore rule blocks.
+     * FEATURE 15: Strict Singleton Network Interceptor
+     * Prevents net::ERR_QUIC_PROTOCOL_ERROR by ensuring only ONE active listener exists
+     * across the entire application lifecycle.
      */
     initSellerTicketsListener: () => {
+        const state = get();
+        if (state.isListenerActive) return; // Strict singleton lock
+        set({ isListenerActive: true });
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
         const q = query(ticketsRef, where('status', '==', 'active'));
@@ -386,25 +482,42 @@ export const useAppStore = create((set, get) => ({
                     sellerMatches: newSellerMatches,
                     liveMatches: sorted,
                     trendingPerformers: performers,
-                    isLoadingMatches: false // Failsafe kill loader
+                    isLoadingMatches: false
                 };
             });
         }, (error) => {
-            // ADVANCED TELEMETRY: Log exact path causing the permission denial
-            console.error("[Parbet Escrow] Firebase Synchronization Failure:", error.message);
-            console.warn(`[Parbet Escrow] Path Attempted: artifacts/${appId}/public/data/tickets`);
-            set({ apiError: error.message, isLoadingMatches: false });
+            console.error("[Parbet Database] Sync Failure:", error.message);
+            set({ apiError: error.message, isLoadingMatches: false, isListenerActive: false }); // Reset lock on error
         });
 
         set({ unsubscribeSellerTickets: unsubscribe });
     },
 
+    // FEATURE 16: Fetch Admin Banners for Home Page
+    fetchHomeBanners: async () => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        try {
+            const bannerRef = collection(db, 'artifacts', appId, 'public', 'data', 'platform_config');
+            const snapshot = await getDocs(query(bannerRef, where('type', '==', 'hero_banner')));
+            if (!snapshot.empty) {
+                const banners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                set({ homeBanners: banners });
+            } else {
+                set({ homeBanners: [{ id: 'default_1', type: 'hero_banner', title: 'Tata IPL 2026', subtitle: 'Book your tickets now before they sell out.', imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200&auto=format&fit=crop' }] });
+            }
+        } catch (error) {
+            console.error("Banner fetch failed:", error);
+        }
+    },
+
     fetchLocationAndMatches: async (cityOverride = null) => {
         set({ isLoadingMatches: true, apiError: null });
 
-        if (!get().unsubscribeSellerTickets) {
+        if (!get().isListenerActive) {
             get().initSellerTicketsListener();
         }
+
+        get().fetchHomeBanners();
 
         try {
             const manualCity = localStorage.getItem('parbet_manual_city');
@@ -422,32 +535,13 @@ export const useAppStore = create((set, get) => ({
                 country = geo.countryCode || 'IN';
             }
 
-            const matches = []; 
-            
-            set(state => {
-                const combined = [...matches, ...state.sellerMatches];
-                const sorted = combined.sort((a, b) => {
-                    if (b.proximityScore !== a.proximityScore) {
-                        return (b.proximityScore || 1) - (a.proximityScore || 1);
-                    }
-                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
-                });
-
-                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
-                    .filter(Boolean)
-                    .map(name => ({ name }));
-                
-                return { 
-                    userCity: city, 
-                    userCountry: country,
-                    userCurrency: getCurrencyFromCountry(country),
-                    strictLocation: { ...geo, city },
-                    apiMatches: matches,
-                    liveMatches: sorted, 
-                    trendingPerformers: performers, 
-                    isLoadingMatches: false 
-                };
+            set({ 
+                userCity: city, 
+                userCountry: country,
+                userCurrency: getCurrencyFromCountry(country),
+                strictLocation: { ...geo, city }
             });
+            // liveMatches array populated through listener automatically
         } catch (error) {
             console.error("Critical State Failure:", error);
             const fallbackCity = cityOverride || localStorage.getItem('parbet_manual_city') || "Global";
@@ -469,11 +563,9 @@ export const useAppStore = create((set, get) => ({
 
     /**
      * ATOMIC PURCHASE GATEWAY
-     * Accepts dynamic directPayload from Checkout to guarantee state hydration.
      */
     executePurchase: async (paymentId, amount, directPayload = null) => {
         const state = get();
-        // Priority: Use the directly passed router payload, fallback to global store vault
         const reserved = directPayload || state.reservedListing;
         
         if (!reserved) {
@@ -488,7 +580,6 @@ export const useAppStore = create((set, get) => ({
         set({ isCheckingOut: true });
         
         try {
-            // ATOMIC TRANSACTION: Inventory Lock + Order Creation
             await runTransaction(db, async (transaction) => {
                 const eventRef = doc(db, 'events', eventId);
                 const eventSnap = await transaction.get(eventRef);
@@ -504,10 +595,8 @@ export const useAppStore = create((set, get) => ({
                     return t;
                 });
 
-                // 1. Decrement Live Inventory Atomically
                 transaction.update(eventRef, { ticketTiers: updatedTiers });
 
-                // 2. Create Global Order Document
                 const orderRef = doc(collection(db, 'orders'));
                 transaction.set(orderRef, {
                     orderId: orderRef.id,
