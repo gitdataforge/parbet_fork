@@ -5,38 +5,34 @@ import { Heart } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 
 // Real-time Native Auto-Optimization Utility
-// CRITICAL FIX: Stripped Cloudinary wrapper to prevent 401 Unauthorized fetching crashes.
-// Unsplash natively handles ?auto=format&fit=crop optimizations via direct URL parameters.
 const optimizeImage = (url, width = 1200) => {
     if (!url) return '';
-    // Direct passthrough to prevent Cloudinary 401 proxy blocks and support PocketBase
     return url;
 };
 
-export default function ViagogoHeroCarousel() {
+/**
+ * FEATURE 1: Dynamic Data Integration
+ * The carousel now accepts a `slides` prop passed down from the Home component's Firestore connection.
+ * It maps these dynamic Admin-configured objects instead of relying on hardcoded arrays.
+ */
+export default function ViagogoHeroCarousel({ slides = [] }) {
     const navigate = useNavigate();
     const { isAuthenticated, toggleFavorite } = useAppStore();
     const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
-    // STRICT CRICKET & KABADDI CONTENT REPLICATION
-    const heroSlides = [
+    // Fallback static data if Firestore connection fails or is empty
+    const heroSlides = slides.length > 0 ? slides : [
         {
-            id: "ipl-banner",
+            id: "ipl-banner-fallback",
             title: "TATA IPL 2026",
             query: "IPL",
             image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80"
         },
         {
-            id: "icc-banner",
+            id: "icc-banner-fallback",
             title: "ICC T20 World Cup",
             query: "ICC",
             image: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80"
-        },
-        {
-            id: "pkl-banner",
-            title: "Pro Kabaddi League",
-            query: "Kabaddi",
-            image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80"
         }
     ];
 
@@ -46,7 +42,7 @@ export default function ViagogoHeroCarousel() {
         return () => clearInterval(timer);
     }, [heroSlides.length]);
 
-    // Secure Interaction Guard (Strictly routes to standalone /login)
+    // Secure Interaction Guard
     const handleRestrictedAction = (e, obj) => {
         e.stopPropagation();
         if (!isAuthenticated) {
@@ -59,10 +55,7 @@ export default function ViagogoHeroCarousel() {
     return (
         <div className="relative w-full mb-6 mt-0 md:mt-4 font-sans">
             
-            {/* COHESIVE GEOMETRY CONTAINER:
-              On mobile, fixed height + flex-col + overflow-hidden clamps the image to the top corners
-              and the dark green block to the bottom corners perfectly. 
-            */}
+            {/* COHESIVE GEOMETRY CONTAINER */}
             <div className="relative w-full h-[260px] sm:h-[300px] md:h-[340px] lg:h-[400px] rounded-[16px] md:rounded-2xl overflow-hidden bg-[#114C2A] shadow-sm md:shadow-md group">
                 <AnimatePresence mode="wait">
                     <motion.div 
@@ -77,7 +70,7 @@ export default function ViagogoHeroCarousel() {
                         {/* Top/Right Image Section */}
                         <div className="relative w-full h-[70%] sm:h-[75%] md:h-full md:absolute md:right-0 md:w-[70%] z-10">
                             <img 
-                                src={optimizeImage(heroSlides[currentHeroIndex].image, 1200)} 
+                                src={optimizeImage(heroSlides[currentHeroIndex].image || heroSlides[currentHeroIndex].imageUrl, 1200)} 
                                 className="w-full h-full object-cover md:mix-blend-overlay md:opacity-90" 
                                 alt={heroSlides[currentHeroIndex].title} 
                                 style={{
