@@ -1,262 +1,235 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Search, User, Menu, MapPin, Calendar, 
-    ChevronDown, Ticket, Trophy, Mic, Drama, Tent, Tag, Globe 
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Search, User, Menu, Bell, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
-import LocationDropdown from './LocationDropdown';
-import FilterDropdown from './FilterDropdown';
-import NavHoverMenu from './NavHoverMenu';
+import ViagogoFilterBar from './ViagogoFilterBar';
+
+/**
+ * FEATURE 1: Unified "Mega-Header" Architecture (Merges Top Nav with Filters)
+ * FEATURE 2: 1:1 Viagogo Enterprise Desktop Layout (image_3f8e19)
+ * FEATURE 3: 1:1 Viagogo Enterprise Mobile Layout (image_3f8a9c)
+ * FEATURE 4: Sticky Context Retention (Filters stick to ceiling with navigation)
+ * FEATURE 5: Isolated Search Expansion State
+ * FEATURE 6: Hardware-Accelerated Mobile Drawer (Smooth off-canvas translation)
+ * FEATURE 7: Background Scroll-Lock (Prevents body scroll when drawer is active)
+ * FEATURE 8: Native Auth Redirection & Seller Bridge
+ */
+
+const UserProfileIcon = ({ onClick, isAuthenticated }) => (
+    <div 
+        onClick={onClick}
+        className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105 shadow-sm ${isAuthenticated ? 'bg-[#114C2A]' : 'bg-[#1a1a1a] md:bg-[#458731]'}`}
+    >
+        <User size={18} className="text-white fill-current" />
+    </div>
+);
 
 export default function ExploreHeader() {
     const navigate = useNavigate();
     const { 
         isAuthenticated, 
-        openAuthModal, 
         searchQuery, 
         setSearchQuery,
         isSearchExpanded,
-        setSearchExpanded,
-        manualCity,
-        userCity,
-        exploreCategory,
-        setExploreCategory,
-        exploreDateFilter,
-        explorePriceFilter,
-        isLocationDropdownOpen,
-        setLocationDropdownOpen
+        setSearchExpanded
     } = useAppStore();
 
-    // Local states for dropdown toggles
-    const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-    const [priceDropdownOpen, setPriceDropdownOpen] = useState(false);
-    const [hoveredCategory, setHoveredCategory] = useState(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [menuView, setMenuView] = useState('main'); 
 
-    // Protected Route Handler
+    // FEATURE 7: Scroll Lock logic for mobile drawer
+    useEffect(() => {
+        if (mobileMenuOpen) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'auto';
+        return () => { document.body.style.overflow = 'auto'; };
+    }, [mobileMenuOpen]);
+
+    // Reset nested view when drawer closes
+    useEffect(() => {
+        if (!mobileMenuOpen) setTimeout(() => setMenuView('main'), 300);
+    }, [mobileMenuOpen]);
+
     const handleNavigation = (path) => {
-        if (isAuthenticated) {
-            navigate(path);
-        } else {
-            openAuthModal();
+        setMobileMenuOpen(false); 
+        if (isAuthenticated) navigate(path);
+        else navigate('/login');
+    };
+
+    const handleSearchSubmit = (e) => {
+        if (e.key === 'Enter') {
+            setSearchExpanded(false);
+            e.target.blur();
         }
     };
 
-    // Integrated 'Top Cities' to maintain parity with the main Header's global routing
-    const categories = [
-        { name: 'All Events', icon: Ticket },
-        { name: 'Sports', icon: Trophy },
-        { name: 'Concerts', icon: Mic },
-        { name: 'Theater', icon: Drama },
-        { name: 'Festivals', icon: Tent },
-        { name: 'Top Cities', icon: Globe }
-    ];
-
     return (
-        <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-40">
-            {/* Top Promotional Banner */}
-            <div className="w-full bg-white py-2 text-center border-b border-gray-100 hidden md:block">
-                <p className="text-[11px] text-gray-500 font-medium tracking-wide">
-                    We're the world's largest secondary marketplace for tickets to live events. Prices are set by sellers and may be below or above face value.
-                </p>
-            </div>
-
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8 pt-4 pb-4">
+        <header className="w-full bg-white sticky top-0 z-50 font-sans flex flex-col border-b border-gray-200 shadow-sm">
+            
+            {/* ROW 1: TOP NAV (Desktop & Mobile Base) */}
+            <div className="max-w-[1400px] w-full mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-4 relative z-50 bg-white">
                 
-                {/* Top Row: Logo, Search Bar, and Right Navigation */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-                    
-                    {/* Left: Logo & Search Bar */}
-                    <div className="flex items-center w-full md:w-auto flex-1 gap-6 md:gap-8">
-                        <div className="flex items-center justify-between w-full md:w-auto">
-                            <h1 
-                                onClick={() => navigate('/')} 
-                                className="text-3xl font-black tracking-tighter text-brand-text cursor-pointer hover:text-brand-primary transition-colors"
-                            >
-                                parbet
-                            </h1>
-                            {/* Mobile Hamburger */}
-                            <div className="md:hidden flex items-center space-x-4">
-                                {isAuthenticated ? (
-                                    <div onClick={() => navigate('/dashboard')} className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center cursor-pointer">
-                                        <User size={16} className="text-white"/>
-                                    </div>
-                                ) : (
-                                    <button onClick={openAuthModal} className="text-sm font-bold text-brand-primary">Sign In</button>
-                                )}
-                                <Menu size={24} className="text-brand-text cursor-pointer"/>
-                            </div>
-                        </div>
-                        
-                        {/* Desktop Search Bar (Centered/Left-aligned) */}
-                        <div className="hidden md:block relative max-w-lg w-full z-50">
-                            <div className={`relative flex items-center bg-white border rounded-full px-4 py-2.5 w-full transition-all duration-300 ${isSearchExpanded ? 'shadow-[0_10px_30px_rgba(0,0,0,0.15)] border-gray-200' : 'border-gray-300 hover:border-[#458731]'}`}>
-                                <Search size={20} className="text-gray-400 mr-2 font-bold"/>
-                                <input 
-                                    type="text" 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onFocus={() => setSearchExpanded(true)}
-                                    onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
-                                    placeholder="Search events, artists, teams and more" 
-                                    className="bg-transparent outline-none flex-1 text-sm text-brand-text placeholder-gray-500 font-medium"
-                                />
-                                <SearchDropdown />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right: Nav Links & Tertiary Location/Date Sub-nav */}
-                    <div className="hidden md:flex flex-col items-end">
-                        <nav className="flex items-center space-x-6 text-[15px] font-bold text-brand-text mb-2">
-                            <button onClick={() => navigate('/explore')} className="hover:text-brand-primary transition-colors">Explore</button>
-                            <button onClick={() => handleNavigation('/sell')} className="hover:text-brand-primary transition-colors">Sell</button>
-                            <button onClick={() => handleNavigation('/dashboard')} className="hover:text-brand-primary transition-colors">Favourites</button>
-                            <button onClick={() => handleNavigation('/dashboard')} className="hover:text-brand-primary transition-colors">My Tickets</button>
-                            
-                            <div className="flex items-center pl-2">
-                                {isAuthenticated ? (
-                                    <div onClick={() => navigate('/dashboard')} className="flex items-center space-x-2 cursor-pointer hover:text-brand-primary transition-colors">
-                                        <span>Sign In</span>
-                                        <div className="w-8 h-8 rounded-full bg-[#114C2A] flex items-center justify-center">
-                                            <User size={16} className="text-white"/>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div onClick={openAuthModal} className="flex items-center space-x-2 cursor-pointer group">
-                                        <span className="group-hover:text-brand-primary transition-colors">Sign In</span>
-                                        <div className="w-8 h-8 rounded-full bg-[#458731] flex items-center justify-center group-hover:scale-105 transition-transform">
-                                            <User size={16} className="text-white"/>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </nav>
-                        
-                        {/* Tertiary Row: Quick selectors under navigation */}
-                        <div className="flex items-center space-x-6 text-[13px] font-medium text-gray-500 pr-2">
-                            <button onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)} className="flex items-center hover:text-brand-text transition-colors">
-                                <MapPin size={14} className="mr-1.5"/> {manualCity || userCity || 'Loading...'} <ChevronDown size={14} className="ml-1"/>
-                            </button>
-                            <button className="flex items-center hover:text-brand-text transition-colors">
-                                <Calendar size={14} className="mr-1.5"/> {exploreDateFilter || 'All dates'} <ChevronDown size={14} className="ml-1"/>
-                            </button>
-                        </div>
-                    </div>
+                {/* MOBILE LEFT: Hamburger */}
+                <div className="lg:hidden flex items-center">
+                    <button onClick={() => setMobileMenuOpen(true)} className="focus:outline-none p-1 -ml-1">
+                        <Menu size={24} className="text-[#1a1a1a]" strokeWidth={2} />
+                    </button>
                 </div>
 
-                {/* Mobile Search Bar */}
-                <div className="md:hidden relative w-full mb-6 z-50">
-                    <div className="relative flex items-center bg-white border border-gray-300 rounded-full px-4 py-2.5 w-full transition-all">
-                        <Search size={20} className="text-gray-400 mr-2"/>
+                {/* LOGO */}
+                <div className="flex-shrink-0 cursor-pointer flex items-center justify-center lg:justify-start" onClick={() => navigate('/')}>
+                    <h1 className="text-[26px] md:text-[28px] font-black tracking-tighter text-[#1a1a1a] hover:text-[#458731] transition-colors">
+                        parbet
+                    </h1>
+                </div>
+
+                {/* DESKTOP SEARCH BAR (Exact Viagogo Styling) */}
+                <div className="hidden lg:flex flex-1 max-w-[480px] ml-6 relative">
+                    <div className={`relative flex items-center w-full border rounded-full px-4 py-2.5 bg-white transition-all duration-300 ${isSearchExpanded ? 'shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-gray-300' : 'border-gray-300 hover:border-gray-400 focus-within:border-[#1a1a1a] focus-within:shadow-[0_0_0_1px_#1a1a1a]'}`}>
+                        <Search size={18} className="text-[#1a1a1a] mr-3" strokeWidth={2.5} />
                         <input 
                             type="text" 
+                            placeholder="Search events, artists, teams and more" 
+                            className="w-full outline-none text-[14px] font-medium text-[#1a1a1a] placeholder-gray-500"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchSubmit}
                             onFocus={() => setSearchExpanded(true)}
                             onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
-                            placeholder="Search events, artists..." 
-                            className="bg-transparent outline-none flex-1 text-sm font-medium"
                         />
-                        <SearchDropdown />
+                        {isSearchExpanded && <SearchDropdown />}
                     </div>
                 </div>
 
-                {/* Bottom Row: Dynamic Categories & Filters */}
-                {/* Fixed Z-Index Context: Prevents hover menus from clipping under lower sections */}
-                <div className="flex flex-col relative z-[200]">
-                    {/* Categories Rail */}
-                    <div className="flex items-center space-x-6 md:space-x-10 mb-5 overflow-x-auto md:overflow-visible hide-scrollbar border-b border-gray-200 relative z-[200]">
-                        {categories.map((cat) => {
-                            const isActive = exploreCategory === cat.name;
-                            const Icon = cat.icon;
-                            return (
-                                <div 
-                                    key={cat.name}
-                                    className="relative flex flex-col items-center"
-                                    onMouseEnter={() => setHoveredCategory(cat.name)}
-                                    onMouseLeave={() => setHoveredCategory(null)}
-                                >
-                                    <button 
-                                        onClick={() => setExploreCategory(cat.name)}
-                                        className={`flex flex-col items-center pb-3 relative min-w-max transition-colors ${isActive ? 'text-[#458731]' : 'text-[#6A7074] hover:text-gray-900'}`}
-                                    >
-                                        <Icon size={22} className="mb-1.5" strokeWidth={isActive ? 2 : 1.5} />
-                                        <span className={`text-[13px] ${isActive ? 'font-bold' : 'font-medium'}`}>
-                                            {cat.name}
-                                        </span>
-                                        {isActive && (
-                                            <motion.div 
-                                                layoutId="exploreHeaderCategoryUnderline"
-                                                className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#458731] rounded-t-full"
-                                            />
-                                        )}
-                                    </button>
-                                    
-                                    {/* Mount interactive hover dropdown dynamically */}
-                                    {cat.name !== 'All Events' && cat.name !== 'Festivals' && (
-                                        <NavHoverMenu 
-                                            isOpen={hoveredCategory === cat.name} 
-                                            category={cat.name === 'Theater' ? 'Theatre' : cat.name}
-                                            onMouseEnter={() => setHoveredCategory(cat.name)}
-                                            onMouseLeave={() => setHoveredCategory(null)}
-                                        />
-                                    )}
-                                </div>
-                            );
-                        })}
+                {/* RIGHT ACTIONS */}
+                <div className="flex items-center gap-4 md:gap-7 justify-end flex-1 lg:flex-none">
+                    {/* Desktop Links */}
+                    <nav className="hidden lg:flex items-center gap-6">
+                        <span onClick={() => navigate('/explore')} className="text-[14px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Explore</span>
+                        <span onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="text-[14px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Sell</span>
+                        <span onClick={() => handleNavigation('/profile/settings')} className="text-[14px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Favourites</span>
+                        <span onClick={() => handleNavigation('/profile/orders')} className="text-[14px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">My Tickets</span>
+                        <span onClick={() => handleNavigation('/profile')} className="text-[14px] font-bold text-[#1a1a1a] cursor-pointer hover:text-[#458731] transition-colors">Profile</span>
+                    </nav>
+                    
+                    {/* User & Bell */}
+                    <div className="flex items-center gap-3">
+                        <div className="hidden lg:flex w-9 h-9 rounded-full bg-[#f0f2f5] items-center justify-center cursor-pointer hover:bg-[#e4e6eb] transition-colors">
+                            <Bell size={18} className="text-[#1a1a1a]" />
+                        </div>
+                        <div className="lg:hidden flex w-8 h-8 rounded-full bg-[#f0f2f5] items-center justify-center cursor-pointer hover:bg-[#e4e6eb] transition-colors">
+                            <Bell size={16} className="text-[#1a1a1a]" />
+                        </div>
+                        <UserProfileIcon 
+                            isAuthenticated={isAuthenticated} 
+                            onClick={() => handleNavigation('/profile')} 
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* ROW 2: MOBILE SEARCH BAR (Exact Mobile View) */}
+            <div className="lg:hidden w-full px-4 pb-3 bg-white relative z-40">
+                <div className="relative flex items-center bg-white border border-gray-300 rounded-full px-4 py-2 w-full transition-all focus-within:border-[#1a1a1a] focus-within:shadow-[0_0_0_1px_#1a1a1a]">
+                    <Search size={18} className="text-[#1a1a1a] mr-2" strokeWidth={2.5}/>
+                    <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={handleSearchSubmit}
+                        onFocus={() => setSearchExpanded(true)}
+                        onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
+                        placeholder="Search events, artists, teams and more" 
+                        className="bg-transparent outline-none flex-1 text-[14px] font-medium text-[#1a1a1a] placeholder-gray-500"
+                    />
+                    {isSearchExpanded && <SearchDropdown />}
+                </div>
+            </div>
+
+            {/* ROW 3 & 4: VIAGOGO CATEGORIES & FILTER PILLS */}
+            {/* Embedded seamlessly inside the sticky wrapper */}
+            <div className="w-full relative z-30">
+                <ViagogoFilterBar />
+            </div>
+
+            {/* MOBILE DRAWER OVERLAY */}
+            <div className={`lg:hidden fixed inset-0 z-[999] ${mobileMenuOpen ? 'visible' : 'invisible pointer-events-none'}`}>
+                <div 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`}
+                />
+
+                <div className={`absolute top-0 left-0 bottom-0 w-[85%] max-w-[340px] bg-white flex flex-col shadow-[20px_0_60px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 shrink-0 min-h-[70px]">
+                        {menuView === 'main' ? (
+                            <>
+                                <h2 className="text-[26px] font-black tracking-tighter text-[#1a1a1a]">parbet</h2>
+                                <button onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2 rounded-full hover:bg-gray-100 transition-colors">
+                                    <X size={24} className="text-gray-500" strokeWidth={2} />
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={() => setMenuView('main')} className="flex items-center text-[#1a1a1a] font-black text-[18px] w-full">
+                                <ChevronLeft size={24} className="mr-3 text-gray-500" />
+                                {menuView === 'sell' ? 'Sell on Parbet' : 'My Tickets'}
+                            </button>
+                        )}
                     </div>
 
-                    {/* Filter Pills */}
-                    <div className="flex items-center space-x-3 overflow-x-visible hide-scrollbar relative pb-1">
-                        {/* Location Dropdown Pill */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)}
-                                className="bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A] px-4 py-2 rounded-full text-sm font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-[#D9EBBF] transition-colors"
-                            >
-                                <MapPin size={16} className="mr-2"/> 
-                                {manualCity || userCity || 'Loading...'} 
-                                <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
-                            </button>
-                            <div className="absolute left-0 mt-2 z-50">
-                                <LocationDropdown />
-                            </div>
-                        </div>
+                    <div className="flex-1 overflow-y-auto w-full custom-scrollbar bg-white">
+                        {menuView === 'main' && (
+                            <ul className="flex flex-col w-full py-2">
+                                {!isAuthenticated && (
+                                    <li onClick={() => handleNavigation('/login')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                        Sign In
+                                    </li>
+                                )}
+                                <li onClick={() => setMenuView('sell')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold flex justify-between items-center cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Sell <ChevronRight size={20} className="text-gray-400" />
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/settings')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Favorites
+                                </li>
+                                <li onClick={() => setMenuView('tickets')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold flex justify-between items-center cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    My Tickets <ChevronRight size={20} className="text-gray-400" />
+                                </li>
+                                <li onClick={() => { setMobileMenuOpen(false); navigate('/explore'); }} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Explore
+                                </li>
+                            </ul>
+                        )}
 
-                        {/* Dates Dropdown Pill */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => {
-                                    setDateDropdownOpen(!dateDropdownOpen);
-                                    setPriceDropdownOpen(false);
-                                }}
-                                className={`border px-4 py-2 rounded-full text-sm font-medium flex items-center whitespace-nowrap shadow-sm transition-colors ${exploreDateFilter !== 'All dates' ? 'bg-gray-100 border-gray-400 text-brand-text' : 'bg-white border-gray-300 text-brand-text hover:bg-gray-50'}`}
-                            >
-                                <Calendar size={16} className="mr-2 opacity-60"/> 
-                                {exploreDateFilter} 
-                                <ChevronDown size={16} className={`ml-2 opacity-60 transition-transform ${dateDropdownOpen ? 'rotate-180' : ''}`}/>
-                            </button>
-                            <FilterDropdown type="date" isOpen={dateDropdownOpen} onClose={() => setDateDropdownOpen(false)} />
-                        </div>
+                        {menuView === 'sell' && (
+                            <ul className="flex flex-col w-full py-2">
+                                <li onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Sell Tickets
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/orders')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    My Tickets
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/sales')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    My Sales
+                                </li>
+                            </ul>
+                        )}
 
-                        {/* Price Dropdown Pill */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => {
-                                    setPriceDropdownOpen(!priceDropdownOpen);
-                                    setDateDropdownOpen(false);
-                                }}
-                                className={`border px-4 py-2 rounded-full text-sm font-medium flex items-center whitespace-nowrap shadow-sm transition-colors ${explorePriceFilter !== 'All' ? 'bg-gray-100 border-gray-400 text-brand-text' : 'bg-white border-gray-300 text-brand-text hover:bg-gray-50'}`}
-                            >
-                                <Tag size={16} className="mr-2 opacity-60"/> 
-                                {explorePriceFilter === 'All' ? 'Price' : explorePriceFilter} 
-                                <ChevronDown size={16} className={`ml-2 opacity-60 transition-transform ${priceDropdownOpen ? 'rotate-180' : ''}`}/>
-                            </button>
-                            <FilterDropdown type="price" isOpen={priceDropdownOpen} onClose={() => setPriceDropdownOpen(false)} />
-                        </div>
+                        {menuView === 'tickets' && (
+                            <ul className="flex flex-col w-full py-2">
+                                <li onClick={() => handleNavigation('/profile/orders')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Orders
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/listings')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    My Listings
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/sales')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    My Sales
+                                </li>
+                                <li onClick={() => handleNavigation('/profile/payments')} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                                    Payments
+                                </li>
+                            </ul>
+                        )}
                     </div>
                 </div>
             </div>
