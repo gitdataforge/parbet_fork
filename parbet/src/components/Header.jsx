@@ -22,6 +22,7 @@ import NavHoverMenu from './NavHoverMenu';
  * FEATURE 13: Background Scroll-Lock (Prevents body scroll when drawer is active)
  * FEATURE 14: Isolated Route-Based Desktop Header (1:1 UI replication for /explore)
  * FEATURE 15: Deep-Nested Dropdown Navigations (Sell, My Tickets, Profile, Notifications)
+ * FEATURE 16: Route-Based SearchDropdown Unmount (Fixes duplicate pill overlaps on Explore)
  */
 
 // High-end Green User SVG Icon Component
@@ -330,13 +331,14 @@ export default function Header() {
                                 )}
                             </AnimatePresence>
 
-                            <SearchDropdown />
+                            {/* FEATURE 16: Route-Based Unmount fixes Explore page duplication issues */}
+                            {!isExplorePage && <SearchDropdown />}
                         </div>
                     </div>
                 )}
             </header>
 
-            {/* 4. MOBILE DRAWER OVERLAY (FEATURE 12: Moved OUTSIDE of the blurred <header> to prevent CSS containment clipping) */}
+            {/* 4. MOBILE DRAWER OVERLAY */}
             <div className={`lg:hidden fixed inset-0 z-[999] ${mobileMenuOpen ? 'visible' : 'invisible pointer-events-none'}`}>
                 <div 
                     onClick={() => setMobileMenuOpen(false)}
@@ -386,7 +388,6 @@ export default function Header() {
 
                         {menuView === 'sell' && (
                             <ul className="flex flex-col w-full py-2">
-                                {/* FEATURE: Cross-Network Bridge mapped securely to Seller Site URL */}
                                 <li onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="px-6 py-[16px] text-[16px] text-[#1a1a1a] font-bold cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
                                     Sell Tickets
                                 </li>

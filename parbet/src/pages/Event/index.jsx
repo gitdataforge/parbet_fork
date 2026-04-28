@@ -33,11 +33,12 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 10: Localized Schema Normalization Adapter
  * FEATURE 11: Real-Time Admin Identity Verification
  * FEATURE 12: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
+ * FEATURE 13: Failsafe Window Redirect Fallback (Forces checkout if navigate() is swallowed)
  */
 
 // Utility to strictly label dates based on the real-time API
 const getRelativeDateLabel = (dateStr) => {
-    if (!dateStr) return 'Upcoming';
+    if (!dateStr) return '';
     const eventDate = new Date(dateStr);
     const today = new Date();
     const tomorrow = new Date();
@@ -183,7 +184,7 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    // FEATURE 1, 2 & 11: Secure "Book" Action with Native Login Redirect & Return Payload
+    // FEATURE 1, 2, 11 & 13: Secure "Book" Action with Native Login Redirect & Failsafe Fallback
     const handlePurchaseInitiation = (tier) => {
         // CAPTURE: Strict metadata bundle
         const captureData = {
@@ -209,11 +210,21 @@ export default function Event() {
             return;
         }
 
+        // FEATURE 13: Store fallback payload in session storage in case state is lost during a hard redirect
+        sessionStorage.setItem('parbet_checkout_fallback', JSON.stringify(captureData));
+
         // SECURE TRANSITION: Inject payload directly into the Router state to guarantee delivery
         navigate(
             `/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`, 
             { state: { reservedListing: captureData } }
         );
+
+        // FEATURE 13: Failsafe window redirect fallback if navigate() is swallowed by DOM context
+        setTimeout(() => {
+            if (!window.location.pathname.includes('/checkout')) {
+                window.location.href = `/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`;
+            }
+        }, 300);
     };
 
     if (!eventId) return <div className="min-h-screen p-10 font-bold text-center text-[#1a1a1a]">Invalid Event ID.</div>;

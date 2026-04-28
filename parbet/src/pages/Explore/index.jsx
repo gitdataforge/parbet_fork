@@ -17,6 +17,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAppStore } from '../../store/useStore';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
+import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 
 /**
  * FEATURE 1: Global Strict Search Engine (IPL, Cricket, Kabaddi, World Cup)
@@ -30,6 +31,9 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 9: Sub-pixel Font Anti-Aliasing
  * FEATURE 10: Automatic Event De-duplication
  * FEATURE 11: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
+ * FEATURE 12: Viagogo UI Integration (Flush filter bar insertion)
+ * FEATURE 13: Robust Location Interceptor (Defaults to global events if category is 'All Events')
+ * FEATURE 14: Seller & Admin Priority Rendering (Real-time marketplace sync)
  */
 
 // Strict Relative Date Formatter
@@ -100,7 +104,7 @@ export default function Explore() {
         return () => unsubscribeAuth();
     }, []);
 
-    // FEATURE 11: Native Login Redirection replaces broken phantom modal
+    // FEATURE 11: Native Login Redirection
     const handleRestrictedAction = (e, eventObj) => {
         e.stopPropagation();
         if (!isAuthenticated) {
@@ -129,11 +133,15 @@ export default function Explore() {
                 if (!isMatch) return false;
             }
 
-            // 2. Strict Location Filter (If not "All Cities", it must match)
-            if (userCity && userCity !== 'All Cities' && userCity !== 'Global' && userCity !== 'Current Location') {
-                const locStr = `${m.loc} ${m.city} ${m.location}`.toLowerCase();
-                if (!locStr.includes(userCity.toLowerCase())) {
-                    return false;
+            // 2. Strict Location Filter (FEATURE 13: Failsafe bypass if "All Events" is selected to prevent blank screens)
+            // If user selects a specific category (Sports/Concerts), we enforce the city filter.
+            // If user is on "All Events", we show global events but prioritize local ones.
+            if (exploreCategory !== 'All Events') {
+                if (userCity && !['All Cities', 'Global', 'Loading...', 'Detecting...', 'Current Location'].includes(userCity)) {
+                    const locStr = `${m.loc} ${m.city} ${m.location}`.toLowerCase();
+                    if (!locStr.includes(userCity.toLowerCase())) {
+                        return false;
+                    }
                 }
             }
 
@@ -146,7 +154,10 @@ export default function Explore() {
                 else if (cat === 'cricket') isCatMatch = rawString.includes('cricket') || rawString.includes('t20');
                 else if (cat === 'kabaddi') isCatMatch = rawString.includes('kabaddi') || rawString.includes('pkl');
                 else if (cat === 'world cup') isCatMatch = rawString.includes('world cup') || rawString.includes('icc');
-                else if (cat === 'sports') isCatMatch = true; // Fallback for general sports
+                else if (cat === 'sports') isCatMatch = rawString.includes('sports') || rawString.includes('cricket') || rawString.includes('kabaddi') || rawString.includes('football');
+                else if (cat === 'concerts') isCatMatch = rawString.includes('concert') || rawString.includes('music') || rawString.includes('gig');
+                else if (cat === 'theater') isCatMatch = rawString.includes('theater') || rawString.includes('play') || rawString.includes('drama');
+                else if (cat === 'festivals') isCatMatch = rawString.includes('festival') || rawString.includes('fiesta');
                 else isCatMatch = rawString.includes(cat);
 
                 if (!isCatMatch) return false;
@@ -160,8 +171,11 @@ export default function Explore() {
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="w-full pb-20 pt-4 bg-[#F8F9FA] min-h-screen"
+            className="w-full pb-20 pt-0 bg-[#F8F9FA] min-h-screen"
         >
+            {/* FEATURE 12: Inject Viagogo Filter Bar flush with the Header */}
+            <ViagogoFilterBar />
+
             {/* Admin Editor Modal */}
             <AdminEditEventModal 
                 isOpen={adminModalOpen} 
@@ -169,12 +183,12 @@ export default function Explore() {
                 eventData={selectedAdminEvent} 
             />
 
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-8 mt-6 md:mt-8">
                 
                 {/* Dynamic Heading */}
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-[24px] md:text-[28px] font-black text-[#1a1a1a] tracking-tight">
-                        Explore <span className="text-[#8cc63f]">{exploreCategory !== 'All Events' ? exploreCategory : 'Premium Events'}</span> {userCity !== 'Loading...' && userCity !== 'All Cities' ? `in ${userCity}` : 'Globally'}
+                    <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">
+                        {exploreCategory === 'All Events' ? 'All Events' : exploreCategory} {userCity && !['Loading...', 'All Cities', 'Global', 'Detecting...'].includes(userCity) ? `in ${userCity}` : 'Globally'}
                     </h2>
                     {isAdmin && (
                         <div className="hidden md:flex items-center bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-[8px] font-black text-[12px] uppercase tracking-widest shadow-sm">
@@ -190,7 +204,6 @@ export default function Explore() {
                         <p className="text-[16px] font-black text-[#1a1a1a] uppercase tracking-widest">Scanning Global Markets...</p>
                     </div>
                 ) : filteredEvents.length === 0 ? (
-                    /* EXACT EMPTY STATE UI */
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -213,7 +226,6 @@ export default function Explore() {
                         </button>
                     </motion.div>
                 ) : (
-                    /* POPULATED STATE WITH REAL API DATA */
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <AnimatePresence>
                             {filteredEvents.map((m, idx) => {
