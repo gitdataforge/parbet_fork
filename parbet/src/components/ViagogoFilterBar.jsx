@@ -1,17 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Calendar, ChevronDown, Tag, Ticket, MicVocal } from 'lucide-react';
+import { MapPin, Calendar, ChevronDown, Tag, Ticket, MicVocal, Check } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import LocationDropdown from './LocationDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * FEATURE 1: Precise 1:1 Enterprise UI Replication
- * FEATURE 2: Custom SVG Stroke Iconography
- * FEATURE 3: Horizontal Scrolling Category Chips
- * FEATURE 4: Strict Two-Row Architectural Layout
- * FEATURE 5: Dynamic State Pills (Green #458731 active states)
- * FEATURE 6: Fully Rendered & Functional Dropdown State Managers
- * FEATURE 7: Sub-pixel Font Anti-Aliasing
+ * FEATURE 1: 1:1 Enterprise UI Replication (Matching Viagogo exact spacing and colors)
+ * FEATURE 2: Animated Popover Engine (Using Framer Motion for smooth transitions)
+ * FEATURE 3: Smart State Pills (Changes color/border when a non-default filter is active)
+ * FEATURE 4: Outside-Click Interceptor (Automatically closes dropdowns when clicking away)
+ * FEATURE 5: Active Indicator Logic (Renders the 'Check' icon for the selected filter)
+ * FEATURE 6: Sub-pixel Font Anti-Aliasing & Typography Refinement
+ * FEATURE 7: Horizontal Category Scroll with Dynamic Underline
+ * FEATURE 8: Price Tier Mapping (All, $, $$, $$$, $$$$)
+ * FEATURE 9: Date Context Mapping (Today, Weekend, Month)
+ * FEATURE 10: Hardware-Accelerated Mobile Responsiveness
  */
 
 export default function ViagogoFilterBar() {
@@ -27,13 +30,14 @@ export default function ViagogoFilterBar() {
         setExplorePriceFilter
     } = useAppStore();
 
+    // Dropdown Visibility States
     const [isDateOpen, setIsDateOpen] = useState(false);
     const [isPriceOpen, setIsPriceOpen] = useState(false);
 
     const dateRef = useRef(null);
     const priceRef = useRef(null);
 
-    // Close dropdowns on outside click
+    // FEATURE 4: Close dropdowns on outside click
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dateRef.current && !dateRef.current.contains(event.target)) setIsDateOpen(false);
@@ -62,8 +66,21 @@ export default function ViagogoFilterBar() {
         ) }
     ];
 
-    const dateOptions = ['All dates', 'Today', 'This weekend', 'Next 7 days', 'This month'];
-    const priceOptions = ['Price', 'Under ₹2000', 'Under ₹5000', 'Under ₹10000'];
+    const dateOptions = [
+        { label: 'All dates', value: 'All dates' },
+        { label: 'Today', value: 'Today' },
+        { label: 'This weekend', value: 'This weekend' },
+        { label: 'This month', value: 'This month' },
+        { label: 'Custom Dates', value: 'Custom Dates' }
+    ];
+
+    const priceOptions = [
+        { label: 'All', value: 'Price' },
+        { label: '$', value: 'Under ₹2000' },
+        { label: '$$', value: 'Under ₹5000' },
+        { label: '$$$', value: 'Under ₹10000' },
+        { label: '$$$$', value: 'Under ₹20000' }
+    ];
 
     return (
         <div className="w-full bg-white z-20 relative font-sans">
@@ -110,7 +127,7 @@ export default function ViagogoFilterBar() {
                         <LocationDropdown />
                     </div>
 
-                    {/* Date Context Pill */}
+                    {/* Date Context Pill with Animated Dropdown */}
                     <div className="relative shrink-0" ref={dateRef}>
                         <button 
                             onClick={() => setIsDateOpen(!isDateOpen)}
@@ -124,16 +141,20 @@ export default function ViagogoFilterBar() {
                         <AnimatePresence>
                             {isDateOpen && (
                                 <motion.div 
-                                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                    className="absolute top-[110%] left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[100]"
+                                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    transition={{ duration: 0.15, ease: "easeOut" }}
+                                    className="absolute top-[115%] left-0 w-56 bg-white border border-gray-200 shadow-[0_10px_40px_rgba(0,0,0,0.12)] rounded-[12px] py-2 z-[100] overflow-hidden"
                                 >
                                     {dateOptions.map(opt => (
                                         <div 
-                                            key={opt}
-                                            onClick={() => { setExploreDateFilter(opt); setIsDateOpen(false); }}
-                                            className={`px-5 py-2.5 text-[14px] cursor-pointer transition-colors ${exploreDateFilter === opt ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-gray-50'}`}
+                                            key={opt.value}
+                                            onClick={() => { setExploreDateFilter(opt.value); setIsDateOpen(false); }}
+                                            className={`px-5 py-2.5 text-[14.5px] cursor-pointer transition-colors flex items-center justify-between group ${exploreDateFilter === opt.value ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-[#f8f9fa]'}`}
                                         >
-                                            {opt}
+                                            {opt.label}
+                                            {exploreDateFilter === opt.value && <Check size={16} className="text-[#458731]" strokeWidth={3} />}
                                         </div>
                                     ))}
                                 </motion.div>
@@ -141,7 +162,7 @@ export default function ViagogoFilterBar() {
                         </AnimatePresence>
                     </div>
 
-                    {/* Price Context Pill */}
+                    {/* Price Context Pill with Animated Dropdown */}
                     <div className="relative shrink-0" ref={priceRef}>
                         <button 
                             onClick={() => setIsPriceOpen(!isPriceOpen)}
@@ -155,16 +176,20 @@ export default function ViagogoFilterBar() {
                         <AnimatePresence>
                             {isPriceOpen && (
                                 <motion.div 
-                                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                    className="absolute top-[110%] left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[100]"
+                                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    transition={{ duration: 0.15, ease: "easeOut" }}
+                                    className="absolute top-[115%] left-0 w-48 bg-white border border-gray-200 shadow-[0_10px_40px_rgba(0,0,0,0.12)] rounded-[12px] py-2 z-[100] overflow-hidden"
                                 >
                                     {priceOptions.map(opt => (
                                         <div 
-                                            key={opt}
-                                            onClick={() => { setExplorePriceFilter(opt); setIsPriceOpen(false); }}
-                                            className={`px-5 py-2.5 text-[14px] cursor-pointer transition-colors ${explorePriceFilter === opt ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-gray-50'}`}
+                                            key={opt.value}
+                                            onClick={() => { setExplorePriceFilter(opt.value); setIsPriceOpen(false); }}
+                                            className={`px-5 py-2.5 text-[14.5px] cursor-pointer transition-colors flex items-center justify-between group ${explorePriceFilter === opt.value ? 'font-bold text-[#458731] bg-[#f8f9fa]' : 'text-[#1a1a1a] hover:bg-[#f8f9fa]'}`}
                                         >
-                                            {opt}
+                                            {opt.label}
+                                            {explorePriceFilter === opt.value && <Check size={16} className="text-[#458731]" strokeWidth={3} />}
                                         </div>
                                     ))}
                                 </motion.div>
