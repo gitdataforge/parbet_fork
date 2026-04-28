@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, SearchX, Pencil, ShieldAlert, Loader2 } from 'lucide-react';
+import { Heart, SearchX, Pencil, ShieldAlert, Loader2, AlertCircle } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAppStore } from '../../store/useStore';
@@ -10,14 +10,14 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 
 /**
- * FEATURE 1: 1:1 Enterprise UI Replication (Exact Viagogo Card Typography & Spacing)
- * FEATURE 2: Borderless Seamless Grid (Removes old borders for modern flat layout)
- * FEATURE 3: Algorithmic Date Filtering (Today, Weekend, Next 7 Days, Month)
- * FEATURE 4: Integer-Based Price Tier Filtering ($, $$, $$$ Mapping)
- * FEATURE 5: Admin God-Mode Injector (Direct listing mutation)
- * FEATURE 6: Dynamic Contextual Headings (Explore events near [City])
- * FEATURE 7: PocketBase Image Failsafe Scrubber
- * FEATURE 8: Robust Expiration Algorithm (Keeps today's events visible)
+ * FEATURE 1: 1:1 Enterprise UI Replication (Grid, Typography & Spacing)
+ * FEATURE 2: Cryptographic Deduplication Engine (Merges duplicate seller listings into 1 card)
+ * FEATURE 3: Midnight Expiration Algorithm (Keeps today's events visible until 11:59 PM)
+ * FEATURE 4: Borderless Seamless Grid (Removes rigid borders for flat enterprise layout)
+ * FEATURE 5: Algorithmic Date & Integer-Based Price Filtering
+ * FEATURE 6: Admin God-Mode Injector (Direct listing mutation)
+ * FEATURE 7: Dynamic Contextual Headings (Explore events near [City])
+ * FEATURE 8: PocketBase Image Failsafe Scrubber
  */
 
 const getSafeImage = (url, fallbackCategory) => {
@@ -28,6 +28,13 @@ const getSafeImage = (url, fallbackCategory) => {
     if (!url) return fallback;
     if (url.includes('res.cloudinary.com/dtz0urit6')) return fallback;
     return url;
+};
+
+// Bulletproof Date Parser for Heterogeneous DB Schemas
+const parseSafeDate = (dateStr) => {
+    if (!dateStr) return new Date(); // Fallback to now if missing
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d; // Fallback to now if malformed
 };
 
 export default function Explore() {
@@ -44,13 +51,11 @@ export default function Explore() {
     const [adminModalOpen, setAdminModalOpen] = useState(false);
     const [selectedAdminEvent, setSelectedAdminEvent] = useState(null);
 
-    // Initialize Real-Time Market Listener
     useEffect(() => {
         const unsubscribe = initMarketListener();
         return () => { if (unsubscribe) unsubscribe(); };
     }, [initMarketListener]);
 
-    // Verify Admin Identity
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
             if (user && user.email) {
@@ -67,12 +72,45 @@ export default function Explore() {
         else if (eventObj) toggleFavorite(eventObj);
     };
 
-    // --- ALGORITHMIC FILTERING ENGINE ---
+    // --- ALGORITHMIC FILTERING & DEDUPLICATION ENGINE ---
     const filteredEvents = useMemo(() => {
-        return activeListings.filter(m => {
-            const rawString = `${m.title} ${m.eventName} ${m.t1} ${m.t2} ${m.league} ${m.sportCategory} ${m.loc} ${m.city}`.toLowerCase();
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        // STEP 1: DEDUPLICATE LISTINGS (Merge multiple seller listings for the exact same event)
+        const uniqueEventsMap = new Map();
+        
+        activeListings.forEach(m => {
+            const eventDateObj = parseSafeDate(m.commence_time || m.eventTimestamp);
             
-            // 1. Category Filter
+            // Exclude events that happened BEFORE today (keeps today's active until midnight)
+            if (eventDateObj.getTime() < todayStart.getTime()) return;
+
+            const title = m.title || m.eventName || `${m.t1} vs ${m.t2}`;
+            const dateStr = eventDateObj.toDateString();
+            
+            // Unique key based on Title + Date
+            const uniqueKey = `${title}-${dateStr}`.toLowerCase();
+            const currentPrice = parseFloat(m.startingPrice || m.price || m.minPrice || Infinity);
+
+            if (!uniqueEventsMap.has(uniqueKey)) {
+                // First time seeing this event, add it
+                uniqueEventsMap.set(uniqueKey, { ...m, computedLowestPrice: currentPrice, safeDateObj: eventDateObj });
+            } else {
+                // Duplicate found! Keep the one with the lowest price
+                const existing = uniqueEventsMap.get(uniqueKey);
+                if (currentPrice < existing.computedLowestPrice) {
+                    uniqueEventsMap.set(uniqueKey, { ...m, computedLowestPrice: currentPrice, safeDateObj: eventDateObj });
+                }
+            }
+        });
+
+        const deduplicatedListings = Array.from(uniqueEventsMap.values());
+
+        // STEP 2: APPLY USER FILTERS (Search, Category, Date, Price, City)
+        return deduplicatedListings.filter(m => {
+            const rawString = `${m.title} ${m.eventName} ${m.t1} ${m.t2} ${m.league} ${m.sportCategory} ${m.loc} ${m.city} ${m.stadium}`.toLowerCase();
+            
             if (exploreCategory && exploreCategory !== 'All Events') {
                 const cat = exploreCategory.toLowerCase();
                 let isCatMatch = false;
@@ -84,17 +122,12 @@ export default function Explore() {
                 if (!isCatMatch) return false;
             }
 
-            // 2. Date Algorithm (Ensures Today's events remain visible)
             if (exploreDateFilter && exploreDateFilter !== 'All dates') {
-                const eventDate = new Date(m.commence_time || m.eventTimestamp);
-                const today = new Date();
-                today.setHours(0,0,0,0);
+                const eDateMidnight = new Date(m.safeDateObj);
+                eDateMidnight.setHours(0,0,0,0);
                 
-                const eDate = new Date(eventDate);
-                eDate.setHours(0,0,0,0);
-                
-                const diffDays = Math.round((eDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                const dayOfWeek = eventDate.getDay(); // 0 Sunday, 6 Saturday
+                const diffDays = Math.round((eDateMidnight.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+                const dayOfWeek = m.safeDateObj.getDay(); 
 
                 if (exploreDateFilter === 'Today' && diffDays !== 0) return false;
                 if (exploreDateFilter === 'This weekend') {
@@ -103,25 +136,20 @@ export default function Explore() {
                 }
                 if (exploreDateFilter === 'Next 7 days' && (diffDays < 0 || diffDays > 7)) return false;
                 if (exploreDateFilter === 'This month') {
-                    if (eventDate.getMonth() !== today.getMonth() || eventDate.getFullYear() !== today.getFullYear()) return false;
+                    if (m.safeDateObj.getMonth() !== todayStart.getMonth() || m.safeDateObj.getFullYear() !== todayStart.getFullYear()) return false;
                 }
             }
 
-            // 3. Price Algorithm ($, $$, etc mapping)
             if (explorePriceFilter && explorePriceFilter !== 'Price') {
-                const price = parseFloat(m.startingPrice || m.price || m.minPrice || 0);
+                const price = m.computedLowestPrice;
                 if (explorePriceFilter === 'Under ₹2000' && price > 2000) return false;
                 if (explorePriceFilter === 'Under ₹5000' && price > 5000) return false;
                 if (explorePriceFilter === 'Under ₹10000' && price > 10000) return false;
                 if (explorePriceFilter === 'Under ₹20000' && price > 20000) return false;
             }
 
-            // 4. Search Query
-            if (searchQuery) {
-                if (!rawString.includes(searchQuery.toLowerCase())) return false;
-            }
+            if (searchQuery && !rawString.includes(searchQuery.toLowerCase())) return false;
 
-            // 5. Location Fallback (If All Events is NOT selected, filter by city)
             if (exploreCategory !== 'All Events' && userCity && !['All Cities', 'Global', 'Loading...', 'Detecting...'].includes(userCity)) {
                 if (!rawString.includes(userCity.toLowerCase())) return false;
             }
@@ -132,7 +160,7 @@ export default function Explore() {
 
     const clearAllFilters = () => {
         setSearchQuery('');
-        useAppStore.setState({ exploreDateFilter: 'All dates', explorePriceFilter: 'Price' });
+        useAppStore.setState({ exploreDateFilter: 'All dates', explorePriceFilter: 'Price', exploreCategory: 'All Events' });
     };
 
     return (
@@ -146,11 +174,10 @@ export default function Explore() {
                 eventData={selectedAdminEvent} 
             />
 
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8 mt-6 md:mt-8">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-8 mt-6 md:mt-10">
                 
-                {/* 1:1 DYNAMIC HEADING */}
-                <div className="mb-6">
-                    <h1 className="text-[24px] md:text-[32px] font-black tracking-tight text-[#1a1a1a]">
+                <div className="mb-6 md:mb-8">
+                    <h1 className="text-[26px] md:text-[34px] font-black tracking-tight text-[#1a1a1a] leading-tight">
                         Explore events near {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? userCity : 'you'}
                     </h1>
                     {isAdmin && (
@@ -162,72 +189,77 @@ export default function Explore() {
 
                 {isLoading ? (
                     <div className="w-full py-32 flex flex-col items-center justify-center">
-                        <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={40} />
+                        <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={44} />
                         <p className="text-[14px] font-bold text-gray-500 uppercase tracking-widest">Hydrating Market Feed</p>
                     </div>
                 ) : filteredEvents.length === 0 ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-10 py-20 flex flex-col items-center text-center bg-[#f8f9fa] rounded-[24px] border border-gray-100">
-                        <SearchX size={48} className="text-gray-300 mb-4" />
-                        <h3 className="text-[20px] font-black">No events found</h3>
-                        <p className="text-gray-500 mt-2 mb-6">Try adjusting your date or price selection.</p>
-                        <button onClick={clearAllFilters} className="bg-[#1a1a1a] text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-black transition-colors">Clear Filters</button>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 py-20 flex flex-col items-center text-center bg-[#fcfcfc] rounded-[32px] border border-[#e2e2e2]">
+                        <div className="w-20 h-20 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-6">
+                            <SearchX size={40} className="text-[#c21c3a]" />
+                        </div>
+                        <h3 className="text-[22px] font-black text-[#1a1a1a]">No events found</h3>
+                        <p className="text-gray-500 mt-2 mb-6 max-w-sm font-medium">Try adjusting your date, price selection, or changing your location.</p>
+                        <button onClick={clearAllFilters} className="bg-[#1a1a1a] text-white px-8 py-3.5 rounded-full font-bold shadow-lg hover:bg-black transition-colors">Clear Filters</button>
                     </motion.div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 pb-20">
                         <AnimatePresence>
                             {filteredEvents.map((m, idx) => {
                                 const isFav = favorites?.some(f => f.id === m.id);
                                 const safeImage = getSafeImage(m.imageUrl || m.image || m.thumb, m.title || m.sportCategory);
-                                const displayPrice = m.startingPrice || m.price || m.minPrice;
-                                const formattedPrice = displayPrice ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(displayPrice) : null;
+                                const displayPrice = m.computedLowestPrice;
+                                const formattedPrice = displayPrice && displayPrice !== Infinity ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(displayPrice) : null;
                                 
-                                const dateObj = new Date(m.commence_time || m.eventTimestamp);
-
                                 return (
                                     <motion.div 
                                         initial={{ opacity: 0, y: 20 }} 
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
+                                        transition={{ delay: idx * 0.04 }}
                                         key={m.id}
                                         onClick={() => navigate(`/event?id=${m.id}`)}
                                         className="flex flex-col group cursor-pointer relative"
                                     >
                                         {/* ADMIN TRIGGER */}
                                         {isAdmin && (
-                                            <button onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(m); setAdminModalOpen(true); }} className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110">
+                                            <button onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(m); setAdminModalOpen(true); }} className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2.5 rounded-full shadow-[0_8px_20px_rgba(220,38,38,0.4)] opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:scale-110">
                                                 <Pencil size={14} />
                                             </button>
                                         )}
 
-                                        {/* EXACT VIAGOGO IMAGE FRAME */}
-                                        <div className="w-full aspect-[1.4] rounded-[12px] overflow-hidden relative mb-3 bg-gray-100">
-                                            <img src={safeImage} alt={m.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                        {/* EXACT VIAGOGO IMAGE FRAME (Borderless & Flat) */}
+                                        <div className="w-full aspect-[1.4] rounded-[12px] overflow-hidden relative mb-3 bg-[#f8f9fa]">
+                                            <img src={safeImage} alt={m.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-95" />
                                             
                                             {/* Exact Viagogo Heart Button */}
-                                            <button onClick={(e) => handleRestrictedAction(e, m)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors z-20">
+                                            <button onClick={(e) => handleRestrictedAction(e, m)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors z-20">
                                                 <Heart size={16} className={isFav ? "fill-white text-white" : "text-white"} />
                                             </button>
                                         </div>
 
                                         {/* EXACT VIAGOGO CONTENT AREA */}
                                         <div className="flex flex-col px-0.5">
-                                            <h3 className="font-bold text-[16px] text-[#1a1a1a] leading-[1.3] mb-1 line-clamp-2">
+                                            <h3 className="font-bold text-[16px] text-[#1a1a1a] leading-[1.3] mb-1.5 line-clamp-2">
                                                 {m.title || m.eventName || `${m.t1} vs ${m.t2}`}
                                             </h3>
                                             
                                             {/* Date Mapping: "Sun, 10 May • 18:00" */}
                                             <p className="text-[13px] text-[#54626c] mb-0.5 font-normal">
-                                                {dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} • {dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                                {m.safeDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} • {m.safeDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                             
                                             {/* Venue & City Mapping: "Venue in City" */}
-                                            <p className="text-[13px] text-[#54626c] line-clamp-2 mb-1 font-normal">
+                                            <p className="text-[13px] text-[#54626c] line-clamp-1 mb-2 font-normal">
                                                 {m.loc || m.stadium} in {m.city || m.location?.split(',')[0]}
                                             </p>
 
                                             {/* Minimalist Price */}
-                                            {formattedPrice && (
-                                                <p className="text-[14px] font-medium text-[#1a1a1a] mt-1">Starting from {formattedPrice}</p>
+                                            {formattedPrice ? (
+                                                <p className="text-[14px] font-medium text-[#1a1a1a]">Starting from {formattedPrice}</p>
+                                            ) : (
+                                                <div className="inline-flex items-center gap-1 text-[#c21c3a] mt-0.5">
+                                                    <AlertCircle size={14} />
+                                                    <span className="text-[12px] font-bold uppercase tracking-widest">Sold Out</span>
+                                                </div>
                                             )}
                                         </div>
                                     </motion.div>
