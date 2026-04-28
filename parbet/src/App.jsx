@@ -54,15 +54,20 @@ function MainLayout() {
         location.pathname.toLowerCase().startsWith(path)
     );
 
-    // FEATURE 2: Header Separation Logic
+    // FEATURE 2: Route-Based Header Injection (Mega-Header for Explore)
+    // Strictly isolate the explore path to mount the specialized Viagogo Explore Header
+    const isExplorePage = location.pathname.toLowerCase() === '/explore' || location.pathname.toLowerCase().startsWith('/explore/');
+    
+    // FEATURE 3: Header Separation Logic
     const hideGlobalHeader = isIsolatedPage || isProfilePath;
 
     return (
         <div className="flex flex-col w-full min-h-screen bg-white text-[#1a1a1a] relative">
             
             {/* The global header is suppressed on /profile, allowing ProfileLayout's ProfileHeader to take over */}
+            {/* Route-Based Header Swapping: Explore gets the Mega-Header, standard pages get the normal Header */}
             {!hideGlobalHeader && (
-                location.pathname === '/explore' ? <ExploreHeader /> : <Header />
+                isExplorePage ? <ExploreHeader /> : <Header />
             )}
             
             {/* ProfileLayout needs full width to render its edge-to-edge replica header */}
