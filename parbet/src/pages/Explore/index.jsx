@@ -34,6 +34,8 @@ import ViagogoFilterBar from '../../components/ViagogoFilterBar';
  * FEATURE 12: Viagogo UI Integration (Flush filter bar insertion)
  * FEATURE 13: Robust Location Interceptor (Defaults to global events if category is 'All Events')
  * FEATURE 14: Seller & Admin Priority Rendering (Real-time marketplace sync)
+ * FEATURE 15: Rigorous Date Timestamp Parsing Algorithm
+ * FEATURE 16: Dynamic Price Ceiling Integer Filtering
  */
 
 // Strict Relative Date Formatter
@@ -73,6 +75,8 @@ export default function Explore() {
         searchQuery,
         setSearchQuery,
         exploreCategory,
+        exploreDateFilter,
+        explorePriceFilter,
         isLoadingMatches,
         fetchLocationAndMatches,
         isAuthenticated,
@@ -134,8 +138,6 @@ export default function Explore() {
             }
 
             // 2. Strict Location Filter (FEATURE 13: Failsafe bypass if "All Events" is selected to prevent blank screens)
-            // If user selects a specific category (Sports/Concerts), we enforce the city filter.
-            // If user is on "All Events", we show global events but prioritize local ones.
             if (exploreCategory !== 'All Events') {
                 if (userCity && !['All Cities', 'Global', 'Loading...', 'Detecting...', 'Current Location'].includes(userCity)) {
                     const locStr = `${m.loc} ${m.city} ${m.location}`.toLowerCase();
@@ -163,9 +165,48 @@ export default function Explore() {
                 if (!isCatMatch) return false;
             }
 
+            // 4. FEATURE 15: Rigorous Date Timestamp Parsing Algorithm
+            if (exploreDateFilter && exploreDateFilter !== 'All dates') {
+                const eventDate = new Date(m.commence_time || m.eventTimestamp);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                
+                const diffTime = eventDate.getTime() - today.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const dayOfWeek = eventDate.getDay(); // 0 is Sunday, 6 is Saturday
+
+                if (exploreDateFilter === 'Today' && diffDays !== 0) return false;
+                
+                if (exploreDateFilter === 'This weekend') {
+                    // Match Friday(5), Saturday(6), Sunday(0) within the next 7 days
+                    const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6 || dayOfWeek === 5;
+                    if (!isWeekendDay || diffDays < 0 || diffDays > 7) return false;
+                }
+                
+                if (exploreDateFilter === 'Next 7 days' && (diffDays < 0 || diffDays > 7)) return false;
+                
+                if (exploreDateFilter === 'This month') {
+                    if (eventDate.getMonth() !== today.getMonth() || eventDate.getFullYear() !== today.getFullYear()) return false;
+                }
+            }
+
+            // 5. FEATURE 16: Dynamic Price Ceiling Integer Filtering
+            if (explorePriceFilter && explorePriceFilter !== 'Price') {
+                const price = parseFloat(m.startingPrice || m.price || m.minPrice || 0);
+                if (explorePriceFilter === 'Under ₹2000' && price > 2000) return false;
+                if (explorePriceFilter === 'Under ₹5000' && price > 5000) return false;
+                if (explorePriceFilter === 'Under ₹10000' && price > 10000) return false;
+            }
+
             return true;
         });
-    }, [liveMatches, searchQuery, userCity, exploreCategory]);
+    }, [liveMatches, searchQuery, userCity, exploreCategory, exploreDateFilter, explorePriceFilter]);
+
+    // UI HELPER: Clear all dynamic filters
+    const clearAllFilters = () => {
+        setSearchQuery('');
+        useAppStore.setState({ exploreDateFilter: 'All dates', explorePriceFilter: 'Price' });
+    };
 
     return (
         <motion.div 
@@ -204,6 +245,7 @@ export default function Explore() {
                         <p className="text-[16px] font-black text-[#1a1a1a] uppercase tracking-widest">Scanning Global Markets...</p>
                     </div>
                 ) : filteredEvents.length === 0 ? (
+                    /* EXACT EMPTY STATE UI */
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -216,21 +258,25 @@ export default function Explore() {
                             No matching events found.
                         </h3>
                         <p className="text-[15px] text-[#54626c] font-medium max-w-md mx-auto mb-8">
-                            We couldn't find any tickets matching "{searchQuery || exploreCategory}" in {userCity}. Try clearing your filters or selecting a different city.
+                            We couldn't find any tickets matching your selected filters in {userCity}. Try adjusting the date, price, or category.
                         </p>
                         <button 
-                            onClick={() => { setSearchQuery(''); navigate('/'); }}
+                            onClick={() => { clearAllFilters(); navigate('/'); }}
                             className="bg-[#1a1a1a] text-white font-black px-8 py-3.5 rounded-[12px] hover:bg-black transition-colors shadow-lg"
                         >
-                            Reset Search Filters
+                            Reset All Filters
                         </button>
                     </motion.div>
                 ) : (
+                    /* POPULATED STATE WITH REAL API DATA */
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <AnimatePresence>
                             {filteredEvents.map((m, idx) => {
                                 const relativeLabel = getRelativeDateLabel(m.commence_time || m.eventTimestamp);
-                                const isHottest = idx === 0 && !searchQuery;
+                                
+                                // Only mark as hottest if user hasn't explicitly filtered
+                                const isHottest = idx === 0 && !searchQuery && explorePriceFilter === 'Price' && exploreDateFilter === 'All dates';
+                                
                                 const isFav = favorites?.some(f => f.id === m.id);
                                 const rawImage = m.imageUrl || m.image || m.thumb;
                                 const safeImage = getSafeImage(rawImage, m.title || m.sportCategory);
