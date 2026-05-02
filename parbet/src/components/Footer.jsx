@@ -5,14 +5,12 @@ import { BooknshowLogo } from './Header';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 1 Final)
- * Enforced Background: Ebony Clay (#1F2533)
- * Enforced Primary Text: Wild Sand (#F5F5F5)
- * Enforced Accent: Carnation (#F84464)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * * FEATURE 1: 1:1 Enterprise Footer Architecture
  * FEATURE 2: Real-time Dynamic Year Resolution
  * FEATURE 3: Localization Context Integration (Currency/Language)
  * FEATURE 4: Booknshow SVG Logo Integration (White Background Container)
- * FEATURE 5: Strict 3-Color Policy Enforcement
+ * FEATURE 5: Strict 7-Color Policy Enforcement
  * FEATURE 6: Fully Functional Social/Support Grid
  * FEATURE 7: Native Inline SVGs for Social Icons (Bypassing Lucide Crash)
  */
@@ -56,7 +54,7 @@ export default function Footer() {
     }, []);
 
     return (
-        <footer className="w-full bg-[#1F2533] border-t-4 border-[#F84464] mt-auto pt-12 pb-16 font-sans">
+        <footer className="w-full bg-[#333333] border-t-4 border-[#E7364D] mt-auto pt-12 pb-16 font-sans">
             <div className="max-w-[1400px] mx-auto px-6 md:px-8">
                 
                 {/* Main Footer 4-Column Grid */}
@@ -64,27 +62,27 @@ export default function Footer() {
                     
                     {/* Column 1: Brand & Guarantee */}
                     <div className="flex flex-col space-y-6">
-                        <div className="bg-white p-3 rounded-[8px] w-max inline-block mb-2 shadow-sm">
+                        <div className="bg-[#FFFFFF] p-3 rounded-[8px] w-max inline-block mb-2 shadow-sm">
                             <BooknshowLogo className="h-[28px]" />
                         </div>
                         
                         <div className="flex flex-col">
                             <div className="flex items-center space-x-2.5 mb-3">
-                                <ShieldCheck size={28} className="text-[#F84464]" strokeWidth={2} />
-                                <span className="text-[18px] font-black text-[#F5F5F5] uppercase tracking-wider">Booknshow Guarantee</span>
+                                <ShieldCheck size={28} className="text-[#E7364D]" strokeWidth={2} />
+                                <span className="text-[18px] font-black text-[#FFFFFF] uppercase tracking-wider">Booknshow Guarantee</span>
                             </div>
                             <ul className="space-y-3">
-                                <li className="flex items-center text-[13px] font-medium text-[#F5F5F5]/80">
-                                    <Check size={16} className="text-[#F84464] mr-2 stroke-[3px] shrink-0"/> World class security checks
+                                <li className="flex items-center text-[13px] font-medium text-[#A3A3A3]">
+                                    <Check size={16} className="text-[#E7364D] mr-2 stroke-[3px] shrink-0"/> World class security checks
                                 </li>
-                                <li className="flex items-center text-[13px] font-medium text-[#F5F5F5]/80">
-                                    <Check size={16} className="text-[#F84464] mr-2 stroke-[3px] shrink-0"/> Transparent pricing
+                                <li className="flex items-center text-[13px] font-medium text-[#A3A3A3]">
+                                    <Check size={16} className="text-[#E7364D] mr-2 stroke-[3px] shrink-0"/> Transparent pricing
                                 </li>
-                                <li className="flex items-center text-[13px] font-medium text-[#F5F5F5]/80">
-                                    <Check size={16} className="text-[#F84464] mr-2 stroke-[3px] shrink-0"/> 100% order guarantee
+                                <li className="flex items-center text-[13px] font-medium text-[#A3A3A3]">
+                                    <Check size={16} className="text-[#E7364D] mr-2 stroke-[3px] shrink-0"/> 100% order guarantee
                                 </li>
-                                <li className="flex items-center text-[13px] font-medium text-[#F5F5F5]/80">
-                                    <Check size={16} className="text-[#F84464] mr-2 stroke-[3px] shrink-0"/> Customer service from start to finish
+                                <li className="flex items-center text-[13px] font-medium text-[#A3A3A3]">
+                                    <Check size={16} className="text-[#E7364D] mr-2 stroke-[3px] shrink-0"/> Customer service from start to finish
                                 </li>
                             </ul>
                         </div>
@@ -92,35 +90,35 @@ export default function Footer() {
 
                     {/* Column 2: Marketplace Links */}
                     <div>
-                        <h4 className="font-bold text-[16px] text-white tracking-wide mb-6">Marketplace</h4>
-                        <ul className="space-y-4 text-[14px] font-medium text-[#F5F5F5]/70">
-                            <li><button className="hover:text-[#F84464] transition-colors">Buy Tickets</button></li>
-                            <li><button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hover:text-[#F84464] transition-colors">Sell Tickets</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Event Organizers</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Affiliate Programme</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Investors</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Careers</button></li>
+                        <h4 className="font-bold text-[16px] text-[#FFFFFF] tracking-wide mb-6">Marketplace</h4>
+                        <ul className="space-y-4 text-[14px] font-medium text-[#A3A3A3]">
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Buy Tickets</button></li>
+                            <li><button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hover:text-[#EB5B6E] transition-colors">Sell Tickets</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Event Organizers</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Affiliate Programme</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Investors</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Careers</button></li>
                         </ul>
                     </div>
 
                     {/* Column 3: Support Links & Contact */}
                     <div>
-                        <h4 className="font-bold text-[16px] text-white tracking-wide mb-6">Support & Contact</h4>
-                        <ul className="space-y-4 text-[14px] font-medium text-[#F5F5F5]/70 mb-8">
-                            <li><button className="hover:text-[#F84464] transition-colors">Help Centre</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Lowest Price Guarantee</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Cancellation Policy</button></li>
-                            <li><button className="hover:text-[#F84464] transition-colors">Trust & Safety</button></li>
+                        <h4 className="font-bold text-[16px] text-[#FFFFFF] tracking-wide mb-6">Support & Contact</h4>
+                        <ul className="space-y-4 text-[14px] font-medium text-[#A3A3A3] mb-8">
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Help Centre</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Lowest Price Guarantee</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Cancellation Policy</button></li>
+                            <li><button className="hover:text-[#EB5B6E] transition-colors">Trust & Safety</button></li>
                         </ul>
                         
                         <div className="flex items-center space-x-4">
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F84464] hover:text-white transition-colors cursor-pointer text-white">
+                            <a href="#" className="w-10 h-10 rounded-full bg-[#A3A3A3]/20 flex items-center justify-center hover:bg-[#E7364D] hover:text-[#FFFFFF] transition-colors cursor-pointer text-[#FFFFFF]">
                                 <TwitterSVG size={18} />
                             </a>
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F84464] hover:text-white transition-colors cursor-pointer text-white">
+                            <a href="#" className="w-10 h-10 rounded-full bg-[#A3A3A3]/20 flex items-center justify-center hover:bg-[#E7364D] hover:text-[#FFFFFF] transition-colors cursor-pointer text-[#FFFFFF]">
                                 <InstagramSVG size={18} />
                             </a>
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#F84464] hover:text-white transition-colors cursor-pointer text-white">
+                            <a href="#" className="w-10 h-10 rounded-full bg-[#A3A3A3]/20 flex items-center justify-center hover:bg-[#E7364D] hover:text-[#FFFFFF] transition-colors cursor-pointer text-[#FFFFFF]">
                                 <LinkedinSVG size={18} />
                             </a>
                         </div>
@@ -128,38 +126,38 @@ export default function Footer() {
 
                     {/* Column 4: Localization Dropdowns */}
                     <div>
-                        <h4 className="font-bold text-[16px] text-white tracking-wide mb-6">Regional Settings</h4>
+                        <h4 className="font-bold text-[16px] text-[#FFFFFF] tracking-wide mb-6">Regional Settings</h4>
                         <div className="space-y-4">
-                            <div className="border border-white/20 rounded-[6px] hover:border-white/40 transition-colors overflow-hidden bg-white/5">
-                                <select className="w-full py-3 px-4 text-[14px] text-[#F5F5F5] bg-transparent outline-none cursor-pointer appearance-none">
-                                    <option value="US" className="text-black">🇺🇸 United States</option>
-                                    <option value="IN" className="text-black">🇮🇳 India</option>
-                                    <option value="GB" className="text-black">🇬🇧 United Kingdom</option>
-                                    <option value="CA" className="text-black">🇨🇦 Canada</option>
-                                    <option value="AU" className="text-black">🇦🇺 Australia</option>
+                            <div className="border border-[#A3A3A3]/30 rounded-[6px] hover:border-[#A3A3A3] transition-colors overflow-hidden bg-[#FFFFFF]/5">
+                                <select className="w-full py-3 px-4 text-[14px] text-[#FFFFFF] bg-transparent outline-none cursor-pointer appearance-none">
+                                    <option value="US" className="text-[#333333]">🇺🇸 United States</option>
+                                    <option value="IN" className="text-[#333333]">🇮🇳 India</option>
+                                    <option value="GB" className="text-[#333333]">🇬🇧 United Kingdom</option>
+                                    <option value="CA" className="text-[#333333]">🇨🇦 Canada</option>
+                                    <option value="AU" className="text-[#333333]">🇦🇺 Australia</option>
                                 </select>
                             </div>
-                            <div className="border border-white/20 rounded-[6px] hover:border-white/40 transition-colors overflow-hidden bg-white/5">
+                            <div className="border border-[#A3A3A3]/30 rounded-[6px] hover:border-[#A3A3A3] transition-colors overflow-hidden bg-[#FFFFFF]/5">
                                 <select 
                                     value={userLanguage || 'EN-US'} 
                                     onChange={(e) => setUserLanguage(e.target.value)} 
-                                    className="w-full py-3 px-4 text-[14px] text-[#F5F5F5] bg-transparent outline-none cursor-pointer appearance-none"
+                                    className="w-full py-3 px-4 text-[14px] text-[#FFFFFF] bg-transparent outline-none cursor-pointer appearance-none"
                                 >
-                                    <option value="EN-US" className="text-black">A文 English (US)</option>
-                                    <option value="EN-GB" className="text-black">A文 English (UK)</option>
-                                    <option value="HI-IN" className="text-black">A文 Hindi (IN)</option>
+                                    <option value="EN-US" className="text-[#333333]">A文 English (US)</option>
+                                    <option value="EN-GB" className="text-[#333333]">A文 English (UK)</option>
+                                    <option value="HI-IN" className="text-[#333333]">A文 Hindi (IN)</option>
                                 </select>
                             </div>
-                            <div className="border border-white/20 rounded-[6px] hover:border-white/40 transition-colors overflow-hidden bg-white/5">
+                            <div className="border border-[#A3A3A3]/30 rounded-[6px] hover:border-[#A3A3A3] transition-colors overflow-hidden bg-[#FFFFFF]/5">
                                 <select 
                                     value={userCurrency || 'INR'} 
                                     onChange={(e) => setUserCurrency(e.target.value)} 
-                                    className="w-full py-3 px-4 text-[14px] text-[#F5F5F5] bg-transparent outline-none cursor-pointer appearance-none"
+                                    className="w-full py-3 px-4 text-[14px] text-[#FFFFFF] bg-transparent outline-none cursor-pointer appearance-none"
                                 >
-                                    <option value="INR" className="text-black">INR Indian Rupee (₹)</option>
-                                    <option value="USD" className="text-black">USD US Dollar ($)</option>
-                                    <option value="EUR" className="text-black">EUR Euro (€)</option>
-                                    <option value="GBP" className="text-black">GBP British Pound (£)</option>
+                                    <option value="INR" className="text-[#333333]">INR Indian Rupee (₹)</option>
+                                    <option value="USD" className="text-[#333333]">USD US Dollar ($)</option>
+                                    <option value="EUR" className="text-[#333333]">EUR Euro (€)</option>
+                                    <option value="GBP" className="text-[#333333]">GBP British Pound (£)</option>
                                 </select>
                             </div>
                         </div>
@@ -167,19 +165,19 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom Legal / Copyright Divider */}
-                <div className="border-t border-white/10 pt-8 mt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="border-t border-[#A3A3A3]/20 pt-8 mt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div className="flex flex-col space-y-2">
-                        <p className="text-[12px] text-[#F5F5F5]/50">
+                        <p className="text-[12px] text-[#A3A3A3]">
                             Copyright © Booknshow Entertainment Inc {currentYear} 
-                            <button className="text-[#F84464] hover:underline ml-2">Company Details</button>
+                            <button className="text-[#EB5B6E] hover:underline ml-2">Company Details</button>
                         </p>
-                        <p className="text-[12px] text-[#F5F5F5]/40 leading-relaxed max-w-5xl">
-                            Use of this web site constitutes acceptance of the <button className="text-white hover:underline mx-1">Terms and Conditions</button> and <button className="text-white hover:underline mx-1">Privacy Policy</button> and <button className="text-white hover:underline mx-1">Cookies Policy</button> and <button className="text-white hover:underline mx-1">Mobile Privacy Policy</button> 
+                        <p className="text-[12px] text-[#626262] leading-relaxed max-w-5xl">
+                            Use of this web site constitutes acceptance of the <button className="text-[#A3A3A3] hover:underline mx-1">Terms and Conditions</button> and <button className="text-[#A3A3A3] hover:underline mx-1">Privacy Policy</button> and <button className="text-[#A3A3A3] hover:underline mx-1">Cookies Policy</button> and <button className="text-[#A3A3A3] hover:underline mx-1">Mobile Privacy Policy</button> 
                         </p>
                     </div>
                     <div className="flex items-center space-x-6 shrink-0">
-                        <MapPin size={24} className="text-[#F84464] opacity-80" />
-                        <Mail size={24} className="text-[#F84464] opacity-80" />
+                        <MapPin size={24} className="text-[#E7364D]" />
+                        <Mail size={24} className="text-[#E7364D]" />
                     </div>
                 </div>
             </div>
