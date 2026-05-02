@@ -61,8 +61,8 @@ function MainLayout() {
 
     return (
         <InactivityTimeout>
-            {/* GLOBAL REBRAND: Changed base background to Wild Sand (#F5F5F5) and text to Ebony Clay (#1F2533) */}
-            <div className="flex flex-col w-full min-h-screen bg-[#F5F5F5] text-[#1F2533] relative">
+            {/* GLOBAL REBRAND: Changed base background to White (#FFFFFF) and text to Dark Gray (#333333) */}
+            <div className="flex flex-col w-full min-h-screen bg-[#FFFFFF] text-[#333333] relative">
                 
                 {/* Route-Based Header Swapping */}
                 {!hideGlobalHeader && (
@@ -156,10 +156,10 @@ export default function App() {
 
     if (authLoading) {
         return (
-            /* GLOBAL REBRAND: Loader styling changed to Wild Sand / Carnation */
-            <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center">
-                <div className="w-10 h-10 border-4 border-[#F84464] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-[#1F2533] font-bold text-[12px] uppercase tracking-widest">Securing Booknshow Connection...</p>
+            /* GLOBAL REBRAND: Loader styling changed to White background with Red (#E7364D) spinner */
+            <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center">
+                <div className="w-10 h-10 border-4 border-[#E7364D] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-[#626262] font-bold text-[12px] uppercase tracking-widest">Securing Booknshow Connection...</p>
             </div>
         );
     }
