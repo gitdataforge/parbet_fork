@@ -6,20 +6,29 @@ import { useAppStore } from '../../store/useStore';
 import { auth, db } from '../../lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
 
-// Helper Component for exact Viagogo input styling with red asterisks
+/**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 2 Signup)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
+ * FEATURE 1: Booknshow Registration Pipeline
+ * FEATURE 2: High-End SVG Verification Checkboxes
+ * FEATURE 3: Seamless Form Validation & Feedback
+ */
+
+// Helper Component for exact input styling (Rebranded)
 const CustomInput = ({ label, required, type = "text", value, onChange, ...props }) => (
     <div className="relative w-full mb-4">
         <input 
             type={type} 
             value={value} 
             onChange={onChange} 
-            className="w-full border border-[#cccccc] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333] outline-none focus:border-[#114C2A] focus:ring-1 focus:ring-[#114C2A] transition-all bg-white"
+            className="w-full border border-[#A3A3A3] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333333] outline-none focus:border-[#E7364D] focus:ring-1 focus:ring-[#E7364D] transition-all bg-[#FFFFFF] placeholder-[#A3A3A3]"
             {...props}
         />
         {!value && (
-            <div className="absolute left-3 top-3.5 text-[#767676] text-[15px] pointer-events-none flex items-center bg-transparent">
-                {label} {required && <span className="text-[#d32f2f] ml-1">*</span>}
+            <div className="absolute left-3 top-3.5 text-[#A3A3A3] text-[15px] pointer-events-none flex items-center bg-transparent">
+                {label} {required && <span className="text-[#E7364D] ml-1">*</span>}
             </div>
         )}
     </div>
@@ -41,12 +50,12 @@ export default function Signup() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
     // Auto-redirect if already logged in
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/dashboard');
+            navigate('/explore'); // Rebranded default route
         }
     }, [isAuthenticated, navigate]);
 
@@ -93,7 +102,7 @@ export default function Signup() {
                 photo: ''
             });
             setOnboarded();
-            navigate('/dashboard');
+            navigate('/explore'); // Rebranded default route post-signup
         } catch (err) {
             if (err.code === 'auth/email-already-in-use') {
                 setError('An account with this email already exists.');
@@ -108,11 +117,11 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen bg-black/40 flex items-center justify-center py-12 px-4 relative font-sans">
+        <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center py-12 px-4 relative font-sans">
             
-            {/* Floating Green Feedback Tab (Exact Match from Screenshot) */}
+            {/* Floating Feedback Tab (Rebranded) */}
             <div 
-                className="fixed right-0 top-[30%] bg-[#458731] text-white text-[13px] font-bold py-3 px-1.5 rounded-l-[4px] cursor-pointer shadow-md hover:bg-[#366a26] transition-colors z-50 flex items-center justify-center"
+                className="fixed right-0 top-[30%] bg-[#333333] text-[#FFFFFF] text-[13px] font-bold py-3 px-1.5 rounded-l-[4px] cursor-pointer shadow-md hover:bg-[#E7364D] transition-colors z-50 flex items-center justify-center"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
             >
                 Feedback
@@ -122,21 +131,26 @@ export default function Signup() {
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white w-full max-w-[580px] rounded-[12px] shadow-2xl overflow-hidden flex flex-col relative"
+                className="bg-[#FFFFFF] w-full max-w-[580px] rounded-[12px] shadow-[0_10px_40px_rgba(51,51,51,0.08)] overflow-hidden flex flex-col relative border border-[#A3A3A3]/20"
             >
                 {/* Global Close Button (Routes back to Login) */}
                 <button 
                     onClick={() => navigate('/login')} 
-                    className="absolute top-5 right-5 text-gray-500 hover:text-gray-800 transition-colors z-10"
+                    className="absolute top-5 right-5 text-[#A3A3A3] hover:text-[#E7364D] transition-colors z-10"
                 >
                     <X size={24} strokeWidth={1.5} />
                 </button>
 
                 <div className="px-8 pt-8 pb-10 flex flex-col">
-                    <h2 className="text-[24px] font-bold text-[#1a1a1a] mb-6 tracking-tight">Create account</h2>
+                    
+                    <div className="mb-6 self-start cursor-pointer" onClick={() => navigate('/')}>
+                        <BooknshowLogo className="h-[32px]" />
+                    </div>
+                    
+                    <h2 className="text-[24px] font-bold text-[#333333] mb-6 tracking-tight">Create account</h2>
                     
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 text-[#d32f2f] text-[13px] border border-red-200 rounded-[6px] font-bold">
+                        <div className="mb-4 p-3 bg-[#FAD8DC]/30 text-[#E7364D] text-[13px] border border-[#E7364D]/50 rounded-[6px] font-bold">
                             {error}
                         </div>
                     )}
@@ -148,14 +162,14 @@ export default function Signup() {
                         
                         <div className="flex space-x-3 mb-4 w-full">
                             {/* Country Code Dropdown Fake */}
-                            <div className="w-[140px] border border-[#cccccc] rounded-[6px] px-3 py-2 flex flex-col justify-center bg-gray-50/50 relative cursor-pointer hover:bg-gray-50 transition-colors shrink-0">
-                                <span className="text-[10px] text-gray-500 font-medium">Country Code</span>
+                            <div className="w-[140px] border border-[#A3A3A3] rounded-[6px] px-3 py-2 flex flex-col justify-center bg-[#F5F5F5] relative cursor-pointer hover:border-[#E7364D] transition-colors shrink-0">
+                                <span className="text-[10px] text-[#A3A3A3] font-medium">Country Code</span>
                                 <div className="flex items-center justify-between mt-0.5">
                                     <div className="flex items-center">
                                         <span className="text-[16px] mr-2">🇮🇳</span> 
-                                        <span className="text-[15px] text-[#333]">+91</span>
+                                        <span className="text-[15px] text-[#333333]">+91</span>
                                     </div>
-                                    <ChevronDown size={14} className="text-gray-400"/>
+                                    <ChevronDown size={14} className="text-[#A3A3A3]"/>
                                 </div>
                             </div>
                             
@@ -165,11 +179,11 @@ export default function Signup() {
                                     type="tel" 
                                     value={phone} 
                                     onChange={(e) => setPhone(e.target.value)} 
-                                    className="w-full h-full border border-[#cccccc] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333] outline-none focus:border-[#114C2A] focus:ring-1 focus:ring-[#114C2A] transition-all bg-white"
+                                    className="w-full h-full border border-[#A3A3A3] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333333] outline-none focus:border-[#E7364D] focus:ring-1 focus:ring-[#E7364D] transition-all bg-[#FFFFFF]"
                                 />
                                 {!phone && (
-                                    <div className="absolute left-3 top-[18px] text-[#767676] text-[15px] pointer-events-none flex items-center bg-transparent">
-                                        Phone Number <span className="text-[#d32f2f] ml-1">*</span>
+                                    <div className="absolute left-3 top-[18px] text-[#A3A3A3] text-[15px] pointer-events-none flex items-center bg-transparent">
+                                        Phone Number <span className="text-[#E7364D] ml-1">*</span>
                                     </div>
                                 )}
                             </div>
@@ -178,12 +192,12 @@ export default function Signup() {
                         <CustomInput label="Password" required={true} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
                         {/* SMS Agreement Checkbox */}
-                        <div className="flex items-start space-x-3 mb-6 mt-2 cursor-pointer" onClick={() => setAgreeSMS(!agreeSMS)}>
-                            <div className={`w-[18px] h-[18px] mt-0.5 rounded-[4px] flex items-center justify-center transition-colors shrink-0 ${agreeSMS ? 'bg-[#8bc53f] border-[#8bc53f]' : 'border-2 border-gray-300 bg-white'}`}>
-                                {agreeSMS && <Check size={12} className="text-white" strokeWidth={3}/>}
+                        <div className="flex items-start space-x-3 mb-6 mt-2 cursor-pointer group" onClick={() => setAgreeSMS(!agreeSMS)}>
+                            <div className={`w-[18px] h-[18px] mt-0.5 rounded-[4px] flex items-center justify-center transition-colors shrink-0 ${agreeSMS ? 'bg-[#E7364D] border-[#E7364D]' : 'border-2 border-[#A3A3A3] bg-[#FFFFFF] group-hover:border-[#E7364D]'}`}>
+                                {agreeSMS && <Check size={12} className="text-[#FFFFFF]" strokeWidth={3}/>}
                             </div>
-                            <span className="text-[13px] text-[#333] leading-snug">
-                                I agree to receive SMS from parbet for verification.<span className="text-[#d32f2f] ml-1">*</span>
+                            <span className="text-[13px] text-[#333333] leading-snug group-hover:text-[#E7364D] transition-colors">
+                                I agree to receive SMS from Booknshow for verification.<span className="text-[#E7364D] ml-1">*</span>
                             </span>
                         </div>
 
@@ -191,22 +205,22 @@ export default function Signup() {
                         <button 
                             type="submit" 
                             disabled={loading || !firstName || !lastName || !email || !phone || !password || !agreeSMS}
-                            className={`w-full py-3.5 rounded-[8px] font-bold text-[15px] transition-colors mb-6 flex justify-center items-center ${(firstName && lastName && email && phone && password && agreeSMS) ? 'bg-[#8bc53f] text-white hover:bg-[#7cbd34] shadow-sm' : 'bg-[#e0e0e0] text-[#a6a6a6]'}`}
+                            className={`w-full py-3.5 rounded-[8px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${(firstName && lastName && email && phone && password && agreeSMS) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
                         >
                             {loading ? (
-                                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                <div className="w-5 h-5 border-2 border-[#FFFFFF]/30 border-t-[#FFFFFF] rounded-full animate-spin"></div>
                             ) : (
                                 'Create Account'
                             )}
                         </button>
 
                         {/* Marketing Checkbox */}
-                        <div className="flex items-start space-x-3 cursor-pointer" onClick={() => setKeepUpdated(!keepUpdated)}>
-                            <div className={`w-[18px] h-[18px] mt-0.5 rounded-[4px] flex items-center justify-center transition-colors shrink-0 ${keepUpdated ? 'bg-[#8bc53f] border-[#8bc53f]' : 'border-2 border-gray-300 bg-white'}`}>
-                                {keepUpdated && <Check size={12} className="text-white" strokeWidth={3}/>}
+                        <div className="flex items-start space-x-3 cursor-pointer group" onClick={() => setKeepUpdated(!keepUpdated)}>
+                            <div className={`w-[18px] h-[18px] mt-0.5 rounded-[4px] flex items-center justify-center transition-colors shrink-0 ${keepUpdated ? 'bg-[#E7364D] border-[#E7364D]' : 'border-2 border-[#A3A3A3] bg-[#FFFFFF] group-hover:border-[#E7364D]'}`}>
+                                {keepUpdated && <Check size={12} className="text-[#FFFFFF]" strokeWidth={3}/>}
                             </div>
-                            <span className="text-[13px] text-[#555] leading-snug pr-4">
-                                Please keep me updated by email about the latest news, great deals and special offers
+                            <span className="text-[13px] text-[#626262] leading-snug pr-4 group-hover:text-[#E7364D] transition-colors">
+                                Please keep me updated by email about the latest news, great deals and special offers from Booknshow
                             </span>
                         </div>
                     </form>
