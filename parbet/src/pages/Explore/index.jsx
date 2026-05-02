@@ -10,6 +10,8 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 import ViagogoFilterBar from '../../components/ViagogoFilterBar';
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 5 Explore Grid)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: 1:1 Enterprise UI Replication (Grid, Typography & Spacing)
  * FEATURE 2: Cryptographic Deduplication Engine (Merges duplicate seller listings into 1 card)
  * FEATURE 3: Midnight Expiration Algorithm (Keeps today's events visible until 11:59 PM)
@@ -164,7 +166,7 @@ export default function Explore() {
     };
 
     return (
-        <div className="w-full min-h-screen bg-white font-sans text-[#1a1a1a]">
+        <div className="w-full min-h-screen bg-[#FFFFFF] font-sans text-[#333333]">
             {/* The ONLY Filter bar that should exist on the page */}
             <ViagogoFilterBar />
 
@@ -177,11 +179,11 @@ export default function Explore() {
             <div className="max-w-[1400px] mx-auto px-4 md:px-8 mt-6 md:mt-10">
                 
                 <div className="mb-6 md:mb-8">
-                    <h1 className="text-[26px] md:text-[34px] font-black tracking-tight text-[#1a1a1a] leading-tight">
-                        Explore events near {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? userCity : 'you'}
+                    <h1 className="text-[26px] md:text-[34px] font-black tracking-tight text-[#333333] leading-tight">
+                        Explore events near {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? <span className="text-[#E7364D]">{userCity}</span> : 'you'}
                     </h1>
                     {isAdmin && (
-                        <div className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded-[6px] mt-2 font-black text-[11px] uppercase tracking-widest shadow-sm">
+                        <div className="inline-flex items-center gap-1.5 bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/50 px-3 py-1 rounded-[6px] mt-2 font-black text-[11px] uppercase tracking-widest shadow-sm">
                             <ShieldAlert size={14} /> Admin Inventory Active
                         </div>
                     )}
@@ -189,17 +191,17 @@ export default function Explore() {
 
                 {isLoading ? (
                     <div className="w-full py-32 flex flex-col items-center justify-center">
-                        <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={44} />
-                        <p className="text-[14px] font-bold text-gray-500 uppercase tracking-widest">Hydrating Market Feed</p>
+                        <Loader2 className="animate-spin text-[#E7364D] mb-4" size={44} />
+                        <p className="text-[14px] font-bold text-[#A3A3A3] uppercase tracking-widest">Hydrating Market Feed</p>
                     </div>
                 ) : filteredEvents.length === 0 ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 py-20 flex flex-col items-center text-center bg-[#fcfcfc] rounded-[32px] border border-[#e2e2e2]">
-                        <div className="w-20 h-20 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-6">
-                            <SearchX size={40} className="text-[#c21c3a]" />
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 py-20 flex flex-col items-center text-center bg-[#F5F5F5] rounded-[32px] border border-[#A3A3A3]/20 shadow-sm">
+                        <div className="w-20 h-20 bg-[#FAD8DC]/50 rounded-full flex items-center justify-center mb-6 border border-[#E7364D]/20">
+                            <SearchX size={40} className="text-[#E7364D]" />
                         </div>
-                        <h3 className="text-[22px] font-black text-[#1a1a1a]">No events found</h3>
-                        <p className="text-gray-500 mt-2 mb-6 max-w-sm font-medium">Try adjusting your date, price selection, or changing your location.</p>
-                        <button onClick={clearAllFilters} className="bg-[#1a1a1a] text-white px-8 py-3.5 rounded-full font-bold shadow-lg hover:bg-black transition-colors">Clear Filters</button>
+                        <h3 className="text-[22px] font-black text-[#333333]">No events found</h3>
+                        <p className="text-[#626262] mt-2 mb-6 max-w-sm font-medium">Try adjusting your date, price selection, or changing your location.</p>
+                        <button onClick={clearAllFilters} className="bg-[#333333] text-[#FFFFFF] px-8 py-3.5 rounded-full font-bold shadow-md hover:bg-[#E7364D] transition-colors">Clear Filters</button>
                     </motion.div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 pb-20">
@@ -221,42 +223,42 @@ export default function Explore() {
                                     >
                                         {/* ADMIN TRIGGER */}
                                         {isAdmin && (
-                                            <button onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(m); setAdminModalOpen(true); }} className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2.5 rounded-full shadow-[0_8px_20px_rgba(220,38,38,0.4)] opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:scale-110">
+                                            <button onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(m); setAdminModalOpen(true); }} className="absolute top-3 left-3 z-[60] bg-[#E7364D] text-[#FFFFFF] p-2.5 rounded-full shadow-[0_8px_20px_rgba(231,54,77,0.4)] opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:scale-110 hover:bg-[#333333]">
                                                 <Pencil size={14} />
                                             </button>
                                         )}
 
-                                        {/* EXACT VIAGOGO IMAGE FRAME (Borderless & Flat) */}
-                                        <div className="w-full aspect-[1.4] rounded-[12px] overflow-hidden relative mb-3 bg-[#f8f9fa]">
+                                        {/* EXACT IMAGE FRAME (Rebranded) */}
+                                        <div className="w-full aspect-[1.4] rounded-[16px] overflow-hidden relative mb-4 bg-[#F5F5F5] border border-[#A3A3A3]/20 shadow-sm group-hover:shadow-[0_10px_30px_rgba(51,51,51,0.08)] transition-all">
                                             <img src={safeImage} alt={m.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-95" />
                                             
-                                            {/* Exact Viagogo Heart Button */}
-                                            <button onClick={(e) => handleRestrictedAction(e, m)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors z-20">
-                                                <Heart size={16} className={isFav ? "fill-white text-white" : "text-white"} />
+                                            {/* Heart Button */}
+                                            <button onClick={(e) => handleRestrictedAction(e, m)} className="absolute top-3 right-3 w-[36px] h-[36px] rounded-full bg-[#FFFFFF]/90 backdrop-blur-md flex items-center justify-center hover:bg-[#FAD8DC] transition-colors z-20 shadow-sm border border-[#A3A3A3]/20">
+                                                <Heart size={18} className={isFav ? "fill-[#E7364D] text-[#E7364D]" : "text-[#A3A3A3]"} strokeWidth={isFav ? 0 : 2} />
                                             </button>
                                         </div>
 
-                                        {/* EXACT VIAGOGO CONTENT AREA */}
+                                        {/* EXACT CONTENT AREA */}
                                         <div className="flex flex-col px-0.5">
-                                            <h3 className="font-bold text-[16px] text-[#1a1a1a] leading-[1.3] mb-1.5 line-clamp-2">
+                                            <h3 className="font-bold text-[16px] text-[#333333] leading-[1.3] mb-1.5 line-clamp-2 group-hover:text-[#E7364D] transition-colors">
                                                 {m.title || m.eventName || `${m.t1} vs ${m.t2}`}
                                             </h3>
                                             
                                             {/* Date Mapping: "Sun, 10 May • 18:00" */}
-                                            <p className="text-[13px] text-[#54626c] mb-0.5 font-normal">
+                                            <p className="text-[13px] text-[#626262] mb-0.5 font-normal">
                                                 {m.safeDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} • {m.safeDateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                             
                                             {/* Venue & City Mapping: "Venue in City" */}
-                                            <p className="text-[13px] text-[#54626c] line-clamp-1 mb-2 font-normal">
+                                            <p className="text-[13px] text-[#626262] line-clamp-1 mb-2 font-normal">
                                                 {m.loc || m.stadium} in {m.city || m.location?.split(',')[0]}
                                             </p>
 
                                             {/* Minimalist Price */}
                                             {formattedPrice ? (
-                                                <p className="text-[14px] font-medium text-[#1a1a1a]">Starting from {formattedPrice}</p>
+                                                <p className="text-[14px] font-medium text-[#A3A3A3]">Starting from <span className="font-bold text-[16px] text-[#333333]">{formattedPrice}</span></p>
                                             ) : (
-                                                <div className="inline-flex items-center gap-1 text-[#c21c3a] mt-0.5">
+                                                <div className="inline-flex items-center gap-1 text-[#E7364D] mt-0.5">
                                                     <AlertCircle size={14} />
                                                     <span className="text-[12px] font-bold uppercase tracking-widest">Sold Out</span>
                                                 </div>
