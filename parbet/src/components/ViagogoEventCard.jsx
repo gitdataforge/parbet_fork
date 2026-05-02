@@ -3,6 +3,8 @@ import { Heart, Eye, MapPin, Calendar } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 4 Event Card)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: PocketBase / Cloudinary Scrubber (Fixes 404 console errors from legacy DB seeds)
  * FEATURE 2: Real-Time Universal Payload Mapping (Handles both old and new seeded schemas)
  * FEATURE 3: Dynamic Starting Price Engine (Calculated lowest tier or direct root price)
@@ -83,7 +85,7 @@ export default function ViagogoEventCard({ event, onClick }) {
             className="min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer snap-start group relative flex flex-col"
         >
             {/* IMAGE WRAPPER */}
-            <div className="relative w-full aspect-[4/3] rounded-[16px] overflow-hidden mb-4 bg-[#f8f9fa] border border-[#e2e2e2]">
+            <div className="relative w-full aspect-[4/3] rounded-[16px] overflow-hidden mb-4 bg-[#F5F5F5] border border-[#A3A3A3]/20 shadow-sm group-hover:shadow-md transition-shadow">
                 
                 <img 
                     src={displayImage} 
@@ -96,42 +98,42 @@ export default function ViagogoEventCard({ event, onClick }) {
                 
                 <button 
                     onClick={(e) => handleRestrictedAction(e, event)} 
-                    className="absolute top-3 right-3 w-[32px] h-[32px] rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center hover:bg-black transition-colors shadow-md z-10"
+                    className="absolute top-3 right-3 w-[32px] h-[32px] rounded-full bg-[#FFFFFF]/90 backdrop-blur-md flex items-center justify-center hover:bg-[#FAD8DC] transition-colors shadow-[0_2px_10px_rgba(51,51,51,0.1)] z-10"
                 >
-                    <Heart size={16} className="text-white" strokeWidth={2}/>
+                    <Heart size={16} className="text-[#E7364D]" strokeWidth={2}/>
                 </button>
 
                 {event.views > 50 && (
-                    <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-[6px] flex items-center gap-1.5 shadow-sm">
-                        <Eye size={12} className="text-[#c21c3a]" strokeWidth={2.5} />
-                        <span className="text-[10px] font-black text-[#1a1a1a] uppercase tracking-wider">{event.views} viewing</span>
+                    <div className="absolute bottom-3 left-3 bg-[#FFFFFF]/95 backdrop-blur-md px-2.5 py-1.5 rounded-[6px] flex items-center gap-1.5 shadow-sm border border-[#FAD8DC]/50">
+                        <Eye size={12} className="text-[#E7364D]" strokeWidth={2.5} />
+                        <span className="text-[10px] font-black text-[#333333] uppercase tracking-wider">{event.views} viewing</span>
                     </div>
                 )}
             </div>
             
             {/* META INFORMATION */}
-            <h3 className="font-bold text-[#1a1a1a] text-[16px] leading-snug mb-1.5 truncate pr-2">
+            <h3 className="font-bold text-[#333333] text-[16px] leading-snug mb-1.5 truncate pr-2 group-hover:text-[#E7364D] transition-colors">
                 {displayTitle}
             </h3>
             
-            <p className="text-[13px] text-[#54626c] mb-1 font-medium truncate flex items-center gap-1.5">
-                <Calendar size={14} className="text-[#9ca3af] shrink-0" />
+            <p className="text-[13px] text-[#626262] mb-1 font-medium truncate flex items-center gap-1.5">
+                <Calendar size={14} className="text-[#A3A3A3] shrink-0" />
                 {parseEventDate(displayTimestamp)}
             </p>
 
-            <p className="text-[13px] text-[#54626c] mb-3 font-medium truncate flex items-center gap-1.5">
-                <MapPin size={14} className="text-[#9ca3af] shrink-0" />
+            <p className="text-[13px] text-[#626262] mb-3 font-medium truncate flex items-center gap-1.5">
+                <MapPin size={14} className="text-[#A3A3A3] shrink-0" />
                 {displayStadium}, {displayCity?.split(',')[0]}
             </p>
 
             {/* PRICING ENGINE */}
             <div className="mt-auto pt-2">
                 {formattedPrice ? (
-                    <p className="text-[14px] text-[#1a1a1a] font-medium">
-                        From <span className="font-black text-[16px] text-[#458731]">{formattedPrice}</span>
+                    <p className="text-[14px] text-[#626262] font-medium">
+                        From <span className="font-black text-[16px] text-[#E7364D]">{formattedPrice}</span>
                     </p>
                 ) : (
-                    <div className="inline-flex items-center gap-1.5 bg-[#fdf2f2] text-[#c21c3a] px-2.5 py-1 rounded-[4px]">
+                    <div className="inline-flex items-center gap-1.5 bg-[#FAD8DC]/30 border border-[#E7364D]/20 text-[#E7364D] px-2.5 py-1 rounded-[4px]">
                         <span className="text-[11px] font-black uppercase tracking-widest">Sold Out</span>
                     </div>
                 )}

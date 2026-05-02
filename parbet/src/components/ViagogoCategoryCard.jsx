@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Activity, Image as ImageIcon } from 'lucide-react';
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 4 Category Card)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Cloudinary Legacy Scrubber (Strips broken proxy URLs to prevent 404s)
  * FEATURE 2: Native PocketBase & Unsplash URL Passthrough
  * FEATURE 3: Hardware-Accelerated Hover Physics (Framer Motion)
@@ -66,19 +68,19 @@ export default function ViagogoCategoryCard({ name, img, onClick, activeEvents =
             onClick={onClick} 
             whileHover={{ y: -4, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="relative aspect-[3/2] rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-xl hover:shadow-[#8cc63f]/20 transition-all duration-300 border border-gray-200 focus:outline-none focus:ring-4 focus:ring-[#8cc63f]/50"
+            className="relative aspect-[3/2] rounded-[16px] overflow-hidden cursor-pointer group shadow-sm hover:shadow-[0_10px_30px_rgba(231,54,77,0.25)] transition-all duration-300 border border-[#A3A3A3]/20 focus:outline-none focus:ring-4 focus:ring-[#FAD8DC]/50"
             tabIndex={0}
             role="button"
             aria-label={`Explore ${name} events`}
         >
-            {/* FEATURE 5: Skeleton Loader State */}
+            {/* FEATURE 5: Skeleton Loader State (Rebranded to #F5F5F5) */}
             <AnimatePresence>
                 {!isLoaded && !hasError && (
                     <motion.div 
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center z-0"
+                        className="absolute inset-0 bg-[#F5F5F5] animate-pulse flex items-center justify-center z-0"
                     >
-                        <ImageIcon size={24} className="text-gray-300" />
+                        <ImageIcon size={24} className="text-[#A3A3A3]" />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -94,18 +96,18 @@ export default function ViagogoCategoryCard({ name, img, onClick, activeEvents =
                 />
             )}
             
-            {/* FEATURE 10: Multi-Stop Glassmorphism Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/90 via-[#1a1a1a]/40 to-transparent flex flex-col justify-between p-4 md:p-5 z-20">
+            {/* FEATURE 10: Multi-Stop Glassmorphism Gradient Overlay (Rebranded to Ebony Clay) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#333333]/90 via-[#333333]/40 to-transparent flex flex-col justify-between p-4 md:p-5 z-20">
                 
-                {/* FEATURE 8: Dynamic Live Events Badge */}
+                {/* FEATURE 8: Dynamic Live Events Badge (Rebranded to #E7364D) */}
                 <div className="flex justify-end w-full">
                     <motion.div 
                         initial={{ opacity: 0, x: 10 }}
                         animate={{ opacity: isLoaded ? 1 : 0, x: 0 }}
-                        className="bg-white/20 backdrop-blur-md border border-white/30 px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        className="bg-[#FFFFFF]/20 backdrop-blur-md border border-[#FFFFFF]/30 px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     >
-                        <Activity size={10} className="text-[#8cc63f]" />
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none mt-0.5">
+                        <Activity size={10} className="text-[#E7364D]" />
+                        <span className="text-[10px] font-black text-[#FFFFFF] uppercase tracking-widest leading-none mt-0.5">
                             {displayEvents} Live
                         </span>
                     </motion.div>
@@ -113,11 +115,11 @@ export default function ViagogoCategoryCard({ name, img, onClick, activeEvents =
 
                 {/* FEATURE 7: Subpixel Font Anti-Aliasing & Text Lift */}
                 <motion.div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300 ease-out">
-                    <h3 className="text-white font-black text-[18px] md:text-[22px] leading-tight drop-shadow-md tracking-tight flex items-center gap-2">
+                    <h3 className="text-[#FFFFFF] font-black text-[18px] md:text-[22px] leading-tight drop-shadow-md tracking-tight flex items-center gap-2">
                         {name}
-                        <Sparkles size={14} className="text-[#8cc63f] opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100" />
+                        <Sparkles size={14} className="text-[#E7364D] opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100" />
                     </h3>
-                    <div className="w-0 h-1 bg-[#8cc63f] mt-2 group-hover:w-8 transition-all duration-300 ease-out rounded-full" />
+                    <div className="w-0 h-1 bg-[#E7364D] mt-2 group-hover:w-8 transition-all duration-300 ease-out rounded-full" />
                 </motion.div>
             </div>
         </motion.div>
