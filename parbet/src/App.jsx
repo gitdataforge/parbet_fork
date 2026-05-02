@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 
 // Store Imports
 import { useAppStore } from './store/useStore';
-import { useMainStore } from './store/useMainStore'; // CRITICAL: Real-time buyer data engine
+import { useMainStore } from './store/useMainStore'; 
 
 // FEATURE: Fleet Command Real-Time Imports
 import { db } from './lib/firebase';
@@ -16,7 +16,7 @@ import Header from './components/Header';
 import ExploreHeader from './components/ExploreHeader';
 import Footer from './components/Footer';
 import ProfileLayout from './layouts/ProfileLayout'; 
-import InactivityTimeout from './components/InactivityTimeout'; // INJECTED: Global Security Wrapper
+import InactivityTimeout from './components/InactivityTimeout'; 
 
 // Page Components
 import Home from './pages/Home';
@@ -61,7 +61,8 @@ function MainLayout() {
 
     return (
         <InactivityTimeout>
-            <div className="flex flex-col w-full min-h-screen bg-white text-[#1a1a1a] relative">
+            {/* GLOBAL REBRAND: Changed base background to Wild Sand (#F5F5F5) and text to Ebony Clay (#1F2533) */}
+            <div className="flex flex-col w-full min-h-screen bg-[#F5F5F5] text-[#1F2533] relative">
                 
                 {/* Route-Based Header Swapping */}
                 {!hideGlobalHeader && (
@@ -136,13 +137,15 @@ export default function App() {
                 if (currentVersion === null) {
                     currentVersion = data.v || '1.0';
                 } else if (data.v && data.v !== currentVersion) {
-                    console.log("Fleet Command: New deployment detected. Initiating instant cache-busted reload.");
+                    // GLOBAL REBRAND: Log update
+                    console.log("Booknshow Fleet Command: New deployment detected. Initiating instant cache-busted reload.");
                     window.location.reload(true);
                 }
             }
         }, (error) => {
             if (error.code !== 'permission-denied') {
-                console.warn("Fleet Command Listener Status:", error.message);
+                // GLOBAL REBRAND: Log update
+                console.warn("Booknshow Fleet Command Listener Status:", error.message);
             }
         });
 
@@ -153,9 +156,10 @@ export default function App() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-                <div className="w-10 h-10 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-[#54626c] font-bold text-[12px] uppercase tracking-widest">Securing Connection...</p>
+            /* GLOBAL REBRAND: Loader styling changed to Wild Sand / Carnation */
+            <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center">
+                <div className="w-10 h-10 border-4 border-[#F84464] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-[#1F2533] font-bold text-[12px] uppercase tracking-widest">Securing Booknshow Connection...</p>
             </div>
         );
     }
