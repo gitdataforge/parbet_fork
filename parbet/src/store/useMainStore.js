@@ -5,9 +5,12 @@ import {
     onSnapshot, 
     doc, 
     setDoc, 
+    addDoc,
     serverTimestamp,
     query,
-    where
+    where,
+    updateDoc,
+    increment
 } from 'firebase/firestore';
 import { 
     signInAnonymously, 
@@ -21,6 +24,13 @@ import { useAppStore } from './useStore';
 // Retrieve global environment variables (Strict Fallback to Parbet Project ID)
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
+// Booknshow God-Mode Admins (Synchronized with Firestore Rules)
+const ADMIN_EMAILS = [
+    'testcodecfg@gmail.com', 
+    'krishnamehta.gm@gmail.com', 
+    'jatinseth.op@gmail.com'
+];
+
 // Safe Date Parser to prevent sorting crashes on varying Timestamp formats
 const safeGetTime = (val) => {
     if (!val) return 0;
@@ -33,13 +43,18 @@ export const useMainStore = create((set, get) => ({
     // --- STATE ---
     user: null,
     isAuthenticated: false,
+    isAdmin: false,
     authLoading: true, // Gatekeeper starts in locked mode
 
-    // Real-time Data
-    orders: [],
+    // Real-time Ledger Data
+    orders: [], // Purchases
+    sales: [],  // Seller Revenue
     isLoadingOrders: false,
     
-    wallet: { balance: 0, currency: 'INR' },
+    // Financial State
+    wallet: { balance: 0, pendingEscrow: 0, currency: 'INR' },
+    bankDetails: null,
+    withdrawals: [],
     isLoadingWallet: false,
 
     // Internal listener cleanup registry
@@ -49,43 +64,37 @@ export const useMainStore = create((set, get) => ({
 
     /**
      * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
-     * This is the master lock. It prevents any data sync until a valid UID is granted.
-     * CRITICAL BUGFIX: Evaluates user.isAnonymous. Ghost users get a UID but NOT isAuthenticated.
      */
     initAuth: async () => {
         set({ authLoading: true });
         
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // SECURITY PATCH: Detect if this is a ghost/anonymous user
                 const isFullyAuthenticated = !user.isAnonymous;
+                const isGodMode = ADMIN_EMAILS.includes(user.email);
                 
-                // LOCK RELEASED: Valid identity confirmed, but restrict auth flags for anonymous
                 set({ 
                     user, 
                     isAuthenticated: isFullyAuthenticated, 
+                    isAdmin: isGodMode,
                     authLoading: false 
                 });
                 
-                // CRITICAL FIX: Synchronize the strict auth flag into the UI store
                 useAppStore.getState().setUser(user);
                 useAppStore.getState().setAuth(isFullyAuthenticated);
                 
-                // TRIGGER: Start data pipeline (Anonymous users still get a pipeline for public features, but personal queries will safely return empty)
                 get().startDataListeners(user.uid);
             } else {
-                // If no user, clear both stores completely
                 useAppStore.getState().setUser(null);
                 useAppStore.getState().setAuth(false);
+                set({ isAdmin: false });
 
-                // Perform auto-login to get a UID for public browsing
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
-                    // onAuthStateChanged will fire again with the new anonymous user
                 } catch (error) {
                     console.error("Critical Auth Handshake Error:", error);
                     set({ authLoading: false });
@@ -95,73 +104,68 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 2 & 3: Real-Time Data Synchronization (Guarded)
-     * RULE: Strictly returns immediately if userId is missing.
+     * FEATURE 2: Real-Time Financial Synchronization (Orders, Sales, Escrow, Banks, Withdrawals)
      */
     startDataListeners: (userId) => {
-        // SECURITY GATEKEEPER: Prevent premature Firestore access
-        if (!userId) {
-            console.warn("Gatekeeper: Blocked Firestore access - User ID missing.");
-            return;
-        }
-
-        // Stop any existing listeners to prevent memory leaks or duplicate streams
+        if (!userId) return;
         get().stopListeners();
 
         const listeners = [];
+        set({ isLoadingOrders: true, isLoadingWallet: true });
 
-        // 1. ORDERS LISTENER (Strict Path: /artifacts/appId/public/data/orders)
-        set({ isLoadingOrders: true });
+        // 1. ORDERS LISTENER (Purchases made by this user)
         const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-        const ordersQuery = query(ordersRef, where('buyerId', '==', userId));
+        const buyerQuery = query(ordersRef, where('buyerId', '==', userId));
         
-        const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+        const unsubOrders = onSnapshot(buyerQuery, (snapshot) => {
             const ordersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             ordersList.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
             set({ orders: ordersList, isLoadingOrders: false });
-        }, (error) => {
-            // Silently handle auth-transition errors during re-auth
-            if (error.code !== 'permission-denied') {
-                console.error("Orders sync failed:", error);
-            } else {
-                console.warn("Orders sync permission denied. Awaiting auth stabilization.");
-            }
-            set({ isLoadingOrders: false });
         });
         listeners.push(unsubOrders);
 
-        // 2. WALLET LISTENER (Private Doc: /artifacts/appId/users/userId/wallet/main)
-        set({ isLoadingWallet: true });
-        const walletDocRef = doc(db, 'artifacts', appId, 'users', userId, 'wallet', 'main');
-        
-        const unsubWallet = onSnapshot(walletDocRef, (snap) => {
-            if (snap.exists()) {
-                set({ wallet: snap.data(), isLoadingWallet: false });
-            } else {
-                // Feature: Auto-provision wallet for fully registered users only (saves database writes on ghost users)
-                if (!get().user?.isAnonymous) {
-                    setDoc(walletDocRef, { 
-                        balance: 0, 
-                        currency: 'INR', 
-                        lastUpdated: serverTimestamp() 
-                    }).catch(e => console.warn('Silent wallet provision fail', e));
-                }
-                set({ isLoadingWallet: false });
-            }
-        }, (error) => {
-            if (error.code !== 'permission-denied') {
-                console.error("Wallet sync failed:", error);
-            }
+        // 2. ESCROW & SALES LISTENER (Revenue generated by this user)
+        const sellerQuery = query(ordersRef, where('sellerId', '==', userId));
+        const unsubSales = onSnapshot(sellerQuery, (snapshot) => {
+            const salesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            // Calculate real-time escrow balance from completed sales
+            const totalRevenue = salesList.reduce((sum, sale) => sum + (Number(sale.amount) || 0), 0);
+            
+            set((state) => ({ 
+                sales: salesList,
+                wallet: { ...state.wallet, balance: totalRevenue }
+            }));
             set({ isLoadingWallet: false });
         });
-        listeners.push(unsubWallet);
+        listeners.push(unsubSales);
+
+        // 3. BANK DETAILS LISTENER
+        const bankRef = collection(db, 'artifacts', appId, 'public', 'data', 'payment_methods');
+        const bankQuery = query(bankRef, where('userId', '==', userId));
+        const unsubBank = onSnapshot(bankQuery, (snapshot) => {
+            if (!snapshot.empty) {
+                // Assuming one primary bank detail document per user
+                set({ bankDetails: { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } });
+            } else {
+                set({ bankDetails: null });
+            }
+        });
+        listeners.push(unsubBank);
+
+        // 4. WITHDRAWALS LISTENER
+        const withdrawalsRef = collection(db, 'artifacts', appId, 'public', 'data', 'withdrawals');
+        const wQuery = query(withdrawalsRef, where('userId', '==', userId));
+        const unsubWithdrawals = onSnapshot(wQuery, (snapshot) => {
+            const wList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            wList.sort((a, b) => safeGetTime(b.requestedAt) - safeGetTime(a.requestedAt));
+            set({ withdrawals: wList });
+        });
+        listeners.push(unsubWithdrawals);
 
         set({ activeListeners: listeners });
     },
 
-    /**
-     * FEATURE 4: Lifecycle Cleanup
-     */
     stopListeners: () => {
         const { activeListeners } = get();
         activeListeners.forEach(unsub => unsub());
@@ -169,27 +173,89 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 5: Secure Password Recovery via Vercel Micro-Backend
+     * FEATURE 3: Secure Bank Details Registration
      */
-    resetPassword: async (email) => {
+    saveBankDetails: async (bankData) => {
+        const { user, bankDetails } = get();
+        if (!user || user.isAnonymous) throw new Error("Must be logged in to save payment methods.");
+
         try {
-            // Update this URL if your Vercel production domain differs
-            const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
+            const payload = {
+                userId: user.uid,
+                ...bankData,
+                updatedAt: serverTimestamp()
+            };
+
+            if (bankDetails && bankDetails.id) {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'payment_methods', bankDetails.id);
+                await updateDoc(docRef, payload);
+            } else {
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'payment_methods');
+                await addDoc(colRef, payload);
+            }
+            return { success: true };
+        } catch (error) {
+            console.error("Failed to save bank details:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * FEATURE 4: Financial Withdrawal Engine (Admin Instant Transfer vs User Pending)
+     */
+    requestWithdrawal: async (amount) => {
+        const { user, wallet, isAdmin, bankDetails } = get();
+        
+        if (!user || user.isAnonymous) throw new Error("Authentication required.");
+        if (amount <= 0) throw new Error("Invalid withdrawal amount.");
+        if (amount > wallet.balance) throw new Error("Insufficient escrow balance.");
+        if (!bankDetails) throw new Error("Please add your Bank/UPI details in Settings first.");
+
+        try {
+            const withdrawalsRef = collection(db, 'artifacts', appId, 'public', 'data', 'withdrawals');
             
-            const response = await fetch(VERCEL_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to dispatch secure password reset email.');
+            // Logic Fork: Admin Direct Transfer vs Standard User Request
+            if (isAdmin) {
+                // Admins get instant approval and simulated direct bank transfer
+                await addDoc(withdrawalsRef, {
+                    userId: user.uid,
+                    amount: amount,
+                    status: 'Processed (Direct Transfer)',
+                    bankAccount: bankDetails.accountNumber || bankDetails.upiId,
+                    requestedAt: serverTimestamp(),
+                    processedAt: serverTimestamp(),
+                    processedBy: 'SYSTEM_ADMIN'
+                });
+                
+                // Note: In a fully scaled app, this is where you trigger the RazorpayX / Stripe Connect Payout API
+            } else {
+                // Standard users go into the pending queue for manual or delayed approval
+                await addDoc(withdrawalsRef, {
+                    userId: user.uid,
+                    amount: amount,
+                    status: 'Pending',
+                    bankAccount: bankDetails.accountNumber || bankDetails.upiId,
+                    requestedAt: serverTimestamp()
+                });
             }
 
+            return { success: true };
+        } catch (error) {
+            console.error("Withdrawal request failed:", error);
+            throw error;
+        }
+    },
+
+    resetPassword: async (email) => {
+        try {
+            const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
+            const response = await fetch(VERCEL_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to dispatch secure password reset email.');
             return { success: true };
         } catch (error) {
             console.error("Password recovery failed:", error);
@@ -197,23 +263,23 @@ export const useMainStore = create((set, get) => ({
         }
     },
 
-    /**
-     * FEATURE 6: Secure Sign Out
-     */
     logout: async () => {
         get().stopListeners();
         await auth.signOut();
         
-        // Sync logout to UI Store
         useAppStore.getState().setUser(null);
         useAppStore.getState().setAuth(false);
         
         set({ 
             user: null, 
             isAuthenticated: false, 
+            isAdmin: false,
             orders: [], 
-            wallet: { balance: 0, currency: 'INR' },
-            authLoading: true // Re-lock the gatekeeper
+            sales: [],
+            bankDetails: null,
+            withdrawals: [],
+            wallet: { balance: 0, pendingEscrow: 0, currency: 'INR' },
+            authLoading: true 
         });
     }
 }));
