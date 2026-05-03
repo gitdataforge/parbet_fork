@@ -6,6 +6,7 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
+    "target": "buyer",
     "public": "dist",
     "ignore": [
       "firebase.json",
@@ -34,8 +35,8 @@
     "providers": {
       "emailPassword": true,
       "googleSignIn": {
-        "oAuthBrandDisplayName": "parbetauth",
-        "supportEmail": "auth.parbet@outlook.com"
+        "oAuthBrandDisplayName": "Booknshow",
+        "supportEmail": "support@booknshow.web.app"
       }
     }
   }
