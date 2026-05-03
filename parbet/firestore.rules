@@ -23,7 +23,7 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // PARBET PRODUCTION ROOT COLLECTIONS (Shared by Buyer & Seller Sites)
+    // BOOKNSHOW PRODUCTION ROOT COLLECTIONS (Shared by Buyer & Seller Sites)
     // =========================================================================
     
     // FEATURE 4: Shared Marketplace Inventory (Events & Ticket Tiers)
@@ -56,7 +56,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // FEATURE 9: Encrypted User Data Vaults (Buyer/Seller Profiles, Wallets)
+    // FEATURE 9: Encrypted User Data Vaults (Buyer/Seller Profiles)
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
       allow write: if isOwner(userId);
@@ -72,6 +72,35 @@ service cloud.firestore {
     match /platform_config/{configId} {
       allow read: if true; // Public read for rendering banners on home page
       allow write: if isAdmin(); // Strictly locked to God-Mode Admins
+    }
+
+    // =========================================================================
+    // BOOKNSHOW FINANCIAL & WALLET INFRASTRUCTURE
+    // =========================================================================
+
+    // FEATURE 13: Financial PII & Bank Details Vault
+    match /payment_methods/{methodId} {
+      // Users can read/update/delete their own payment methods. Admins have global access.
+      allow read, update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // FEATURE 14: Withdrawal Request Pipeline
+    match /withdrawals/{withdrawalId} {
+      // Users can read their own withdrawals.
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      // Users can strictly request a withdrawal for their own UID.
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // ONLY Admins can update the withdrawal (e.g., change status to "processed" or execute direct transfer).
+      allow update, delete: if isAdmin();
+    }
+
+    // FEATURE 15: Escrow Wallets Security
+    match /wallets/{walletId} {
+      // Wallet reads restricted to the owner or admins.
+      allow read: if isAdmin() || (isAuthenticated() && (walletId == request.auth.uid || resource.data.userId == request.auth.uid));
+      // Strict Financial Lock: Users cannot arbitrarily change their wallet balance. Only Admins (or secure backend functions) can write/update balances.
+      allow write: if isAdmin();
     }
 
     // =========================================================================
@@ -101,7 +130,7 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // FEATURE 11 Canvas Fallback: Platform Config Security
+      // Canvas Fallback: Platform Config Security
       match /public/data/platform_config/{configId} {
         allow read: if true;
         allow write: if isAdmin();
@@ -110,6 +139,23 @@ service cloud.firestore {
       match /users/{userId}/{document=**} {
         allow read: if isAdmin() || isOwner(userId);
         allow write: if isOwner(userId);
+      }
+
+      // Canvas Fallback: Financial Infrastructure
+      match /public/data/payment_methods/{methodId} {
+        allow read, update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      }
+
+      match /public/data/withdrawals/{withdrawalId} {
+        allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
+
+      match /public/data/wallets/{walletId} {
+        allow read: if isAdmin() || (isAuthenticated() && (walletId == request.auth.uid || resource.data.userId == request.auth.uid));
+        allow write: if isAdmin();
       }
     }
 
