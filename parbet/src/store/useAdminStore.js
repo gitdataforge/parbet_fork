@@ -114,8 +114,9 @@ export const useAdminStore = create((set, get) => ({
             });
             listeners.push(unsubPayments);
 
-            // 4. GLOBAL EVENTS LISTENER (Inventory Audit)
-            const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
+            // 4. GLOBAL EVENTS LISTENER (Inventory Audit) - CRITICAL FIX
+            // Re-routed to the absolute root 'events' collection where seller data lives
+            const eventsRef = collection(db, 'events');
             const unsubEvents = onSnapshot(eventsRef, (snapshot) => {
                 const eList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 
