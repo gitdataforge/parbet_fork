@@ -150,7 +150,7 @@ export default function Header() {
                     {/* Right Section: Actions & Dropdowns */}
                     <div className="flex items-center gap-6 text-[15px] font-bold text-[#333333] shrink-0" ref={dropdownRef}>
                         <button onClick={() => navigate('/explore')} className="hover:text-[#E7364D] transition-colors">Explore</button>
-                        <button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hover:text-[#E7364D] transition-colors">Sell</button>
+                        <button onClick={() => window.location.href = 'https://seller-booknshow.web.app'} className="hover:text-[#E7364D] transition-colors">Sell</button>
                         <button onClick={() => handleNavigation('/profile/settings')} className="hover:text-[#E7364D] transition-colors">Favourites</button>
                         
                         {/* My Tickets Dropdown */}
@@ -305,7 +305,7 @@ export default function Header() {
 
                         {menuView === 'sell' && (
                             <ul className="flex flex-col w-full py-2">
-                                <li onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
+                                <li onClick={() => window.location.href = 'https://seller-booknshow.web.app'} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
                                     Sell Tickets
                                 </li>
                                 <li onClick={() => handleNavigation('/profile/orders')} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
