@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     CreditCard, Ticket, Clock, Check, Lock, MapPin, 
     UploadCloud, Building, CheckCircle2, ShieldAlert, 
-    Loader2, AlertTriangle, Info, Eye, Zap, X, ChevronDown, Smartphone
+    Loader2, AlertTriangle, Info, Eye, Zap, X, ChevronDown, Smartphone,
+    User, ShieldCheck
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 import { useAppStore } from '../../store/useStore';
@@ -476,7 +477,7 @@ export default function Checkout() {
 
                     {/* Step 1: Contact Information */}
                     <div className="bg-[#FFFFFF] p-6 md:p-8 rounded-[12px] border border-[#A3A3A3]/20 shadow-sm">
-                        <h2 className="text-[22px] font-black text-[#333333] mb-2 flex items-center"><UserIcon className="mr-2" /> 1. Contact Information</h2>
+                        <h2 className="text-[22px] font-black text-[#333333] mb-2 flex items-center"><User className="mr-2 text-[#E7364D]" size={22} /> 1. Contact Information</h2>
                         <p className="text-[14px] text-[#626262] font-medium mb-6">Where should we securely deliver your Booknshow tickets?</p>
                         
                         <div className="bg-[#F5F5F5] rounded-[8px] p-4 mb-6 border border-[#A3A3A3]/20">
@@ -682,15 +683,6 @@ export default function Checkout() {
                     </div>
                 </aside>
             </div>
-
-            {/* Custom SVG Icon Component */}
-            {function UserIcon(props) {
-                return (
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" className="text-[#E7364D]" {...props}>
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
-                );
-            }({})}
         </div>
     );
 }
