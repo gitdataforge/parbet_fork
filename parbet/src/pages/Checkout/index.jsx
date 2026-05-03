@@ -12,7 +12,9 @@ import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/fires
 import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 import { loadRazorpayScript } from '../../utils/razorpay';
-import { sendTicketEmail } from '../../services/emailService';
+
+// CRITICAL FIX: Explicitly append .js extension to bypass Vite module resolution crash in Codespaces
+import { sendTicketEmail } from '../../services/emailService.js';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Checkout Engine)
