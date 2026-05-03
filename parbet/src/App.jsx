@@ -40,6 +40,10 @@ import AdminUsers from './pages/Admin/Users';
 import AdminFinancials from './pages/Admin/Financials';
 import AdminEvents from './pages/Admin/Events';
 
+// PHASE 10: CHECKOUT NODES
+import Checkout from './pages/Checkout';
+import CheckoutSuccess from './pages/Checkout/Success';
+
 // Dynamic module imports for high-performance routing
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const dynamicRoutes = Object.keys(pages).map((path) => {
@@ -49,22 +53,24 @@ const dynamicRoutes = Object.keys(pages).map((path) => {
 
 function MainLayout() {
     const location = useLocation();
+    
+    // FEATURE: Security Gatekeeper Props
     const { isAuthenticated, isAdmin } = useMainStore();
     
-    // FEATURE 1: Strict Route Identification
+    // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
     const isAdminPath = location.pathname.toLowerCase().startsWith('/admin');
     
-    // FEATURE 2: Isolation Engine (Hides Header/Footer)
+    // FEATURE: Isolation Engine (Hides Header/Footer)
     // ADDED: /checkout and /checkout/success for distraction-free transaction flow
     const isIsolatedPage = ['/event', '/login', '/signup', '/checkout', '/checkout/success'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
 
-    // FEATURE 3: Route-Based Header Injection
+    // Route-Based Header Injection
     const isExplorePage = location.pathname.toLowerCase() === '/explore' || location.pathname.toLowerCase().startsWith('/explore/');
     
-    // FEATURE 4: Header Separation Logic
+    // Header Separation Logic
     const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath;
 
     return (
@@ -82,6 +88,10 @@ function MainLayout() {
                         <Route path="/" element={<Home />} />
                         
                         <Route path="/performer/:id" element={<Performer />} />
+
+                        {/* PHASE 10: CHECKOUT PIPELINE */}
+                        <Route path="/checkout" element={isAuthenticated ? <Checkout /> : <Navigate to="/login" replace />} />
+                        <Route path="/checkout/success" element={isAuthenticated ? <CheckoutSuccess /> : <Navigate to="/login" replace />} />
                         
                         {/* PHASE 9: STRICT ADMIN SECURITY PIPELINE */}
                         <Route path="/admin">
@@ -90,8 +100,8 @@ function MainLayout() {
                             <Route path="financials" element={(isAuthenticated && isAdmin) ? <AdminFinancials /> : <Navigate to="/" replace />} />
                             <Route path="events" element={(isAuthenticated && isAdmin) ? <AdminEvents /> : <Navigate to="/" replace />} />
                         </Route>
-
-                        {/* PROFILE PIPELINE */}
+                        
+                        {/* PROFILE PIPELINE: Appended /* to explicitly permit nested routing */}
                         <Route path="/profile/*" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
                             <Route index element={<Profile />} />
                             <Route path="orders" element={<Orders />} />
@@ -105,8 +115,10 @@ function MainLayout() {
                         </Route>
 
                         {dynamicRoutes.map(({ name, Component }) => {
-                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin'].includes(name)) return null;
+                            // Skip pages already handled by static routes or excluded
+                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin', 'Checkout'].includes(name)) return null;
 
+                            // Protect Legacy Dashboard
                             if (name === 'Dashboard') {
                                 return <Route key={name} path={`/dashboard`} element={isAuthenticated ? <Component /> : <Navigate to="/login" replace />} />;
                             }
@@ -140,6 +152,7 @@ export default function App() {
     useEffect(() => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         
+        // CRITICAL FIX: Explicitly appending the 6th segment ('latest') to create a valid Document Reference
         const versionRef = doc(db, 'artifacts', appId, 'public', 'data', 'system_version', 'latest');
         
         let currentVersion = null;
@@ -167,7 +180,6 @@ export default function App() {
 
     if (authLoading) {
         return (
-            /* GLOBAL REBRAND: High-end animation loader in Booknshow Red */
             <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-4 border-[#E7364D] border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(231,54,77,0.3)]"></div>
                 <p className="text-[#626262] font-black text-[12px] uppercase tracking-widest animate-pulse">Securing Booknshow Connection...</p>
