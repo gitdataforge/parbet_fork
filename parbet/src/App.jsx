@@ -91,8 +91,8 @@ function MainLayout() {
                             <Route path="events" element={(isAuthenticated && isAdmin) ? <AdminEvents /> : <Navigate to="/" replace />} />
                         </Route>
                         
-                        {/* PROFILE PIPELINE */}
-                        <Route path="/profile" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
+                        {/* PROFILE PIPELINE: Appended /* to explicitly permit nested routing and suppress React Router warnings */}
+                        <Route path="/profile/*" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
                             <Route index element={<Profile />} />
                             <Route path="orders" element={<Orders />} />
                             <Route path="listings" element={<Listings />} />
