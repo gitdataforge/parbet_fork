@@ -19,7 +19,7 @@ import { useMainStore } from '../../store/useMainStore';
  * FEATURE 6: Resolved CheckCircle2 Import Crash
  * FEATURE 7: Live Event Countdown Timer Engine
  * FEATURE 8: Dynamic Account Completion/Strength Calculator
- * FEATURE 9: Recent Activity Ledger Feed
+ * FEATURE 9: Recent Activity Ledger Feed (Deduplicated)
  * FEATURE 10: Real-Time IP Geolocation Connected Devices Tracker
  * FEATURE 11: One-Click Profile Sharing Hook
  * FEATURE 12: Interactive Hardware-Accelerated Progress Bars
@@ -38,6 +38,17 @@ export default function Overview() {
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0 });
     const [sessionLocation, setSessionLocation] = useState('Detecting location...');
 
+    // deduplicate orders globally for accurate analytics and display
+    const uniqueOrders = useMemo(() => {
+        if (!orders) return [];
+        const seen = new Set();
+        return orders.filter(order => {
+            const isDuplicate = seen.has(order.id);
+            seen.add(order.id);
+            return !isDuplicate;
+        });
+    }, [orders]);
+
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
         if (hour < 12) return 'Good morning';
@@ -46,28 +57,28 @@ export default function Overview() {
     }, []);
 
     const upcomingEvent = useMemo(() => {
-        if (!orders || orders.length === 0) return null;
+        if (uniqueOrders.length === 0) return null;
         const now = new Date().getTime();
-        const futureOrders = orders.filter(o => {
-            const eventTime = new Date(o.commence_time || o.eventTimestamp || o.createdAt).getTime();
+        const futureOrders = uniqueOrders.filter(o => {
+            const eventTime = new Date(o.commence_time?.seconds ? o.commence_time.seconds * 1000 : o.commence_time || o.eventTimestamp || o.createdAt?.seconds ? o.createdAt.seconds * 1000 : o.createdAt).getTime();
             return isNaN(eventTime) || eventTime >= now;
         });
         
         if (futureOrders.length === 0) return null;
 
         futureOrders.sort((a, b) => {
-            const timeA = new Date(a.commence_time || a.eventTimestamp || a.createdAt).getTime();
-            const timeB = new Date(b.commence_time || b.eventTimestamp || b.createdAt).getTime();
+            const timeA = new Date(a.commence_time?.seconds ? a.commence_time.seconds * 1000 : a.commence_time || a.eventTimestamp || a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime();
+            const timeB = new Date(b.commence_time?.seconds ? b.commence_time.seconds * 1000 : b.commence_time || b.eventTimestamp || b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime();
             return timeA - timeB;
         });
 
         return futureOrders[0];
-    }, [orders]);
+    }, [uniqueOrders]);
 
     // Live Event Countdown Timer
     useEffect(() => {
         if (!upcomingEvent) return;
-        const targetTime = new Date(upcomingEvent.commence_time || upcomingEvent.eventTimestamp).getTime();
+        const targetTime = new Date(upcomingEvent.commence_time?.seconds ? upcomingEvent.commence_time.seconds * 1000 : upcomingEvent.commence_time || upcomingEvent.eventTimestamp).getTime();
         if (isNaN(targetTime)) return;
 
         const interval = setInterval(() => {
@@ -118,14 +129,31 @@ export default function Overview() {
         fetchLocation();
     }, []);
 
+    // Analytics Calculation Logic using deduplicated orders
+    const analytics = useMemo(() => {
+        let active = 0;
+        let totalSpent = 0;
+        const now = new Date().getTime();
+        
+        uniqueOrders.forEach(order => {
+            totalSpent += Number(order.totalAmount || order.amountPaid || 0);
+            const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
+            if (!isNaN(eventTime) && eventTime >= now) {
+                active += Number(order.quantity || 1);
+            }
+        });
+        
+        return { active, totalSpent };
+    }, [uniqueOrders]);
+
     // Profile Strength Calculator
     const profileStrength = useMemo(() => {
         let score = 25; 
         if (user?.emailVerified) score += 25;
         if (wallet?.bankAdded) score += 25; 
-        if (orders?.length > 0) score += 25;
+        if (uniqueOrders?.length > 0) score += 25;
         return score;
-    }, [user, wallet, orders]);
+    }, [user, wallet, uniqueOrders]);
 
     // Share Profile Hook
     const handleShareProfile = async () => {
@@ -154,13 +182,30 @@ export default function Overview() {
         show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } }
     };
 
+    // SECTION 1: Ambient Illustrative Background
+    const AmbientBackground = () => (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+            <motion.div
+                className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-[#FAD8DC] opacity-20 blur-[80px]"
+                animate={{ scale: [1, 1.05, 1], opacity: [0.15, 0.25, 0.15] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+                className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-[#EB5B6E] opacity-10 blur-[100px]"
+                animate={{ scale: [1, 1.1, 1], opacity: [0.05, 0.1, 0.05] }}
+                transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            />
+        </div>
+    );
+
     return (
         <div className="w-full relative bg-transparent font-sans">
+            <AmbientBackground />
             <motion.div 
                 variants={containerVariants} 
                 initial="hidden" 
                 animate="show"
-                className="flex flex-col space-y-8"
+                className="flex flex-col space-y-8 relative z-10"
             >
                 
                 {/* SECTION 1 & 2: Header Section & Active Status */}
@@ -215,8 +260,8 @@ export default function Overview() {
                             </div>
                             <h3 className="text-[16px] font-bold text-[#626262] mb-1">Total Active Tickets</h3>
                             <div className="flex items-end gap-3 mb-6">
-                                <p className="text-[36px] font-black text-[#333333] leading-none">{orders.length}</p>
-                                <p className="text-[13px] font-medium text-[#A3A3A3] mb-1">reserved events</p>
+                                <p className="text-[36px] font-black text-[#333333] leading-none">{analytics.active}</p>
+                                <p className="text-[13px] font-medium text-[#A3A3A3] mb-1">reserved passes</p>
                             </div>
                         </div>
                         <button onClick={() => navigate('/profile/orders')} className="relative z-10 w-full py-3 bg-[#F5F5F5] text-[#333333] text-[14px] font-bold rounded-[8px] hover:bg-[#333333] hover:text-[#FFFFFF] transition-colors border border-[#A3A3A3]/20 flex items-center justify-center">
@@ -233,7 +278,7 @@ export default function Overview() {
                             <h3 className="text-[16px] font-bold text-[#626262] mb-1">Available Escrow Balance</h3>
                             <div className="flex items-end gap-3 mb-6">
                                 <p className="text-[36px] font-black text-[#333333] leading-none">
-                                    {wallet.currency} {wallet.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {wallet?.currency || '₹'} {(wallet?.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
                             </div>
                         </div>
@@ -269,7 +314,7 @@ export default function Overview() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="bg-[#333333] text-[#FFFFFF] text-[10px] font-black uppercase px-2 py-0.5 rounded-[4px]">Upcoming</span>
-                                            <span className="text-[13px] font-bold text-[#626262]">{formatShortDate(upcomingEvent.commence_time || upcomingEvent.eventTimestamp || upcomingEvent.createdAt)}</span>
+                                            <span className="text-[13px] font-bold text-[#626262]">{formatShortDate(upcomingEvent.commence_time?.seconds ? upcomingEvent.commence_time.seconds * 1000 : upcomingEvent.commence_time || upcomingEvent.eventTimestamp || upcomingEvent.createdAt)}</span>
                                         </div>
                                         <h4 className="text-[16px] font-black text-[#333333] truncate mb-2">{upcomingEvent.eventName || 'Booknshow Event'}</h4>
                                         <div className="flex items-center text-[13px] text-[#A3A3A3] font-bold">
@@ -300,7 +345,7 @@ export default function Overview() {
                                 <Activity size={20} className="mr-2 text-[#E7364D]" /> Recent Activity
                             </h3>
                             <div className="space-y-4">
-                                {orders.slice(0, 3).map((order, idx) => (
+                                {uniqueOrders.slice(0, 3).map((order, idx) => (
                                     <div key={idx} className="flex items-center justify-between py-2 border-b border-[#A3A3A3]/10 last:border-0 hover:bg-[#F5F5F5] transition-colors rounded-[8px] px-2 -mx-2 cursor-pointer" onClick={() => navigate('/profile/orders')}>
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 bg-[#FAD8DC]/30 border border-[#E7364D]/20 rounded-full flex items-center justify-center"><Zap size={14} className="text-[#E7364D]"/></div>
@@ -312,7 +357,7 @@ export default function Overview() {
                                         <ChevronRight size={16} className="text-[#A3A3A3]" />
                                     </div>
                                 ))}
-                                {orders.length === 0 && <p className="text-[13px] text-[#A3A3A3] italic font-bold">No recent platform activity.</p>}
+                                {uniqueOrders.length === 0 && <p className="text-[13px] text-[#A3A3A3] italic font-bold">No recent platform activity.</p>}
                             </div>
                         </div>
                     </div>
