@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+// CRITICAL FIX: Restored ALL missing lucide-react icons required by the component to prevent ReferenceError crashes
 import { 
     Ticket, Search, Filter, Calendar, MapPin, 
-    Download, ShieldCheck, Tag, Loader2, ArrowRight, X, AlertTriangle, ExternalLink, HelpCircle,
-    BarChart3 // CRITICAL FIX: Explicitly import BarChart3 to prevent ReferenceError crash
+    Download, ShieldCheck, Tag, Loader2, ArrowRight, 
+    X, AlertCircle, CheckCircle2, ExternalLink, HelpCircle,
+    BarChart3, Repeat, Eye, Zap, ChevronRight
 } from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 import { useNavigate } from 'react-router-dom';
@@ -280,7 +282,7 @@ export default function Orders() {
                                                             onClick={() => setSelectedTicket(order)}
                                                             className={`px-6 py-2.5 rounded-[8px] text-[14px] font-bold transition-all shadow-sm flex items-center ${isPending ? 'bg-[#F5F5F5] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] hover:shadow-[0_4px_15px_rgba(231,54,77,0.3)] hover:-translate-y-0.5'}`}
                                                         >
-                                                            <Download size={16} className="mr-2" /> View & Download E-Ticket
+                                                            <Eye size={16} className="mr-2" /> View & Download E-Ticket
                                                         </button>
                                                         <button onClick={() => navigate('/seller/create')} className="px-6 py-2.5 bg-[#FFFFFF] border border-[#A3A3A3]/30 text-[#333333] text-[14px] font-bold rounded-[8px] hover:bg-[#FAD8DC]/10 hover:border-[#E7364D] hover:text-[#E7364D] flex items-center transition-all">
                                                             <Repeat size={16} className="mr-2" /> Sell on Marketplace
@@ -425,7 +427,7 @@ export default function Orders() {
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
-                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName}</p>
+                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName || 'General Admission'}</p>
                                         </div>
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
