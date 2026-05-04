@@ -5,7 +5,10 @@
   "targets": {
     "parbet-44902": {
       "hosting": {
-        "buyer": [
+        "buyer-main": [
+          "parbet-44902"
+        ],
+        "buyer-custom": [
           "booknshow"
         ]
       }
