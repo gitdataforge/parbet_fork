@@ -6,6 +6,8 @@ import {
     Ticket, ShieldCheck, Download, ArrowRight, Smartphone
 } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
+// CRITICAL FIX: Use named export QRCodeSVG to prevent Vite compiler crash
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Post-Checkout UI)
@@ -15,7 +17,7 @@ import { useAppStore } from '../../store/useStore';
  * SECTION 1: Ambient Illustrative Backgrounds
  * SECTION 2: Dynamic Success Header & Email Confirmation Alert
  * SECTION 3: High-Fidelity Interactive Digital Ticket Container
- * SECTION 4: Cryptographic QR Code Engine (Real Order ID)
+ * SECTION 4: Cryptographic QR Code Engine (Native SVG)
  * SECTION 5: Live Event Snapshot (Title, Date, Venue)
  * SECTION 6: Seat/Tier Allocation Details
  * SECTION 7: Important Attendee Instructions
@@ -42,6 +44,19 @@ const AmbientBackground = () => (
     </div>
 );
 
+// High-End Booknshow SVG Logo Component
+const BooknshowLogo = () => (
+    <div className="flex items-center justify-center gap-2">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#333333"/>
+            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <h1 className="text-[32px] font-black tracking-tighter text-[#333333] uppercase">
+            BOOKN<span className="text-[#E7364D]">SHOW</span>
+        </h1>
+    </div>
+);
+
 export default function CheckoutSuccess() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -63,9 +78,13 @@ export default function CheckoutSuccess() {
 
     const { orderId, event } = payload;
     const shortOrderId = generateShortHash(orderId);
-    // Real QR Code generation pointing to the order
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=BOOKNSHOW_${orderId}&color=333333`;
-    const eventDate = event.commence_time || event.eventTimestamp ? new Date(event.commence_time?.seconds ? event.commence_time.seconds * 1000 : event.commence_time).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Date TBA';
+    
+    // Exact Date Hydration
+    const eventDate = event.commence_time?.seconds 
+        ? new Date(event.commence_time.seconds * 1000).toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+        : event.commence_time 
+            ? new Date(event.commence_time).toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'Date & Time TBA';
 
     // Animation Configs
     const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -77,7 +96,7 @@ export default function CheckoutSuccess() {
 
             {/* Top Distraction-Free Header */}
             <div className="w-full max-w-[800px] flex justify-center items-center mb-10 z-10 cursor-pointer" onClick={() => navigate('/')}>
-                <h1 className="text-[32px] font-black tracking-tighter text-[#333333] uppercase">BOOKN<span className="text-[#E7364D]">SHOW</span></h1>
+                <BooknshowLogo />
             </div>
 
             <motion.div initial="hidden" animate="show" variants={containerVariants} className="w-full max-w-[800px] z-10 relative">
@@ -114,7 +133,8 @@ export default function CheckoutSuccess() {
                     <div className="bg-[#FAFAFA] p-8 md:w-[250px] flex flex-col items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-[#A3A3A3]/20">
                         <h3 className="text-[14px] font-black text-[#333333] uppercase tracking-widest mb-6">Access Pass</h3>
                         <div className="bg-[#FFFFFF] p-3 rounded-[12px] border border-[#A3A3A3]/20 shadow-sm mb-4">
-                            <img src={qrCodeUrl} alt="Secure QR Code" className="w-40 h-40 object-contain" />
+                            {/* Native React SVG implementation of QR */}
+                            <QRCodeSVG value={`BOOKNSHOW_${orderId}`} size={160} fgColor="#333333" level="H" />
                         </div>
                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Order Hash</p>
                         <p className="text-[16px] font-mono font-black text-[#333333] tracking-wider">#{shortOrderId}</p>
@@ -146,7 +166,7 @@ export default function CheckoutSuccess() {
                                     <MapPin size={18} className="text-[#A3A3A3] mt-0.5" />
                                     <div>
                                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Venue Location</p>
-                                        <p className="text-[15px] font-black text-[#333333]">{event.eventLoc || event.stadium}</p>
+                                        <p className="text-[15px] font-black text-[#333333]">{event.eventLoc || event.stadium || 'Venue TBA'}</p>
                                     </div>
                                 </div>
                             </div>

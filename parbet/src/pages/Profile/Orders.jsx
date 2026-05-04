@@ -1,11 +1,15 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Calendar, MapPin, Loader2, AlertCircle, CheckCircle2, Ticket, Repeat, Search, Download, HelpCircle, BarChart3, X } from 'lucide-react';
+import { 
+    Ticket, Search, Filter, Calendar, MapPin, 
+    Download, ShieldCheck, Tag, Loader2, ArrowRight, X, AlertTriangle, ExternalLink, HelpCircle
+} from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import QRCode from 'qrcode.react';
+// CRITICAL FIX: Named export to prevent Vite compiler crash
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 7 Profile Orders)
@@ -46,6 +50,19 @@ const AmbientBackground = () => (
     </div>
 );
 
+// High-End Booknshow SVG Logo Component
+const BooknshowLogo = () => (
+    <div className="flex items-center gap-2 relative z-10">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#FFFFFF"/>
+            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <h1 className="text-[24px] font-black tracking-widest text-[#FFFFFF] uppercase">
+            BOOKN<span className="text-[#E7364D]">SHOW</span>
+        </h1>
+    </div>
+);
+
 export default function Orders() {
     const navigate = useNavigate();
     const { user, orders, isLoadingOrders } = useMainStore();
@@ -63,7 +80,7 @@ export default function Orders() {
         let totalSpent = 0;
         const now = new Date().getTime();
         
-        orders.forEach(order => {
+        (orders || []).forEach(order => {
             totalSpent += Number(order.amountPaid || order.totalAmount || 0);
             const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
             if (!isNaN(eventTime) && eventTime >= now) {
@@ -77,7 +94,7 @@ export default function Orders() {
     // SECTION 5: Logical Data Filtering & Deduplication
     const uniqueOrders = useMemo(() => {
         const seen = new Set();
-        return orders.filter(order => {
+        return (orders || []).filter(order => {
             const isDuplicate = seen.has(order.id);
             seen.add(order.id);
             return !isDuplicate;
@@ -371,11 +388,11 @@ export default function Orders() {
                             {/* The Digital Ticket Container (Captured by html2canvas) */}
                             <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative">
                                 
-                                {/* Booknshow Header */}
-                                <div className="bg-[#333333] p-6 text-center border-b-4 border-[#E7364D] relative overflow-hidden">
+                                {/* Booknshow Header with Logo */}
+                                <div className="bg-[#333333] p-6 flex flex-col items-center justify-center border-b-4 border-[#E7364D] relative overflow-hidden">
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                                    <h1 className="text-[24px] font-black tracking-widest text-[#FFFFFF] uppercase relative z-10">BOOKN<span className="text-[#E7364D]">SHOW</span></h1>
-                                    <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] mt-1 relative z-10">Official Access Pass</p>
+                                    <BooknshowLogo />
+                                    <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] mt-2 relative z-10">Official Access Pass</p>
                                 </div>
 
                                 {/* Event Info */}
@@ -408,7 +425,7 @@ export default function Orders() {
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
-                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName || 'General Admission'}</p>
+                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName}</p>
                                         </div>
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
@@ -423,7 +440,7 @@ export default function Orders() {
                                     {/* QR Code Section */}
                                     <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20">
                                         <div className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3">
-                                            <QRCode value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={140} fgColor="#333333" level="H" />
+                                            <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={140} fgColor="#333333" level="H" />
                                         </div>
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Ticket ID</p>
                                         <p className="text-[14px] font-mono font-black text-[#333333] tracking-widest">{selectedTicket.id.substring(0, 12).toUpperCase()}</p>
