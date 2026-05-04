@@ -87,7 +87,8 @@ export default function Checkout() {
             'testcodecfg@gmail.com',
             'krishnamehta.gm@gmail.com',
             'jatinseth.op@gmail.com',
-            'jachinfotech@gmail.com'
+            'jachinfotech@gmail.com',
+            'santhuprathipa@gmail.com'
         ];
         return adminList.some(adminEmail => adminEmail.toLowerCase() === normalizedUserEmail);
     }, [user?.email]);
