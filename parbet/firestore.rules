@@ -18,7 +18,8 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.email == 'testcodecfg@gmail.com' ||
         request.auth.token.email == 'krishnamehta.gm@gmail.com' ||
-        request.auth.token.email == 'jatinseth.op@gmail.com'
+        request.auth.token.email == 'jatinseth.op@gmail.com' ||
+        request.auth.token.email == 'Jachinfotech@gmail.com'
       );
     }
 
@@ -27,7 +28,7 @@ service cloud.firestore {
     // ==========================================
     function isGodModeCheckoutBypass(orderData) {
       return isAuthenticated() 
-          && request.auth.token.email == 'testcodecfg@gmail.com'
+          && (request.auth.token.email == 'testcodecfg@gmail.com' || request.auth.token.email == 'Jachinfotech@gmail.com')
           && (('amountPaid' in orderData && orderData.amountPaid == 0) || ('totalAmount' in orderData && orderData.totalAmount == 0))
           && ('paymentId' in orderData && orderData.paymentId.matches('^TEST_BYPASS_.*'));
     }
