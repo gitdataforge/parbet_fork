@@ -52,16 +52,17 @@ const AmbientBackground = () => (
     </div>
 );
 
-// High-End Booknshow SVG Logo Component
-const BooknshowLogo = () => (
-    <div className="flex items-center gap-2 relative z-10">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#FFFFFF"/>
-            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+// High-Fidelity Inline SVG Replica of Official Booknshow Logo
+const BooknshowLogo = ({ className = "", textColor = "text-[#333333]" }) => (
+    <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>book</span>
+        <svg width="34" height="40" viewBox="0 0 100 120" className="mx-1 transform -translate-y-1 hover:rotate-[-5deg] transition-transform duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Asymmetric Ticket Base */}
+            <path d="M5,25 L25,5 L50,25 L75,5 L95,25 L90,115 L75,100 L50,115 L25,100 L5,115 Z" fill="#E7364D" />
+            {/* White lowercase 'n' cutout */}
+            <path d="M35,85 L35,55 C35,35 65,35 65,55 L65,85" stroke="#FFFFFF" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <h1 className="text-[24px] font-black tracking-widest text-[#FFFFFF] uppercase">
-            BOOKN<span className="text-[#E7364D]">SHOW</span>
-        </h1>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>show</span>
     </div>
 );
 
@@ -390,11 +391,11 @@ export default function Orders() {
                             {/* The Digital Ticket Container (Captured by html2canvas) */}
                             <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative">
                                 
-                                {/* Booknshow Header with Logo */}
-                                <div className="bg-[#333333] p-6 flex flex-col items-center justify-center border-b-4 border-[#E7364D] relative overflow-hidden">
+                                {/* Dark Theme Ticket Header with Inverted Logo */}
+                                <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden">
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                                    <BooknshowLogo />
-                                    <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] mt-2 relative z-10">Official Access Pass</p>
+                                    <BooknshowLogo textColor="text-[#FFFFFF]" className="scale-75 origin-center -mb-2" />
+                                    <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
                                 </div>
 
                                 {/* Event Info */}
