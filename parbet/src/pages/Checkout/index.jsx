@@ -277,14 +277,17 @@ export default function Checkout() {
             const finalListingData = { ...localListing, quantity: selectedQty };
 
             // BASE PAYLOAD ARCHITECTURE
-            // CRITICAL FIX: Append commence_time and seatNumbers
+            // CRITICAL FIX: Append commence_time, eventLoc, tierName, imageUrl, and seatNumbers to fix Orders UI mapping
             const basePayload = {
                 buyerId: user.uid,
                 buyerEmail: checkoutFormData.contact.email,
                 buyerName: billingAddress.address || checkoutFormData.contact.email,
                 eventId: localListing.eventId,
                 eventName: localListing.eventName,
+                eventLoc: localListing.eventLoc || 'Venue TBA',
                 tierId: localListing.tierId,
+                tierName: localListing.tierName || 'General Admission',
+                imageUrl: localListing.imageUrl || '',
                 quantity: selectedQty,
                 seatNumbers: selectedSeats,
                 commence_time: localListing.commence_time || serverTimestamp(),

@@ -102,8 +102,17 @@ export default function Orders() {
         
         uniqueOrders.forEach(order => {
             totalSpent += Number(order.amountPaid || order.totalAmount || 0);
-            const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
-            if (!isNaN(eventTime) && eventTime >= now) {
+            
+            // CRITICAL FIX: Robust Date Fallback for the Upcoming/Past calculation
+            let eventTime;
+            if (order.commence_time?.seconds) eventTime = order.commence_time.seconds * 1000;
+            else if (order.commence_time) eventTime = new Date(order.commence_time).getTime();
+            else if (order.eventTimestamp) eventTime = new Date(order.eventTimestamp).getTime();
+            else if (order.createdAt?.seconds) eventTime = order.createdAt.seconds * 1000;
+            else eventTime = new Date(order.createdAt).getTime();
+
+            // Default to active if date parsing completely fails, preventing valid tickets from hiding in 'Past'
+            if (isNaN(eventTime) || eventTime >= now) {
                 active += Number(order.quantity || 1);
             }
         });
@@ -114,7 +123,15 @@ export default function Orders() {
     const filteredOrders = useMemo(() => {
         const now = new Date().getTime();
         return uniqueOrders.filter(order => {
-            const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
+            // CRITICAL FIX: Tab Sorting Logic Hardening
+            let eventTime;
+            if (order.commence_time?.seconds) eventTime = order.commence_time.seconds * 1000;
+            else if (order.commence_time) eventTime = new Date(order.commence_time).getTime();
+            else if (order.eventTimestamp) eventTime = new Date(order.eventTimestamp).getTime();
+            else if (order.createdAt?.seconds) eventTime = order.createdAt.seconds * 1000;
+            else eventTime = new Date(order.createdAt).getTime();
+            
+            // If date cannot be resolved, assume it's Upcoming to avoid hiding fresh orders
             const isPast = !isNaN(eventTime) && eventTime < now;
             
             // Tab Filter
@@ -246,7 +263,14 @@ export default function Orders() {
                             <AnimatePresence>
                                 {filteredOrders.map((order) => {
                                     const isPending = order.status === 'pending_approval' || order.paymentMethod === 'bank_transfer' || order.status === 'Pending';
-                                    const eventDate = order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt;
+                                    
+                                    // CRITICAL FIX: Safe Date Rendering for the UI Card
+                                    let eventDate;
+                                    if (order.commence_time?.seconds) eventDate = order.commence_time.seconds * 1000;
+                                    else if (order.commence_time) eventDate = order.commence_time;
+                                    else if (order.eventTimestamp) eventDate = order.eventTimestamp;
+                                    else if (order.createdAt?.seconds) eventDate = order.createdAt.seconds * 1000;
+                                    else eventDate = order.createdAt;
                                     
                                     return (
                                         <motion.div 
