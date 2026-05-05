@@ -90,13 +90,15 @@ service cloud.firestore {
     // FEATURE 9: Encrypted User Data Vaults (Buyer/Seller Profiles)
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
-      allow write: if isOwner(userId);
+      // CRITICAL FIX: Admins must be able to write to user documents to update roles/permissions
+      allow write: if isAdmin() || isOwner(userId);
     }
     
     // FEATURE 10: Deep Wildcard Sub-collection Protection
     match /users/{userId}/{document=**} {
       allow read: if isAdmin() || isOwner(userId);
-      allow write: if isOwner(userId);
+      // CRITICAL FIX: Admins must be able to write to user subcollections
+      allow write: if isAdmin() || isOwner(userId);
     }
 
     // FEATURE 11: Platform Config Security (Dynamic Banners & Promotions)
@@ -174,7 +176,8 @@ service cloud.firestore {
       
       match /users/{userId}/{document=**} {
         allow read: if isAdmin() || isOwner(userId);
-        allow write: if isOwner(userId);
+        // CRITICAL FIX: Admins must be able to write to user subcollections in the artifact path
+        allow write: if isAdmin() || isOwner(userId);
       }
 
       match /public/data/payment_methods/{methodId} {
