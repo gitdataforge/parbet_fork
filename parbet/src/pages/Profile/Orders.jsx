@@ -26,6 +26,7 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 8: 1:1 Rebranded Troubleshooting Empty State
  * FEATURE 9: Resale Portal Triggers
  * FEATURE 10: Strict Array Deduplication, Expanded PDF Layout & Exact SVG Logo
+ * FEATURE 11: Micro-Typography Flex Layout for Complex Seat Strings
  */
 
 // Safe Date Formatter
@@ -466,13 +467,13 @@ export default function Orders() {
                                             <p className="text-[15px] font-black text-[#333333]">{selectedTicket.quantity} Person(s)</p>
                                         </div>
                                         
-                                        {/* CRITICAL FIX: DYNAMIC SEAT ALLOCATION RENDERED IN TICKET */}
+                                        {/* CRITICAL FIX FEATURE 11: MICRO-TYPOGRAPHY FLEX LAYOUT FOR COMPLEX SEAT STRINGS */}
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
-                                            <div className="flex flex-wrap gap-2 mt-1">
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
                                                 {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
                                                     selectedTicket.seatNumbers.map(seat => (
-                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-2 py-0.5 rounded-[4px] text-[12px] font-black tracking-wide shadow-sm">{seat}</span>
+                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-1.5 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm break-all">{seat}</span>
                                                     ))
                                                 ) : (
                                                     <span className="text-[13px] font-bold text-[#626262]">General Admission / Unassigned</span>
