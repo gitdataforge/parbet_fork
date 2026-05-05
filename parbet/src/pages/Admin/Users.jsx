@@ -6,7 +6,7 @@ import {
     Hash, UserCheck, MoreVertical, Download, Lock, 
     CheckCircle2, ChevronDown, UserMinus, ShieldAlert,
     Settings, Ban, Edit3, Save, ToggleLeft, ToggleRight,
-    Briefcase, AlertTriangle, Key
+    Briefcase, AlertTriangle, Key, X, Loader2
 } from 'lucide-react';
 
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -31,7 +31,7 @@ import { useMainStore } from '../../store/useMainStore';
  * SECTION 8: Status & Role Badging System
  * SECTION 9: CSV Global Export Engine
  * FEATURE 10: Strict Route Gatekeeper (Kicks non-admins instantly)
- * FEATURE 11: Super Admin Ghosting Protocol (Hides testcodecfg@gmail.com)
+ * FEATURE 11: Conditional Super Admin Ghosting Protocol (Hides master from standard admins)
  * FEATURE 12: Role Elevation Engine (Buyer -> Seller -> Admin)
  * FEATURE 13: Granular Permission Matrix (canCreateEvents, canEditSeatingConfig)
  * FEATURE 14: Account Suspension & Ban Execution
@@ -113,20 +113,26 @@ export default function AdminUsers() {
 
     // Data Processing & Compute Engine
     const { processedUsers, stats } = useMemo(() => {
-        if (!allUsers) return { processedUsers: [], stats: { total: 0, admins: 0, sellers: 0, standard: 0 } };
+        if (!allUsers || !user) return { processedUsers: [], stats: { total: 0, admins: 0, sellers: 0, standard: 0 } };
 
         let admins = 0;
         let sellers = 0;
         let standard = 0;
 
+        // Check if the currently logged-in user is the ultimate super admin
+        const isCurrentSuperAdmin = user.email && user.email.toLowerCase() === 'testcodecfg@gmail.com';
+
         const mapped = allUsers.filter(u => {
-            // FEATURE 11: SUPER ADMIN GHOSTING PROTOCOL
-            // Strictly hides this specific email from all directory lists. It cannot be viewed, clicked, or modified.
-            if (u.email && u.email.toLowerCase() === 'testcodecfg@gmail.com') return false;
+            // FEATURE 11: CONDITIONAL SUPER ADMIN GHOSTING PROTOCOL
+            // If the user being iterated is the super admin, ONLY allow them into the array IF the person viewing the screen is ALSO the super admin.
+            // This means standard admins will NEVER see testcodecfg@gmail.com in their lists.
+            if (u.email && u.email.toLowerCase() === 'testcodecfg@gmail.com') {
+                return isCurrentSuperAdmin;
+            }
             return true;
         }).map(u => {
             const r = u.role || (u.isSeller ? 'seller' : 'buyer');
-            if (r === 'admin') admins++;
+            if (r === 'admin' || (u.email && u.email.toLowerCase() === 'testcodecfg@gmail.com')) admins++;
             else if (r === 'seller') sellers++;
             else standard++;
 
@@ -134,7 +140,7 @@ export default function AdminUsers() {
                 id: u.id,
                 email: u.email || 'No Email',
                 name: u.personal?.fullName || u.displayName || 'Unknown User',
-                role: r,
+                role: (u.email && u.email.toLowerCase() === 'testcodecfg@gmail.com') ? 'super admin' : r,
                 status: u.status || (u.disabled ? 'Suspended' : 'Active'),
                 permissions: u.permissions || {
                     canCreateEvents: false,
@@ -154,7 +160,7 @@ export default function AdminUsers() {
             }
             // Role Filter
             if (roleFilter !== 'All') {
-                if (u.role.toLowerCase() !== roleFilter.toLowerCase()) return false;
+                if (u.role.toLowerCase() !== roleFilter.toLowerCase() && !(roleFilter === 'Admin' && u.role === 'super admin')) return false;
             }
             return true;
         });
@@ -163,7 +169,7 @@ export default function AdminUsers() {
             processedUsers: filtered, 
             stats: { total: mapped.length, admins, sellers, standard } 
         };
-    }, [allUsers, searchTerm, roleFilter]);
+    }, [allUsers, searchTerm, roleFilter, user]);
 
     // SECTION 9: CSV Export Engine
     const handleDownloadCSV = () => {
@@ -186,7 +192,7 @@ export default function AdminUsers() {
     // Open Moderation Modal
     const openUserModal = (userData) => {
         setSelectedUser(userData);
-        setEditRole(userData.role || 'buyer');
+        setEditRole(userData.role === 'super admin' ? 'admin' : (userData.role || 'buyer'));
         setEditStatus(userData.status || 'Active');
         setEditPerms(userData.permissions || {
             canCreateEvents: false,
@@ -361,6 +367,7 @@ export default function AdminUsers() {
                                             <td className="px-6 py-4 text-[13px] font-bold text-[#626262]">{u.email}</td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2.5 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest border ${
+                                                    u.role === 'super admin' ? 'bg-[#333333] text-[#FAD8DC] border-[#333333] shadow-[0_0_10px_rgba(231,54,77,0.3)]' :
                                                     u.role === 'admin' ? 'bg-[#333333] text-[#FFFFFF] border-[#333333]' : 
                                                     u.role === 'seller' ? 'bg-[#FAD8DC]/50 text-[#E7364D] border-[#E7364D]/30' : 
                                                     'bg-[#F5F5F5] text-[#626262] border-[#A3A3A3]/30'
