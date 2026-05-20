@@ -208,9 +208,30 @@ function MainLayout() {
 export default function App() {
     const isMaintenance = false; 
     
-    // FEATURE: The Absolute Interceptor States
-    const { hasOnboarded, apiError } = useAppStore();
+    // FEATURE: The Absolute Interceptor States & Preloader Bridge
+    const { hasOnboarded, apiError, isGlobalPreloaderActive } = useAppStore();
     const { initAuth, authLoading, isPlatformLocked } = useMainStore(); 
+
+    // FEATURE 22: Global DOM Preloader Bridge Logic
+    useEffect(() => {
+        const preloaderEl = document.getElementById('preloader');
+        
+        if (!preloaderEl) return; // Guard clause in case it's already removed
+
+        if (isGlobalPreloaderActive) {
+            // Unhide it if activated again
+            preloaderEl.style.display = 'flex';
+            preloaderEl.style.opacity = '1';
+        } else {
+            // Fade out and remove when store state dictates
+            preloaderEl.style.opacity = '0';
+            const timeoutId = setTimeout(() => {
+                preloaderEl.style.display = 'none';
+            }, 500); // Wait for CSS transition to finish
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isGlobalPreloaderActive]);
 
     useEffect(() => {
         if (!isMaintenance) {
