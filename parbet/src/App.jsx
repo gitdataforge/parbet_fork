@@ -69,6 +69,9 @@ function MainLayout() {
     // FEATURE: Security Gatekeeper Props & Fullscreen State
     const { isAuthenticated, user, isFullscreenModalOpen } = useMainStore();
     
+    // FEATURE 21: High-End UI Controllers
+    const { isPremiumAnimationActive, activeBackgroundIllustration, uiThemeColors, activeSectionModules } = useAppStore();
+    
     // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
     const isAdminPath = location.pathname.toLowerCase().startsWith('/admin');
@@ -88,15 +91,45 @@ function MainLayout() {
 
     return (
         <InactivityTimeout>
-            {/* GLOBAL REBRAND: Strict Booknshow Hex Palette Application */}
-            <div className="flex flex-col w-full min-h-screen bg-[#FFFFFF] text-[#333333] relative">
+            {/* FEATURE 21: High-End Illustrative SVG Background Engine (Strictly Real-Time Store Driven) */}
+            {isPremiumAnimationActive && activeBackgroundIllustration === 'dynamic-particles-svg' && (
+                <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-[#FFFFFF]">
+                    <svg className="absolute w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="hero-gradient" cx="50%" cy="0%" r="70%">
+                                <stop offset="0%" style={{ stopColor: uiThemeColors.primary, stopOpacity: 0.15 }} />
+                                <stop offset="50%" style={{ stopColor: uiThemeColors.accent, stopOpacity: 0.05 }} />
+                                <stop offset="100%" style={{ stopColor: '#FFFFFF', stopOpacity: 0 }} />
+                            </radialGradient>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#hero-gradient)" />
+                        <g className="animate-pulse" style={{ animationDuration: '4s' }}>
+                            <circle cx="15%" cy="20%" r="3" fill={uiThemeColors.primary} />
+                            <circle cx="85%" cy="30%" r="5" fill={uiThemeColors.secondary} />
+                            <circle cx="50%" cy="80%" r="4" fill={uiThemeColors.accent} />
+                        </g>
+                    </svg>
+                </div>
+            )}
+
+            <div className="flex flex-col w-full min-h-screen text-[#333333] relative bg-transparent">
                 
+                {/* REAL-TIME FEATURE SECTION: Premium Escrow Guarantee Header Module */}
+                {activeSectionModules?.includes('premium-escrow-guarantee') && !hideGlobalHeader && (
+                    <div className="w-full bg-[#0A0A0A] text-[#FFFFFF] text-[11px] font-bold tracking-widest uppercase py-2 px-4 flex items-center justify-center shadow-md z-50">
+                        <svg className="w-4 h-4 mr-2 text-[#00E676] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        Parbet Premium Escrow Active: All transactions are 100% secured in real-time
+                    </div>
+                )}
+
                 {/* Route-Based Header Swapping */}
                 {!hideGlobalHeader && (
                     isExplorePage ? <ExploreHeader /> : <Header />
                 )}
                 
-                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath || isSellerPath || isFullscreenModalOpen) ? '' : 'max-w-[1400px] p-0'}`}>
+                <main className={`flex-1 w-full mx-auto relative z-10 ${(isIsolatedPage || isProfilePath || isAdminPath || isSellerPath || isFullscreenModalOpen) ? '' : 'max-w-[1400px] p-0'}`}>
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
@@ -174,8 +207,9 @@ function MainLayout() {
 
 export default function App() {
     const isMaintenance = false; 
-    const { hasOnboarded } = useAppStore();
-    // FEATURE: Wire up the global lockdown state
+    
+    // FEATURE: The Absolute Interceptor States
+    const { hasOnboarded, apiError } = useAppStore();
     const { initAuth, authLoading, isPlatformLocked } = useMainStore(); 
 
     useEffect(() => {
@@ -211,9 +245,9 @@ export default function App() {
         return () => unsubscribe();
     }, []);
 
-    // FEATURE: The Absolute Interceptor. 
-    // If the system_status document triggers a lockdown, immediately abort all routing and render ONLY the quota blocker.
-    if (isPlatformLocked) {
+    // FEATURE: THE ABSOLUTE INTERCEPTOR. 
+    // Elevated to the absolute root to completely bypass nested trees if a quota breach occurs.
+    if (isPlatformLocked || apiError === 'quota-exceeded') {
         return <FirebaseQuotaBlocker />;
     }
 
