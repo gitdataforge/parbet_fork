@@ -209,8 +209,14 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
       
+      // CRITICAL FIX: We must explicitly allow access to the root userId document within the artifacts tree to prevent RBAC fetch failures.
+      match /users/{userId} {
+        allow read: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+        allow write: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+        allow delete: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+      }
+
       match /users/{userId}/{document=**} {
-        // CRITICAL FIX: Applies strict masking preventing the new admin from accessing the super admin's artifact records
         allow read: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
         allow write: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
         allow delete: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
