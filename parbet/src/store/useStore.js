@@ -49,8 +49,9 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 16: Admin Config Hydration (Home Banners)
  * FEATURE 17: Expanded Viagogo Checkout Schema (Billing, Gifts, Timer States)
  * FEATURE 18: Real-Time Seat Allocation Sync (Firestore onSnapshot Listener)
- * FEATURE 19: Strict Role-Based Access Control (RBAC) Architecture
+ * FEATURE 19: Strict Role-Based Access Control (RBAC) Architecture Fortified
  * FEATURE 20: Global Full-Screen Search & Strict Performer Filters
+ * FEATURE 21: High-End Animation & Global Graphics Controller Engine
  */
 
 export const useAppStore = create((set, get) => ({
@@ -65,6 +66,18 @@ export const useAppStore = create((set, get) => ({
     hasOnboarded: localStorage.getItem('parbet_onboarded') === 'true',
     isAuthenticated: false,
     isAuthModalOpen: false,
+    
+    // FEATURE 21: High-End UI, Animation & Graphics Controllers (Real-time, No Mock)
+    isPremiumAnimationActive: true,
+    activeBackgroundIllustration: 'dynamic-particles-svg',
+    uiThemeColors: {
+        primary: '#FF0055',
+        secondary: '#00E676',
+        accent: '#4A90E2',
+        backgroundDark: '#0A0A0A',
+        surfaceElement: '#1A1A1A'
+    },
+    activeSectionModules: ['hero-banner', 'trending-performers', 'live-inventory-map', 'premium-escrow-guarantee'],
     
     // Real-Time API Data (Aggregated 2026 Feed)
     apiMatches: [],
@@ -182,23 +195,31 @@ export const useAppStore = create((set, get) => ({
         
         if (!eventId) return;
 
-        const eventRef = doc(db, 'events', eventId);
-        const unsubscribe = onSnapshot(eventRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                set({ realTimeBookedSeats: data.bookedSeats || [] });
-            }
-        }, (error) => {
-            console.error("[SeatMap Sync] Firestore listener failed:", error);
-        });
+        try {
+            const eventRef = doc(db, 'events', eventId);
+            const unsubscribe = onSnapshot(eventRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    set({ realTimeBookedSeats: data.bookedSeats || [] });
+                }
+            }, (error) => {
+                console.error("[SeatMap Sync] Firestore listener failed:", error);
+            });
 
-        set({ unsubscribeSeatListener: unsubscribe });
+            set({ unsubscribeSeatListener: unsubscribe });
+        } catch (error) {
+            console.error("[SeatMap Sync] Initialization failed:", error);
+        }
     },
 
     stopSeatListener: () => {
         const state = get();
         if (state.unsubscribeSeatListener) {
-            state.unsubscribeSeatListener();
+            try {
+                state.unsubscribeSeatListener();
+            } catch (error) {
+                console.error("Cleanup error on seat listener", error);
+            }
             set({ unsubscribeSeatListener: null, realTimeBookedSeats: [] });
         }
     },
@@ -220,28 +241,36 @@ export const useAppStore = create((set, get) => ({
         
         // Clean up existing listener if any
         if (state.unsubscribeNotifications) {
-            state.unsubscribeNotifications();
+            try {
+                state.unsubscribeNotifications();
+            } catch(e) {
+                console.error("Notification cleanup error", e);
+            }
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const notifRef = collection(db, 'artifacts', appId, 'users', state.user.uid, 'notifications');
-        const q = query(notifRef);
+        try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const notifRef = collection(db, 'artifacts', appId, 'users', state.user.uid, 'notifications');
+            const q = query(notifRef);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                .sort((a, b) => {
-                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                    return timeB - timeA; // Descending (newest first)
-                });
-            
-            const unread = notifs.filter(n => !n.isRead).length;
-            set({ notifications: notifs, unreadNotificationCount: unread });
-        }, (error) => {
-            console.error("[Parbet Notifications] Secure sync failed:", error.message);
-        });
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => {
+                        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                        return timeB - timeA; // Descending (newest first)
+                    });
+                
+                const unread = notifs.filter(n => !n.isRead).length;
+                set({ notifications: notifs, unreadNotificationCount: unread });
+            }, (error) => {
+                console.error("[Parbet Notifications] Secure sync failed:", error.message);
+            });
 
-        set({ unsubscribeNotifications: unsubscribe });
+            set({ unsubscribeNotifications: unsubscribe });
+        } catch (error) {
+            console.error("[Parbet Notifications] Failed to initialize secure listener:", error);
+        }
     },
 
     markNotificationsAsRead: async () => {
@@ -279,16 +308,24 @@ export const useAppStore = create((set, get) => ({
         set({ isAuthenticated: status });
         if (!status) {
             const unsub = get().unsubscribeNotifications;
-            if (unsub) unsub();
+            if (unsub) {
+                try { unsub(); } catch (e) { console.error(e); }
+            }
             set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null, userRole: 'guest' });
         }
     },
     
-    // FEATURE 19: Modified setUser to securely fetch role from firestore
+    // FEATURE 19: Strict Fortified setUser with Try/Catch Quota/Permission Interceptors
     setUser: async (user) => {
         set({ user });
-        if (user) {
-            get().initNotificationsListener();
+        if (user && user.uid) {
+            
+            // Isolate listener initialization to prevent cascading failures
+            try {
+                get().initNotificationsListener();
+            } catch (listenerError) {
+                console.error("[Parbet Runtime] Notification listener init blocked:", listenerError);
+            }
             
             try {
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -312,13 +349,22 @@ export const useAppStore = create((set, get) => ({
                     set({ userRole: 'buyer' });
                 }
             } catch (error) {
-                console.error("[RBAC] Failed to resolve user role:", error);
-                set({ userRole: 'buyer' });
+                // STRICT CATCH BLOCK: Intercepts Firebase Permission & Quota Errors Gracefully
+                console.error("[RBAC] Firestore Execution Halted. Fallback Triggered. Reason:", error.message);
+                
+                // If the error is a quota/permission issue, set the error state to allow the Quota Blocker UI to mount safely
+                if (error.code === 'resource-exhausted' || error.code === 'permission-denied' || error.message.includes('Quota')) {
+                    set({ apiError: 'quota-exceeded', userRole: 'guest' });
+                } else {
+                    set({ userRole: 'guest' }); // Safe degradation to lowest privilege
+                }
             }
 
         } else {
             const unsub = get().unsubscribeNotifications;
-            if (unsub) unsub();
+            if (unsub) {
+                try { unsub(); } catch(e) { console.error(e); }
+            }
             set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null, userRole: 'guest' });
         }
     },
@@ -334,6 +380,10 @@ export const useAppStore = create((set, get) => ({
     setLocationError: (errorMsg) => set({ locationError: errorMsg }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setActiveEvent: (event) => set({ activeEvent: event }),
+
+    // High-End Graphics & Animation Controllers Setters
+    setPremiumAnimationState: (isActive) => set({ isPremiumAnimationActive: isActive }),
+    setActiveIllustration: (svgName) => set({ activeBackgroundIllustration: svgName }),
 
     // Manual Location Strict Setter
     setManualLocation: (city) => {
@@ -502,75 +552,86 @@ export const useAppStore = create((set, get) => ({
         set({ isListenerActive: true });
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-        const q = query(ticketsRef, where('status', '==', 'active'));
+        try {
+            const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+            const q = query(ticketsRef, where('status', '==', 'active'));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const sellerEventsMap = new Map();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const sellerEventsMap = new Map();
 
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const eventId = data.eventId || `${data.t1}-${data.t2 || 'event'}-${data.commence_time?.split('T')[0]}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const eventId = data.eventId || `${data.t1}-${data.t2 || 'event'}-${data.commence_time?.split('T')[0]}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-                if (!sellerEventsMap.has(eventId)) {
-                    sellerEventsMap.set(eventId, {
-                        id: `event_${eventId}`,
-                        eventId: eventId,
-                        t1: data.t1,
-                        t2: data.t2 || '',
-                        league: data.league || 'Indian Premier League',
-                        eventName: data.eventName || (data.t2 ? `${data.t1} vs ${data.t2}` : data.t1),
-                        commence_time: data.commence_time,
-                        loc: data.loc || 'TBA Stadium',
-                        city: data.city || 'Location TBA',
-                        country: data.country || 'IN',
-                        source: 'Parbet_Seller_Network',
-                        minPrice: parseFloat(data.price),
-                        ticketCount: parseInt(data.quantity, 10) || 1
-                    });
-                } else {
-                    const existing = sellerEventsMap.get(eventId);
-                    existing.ticketCount += (parseInt(data.quantity, 10) || 1);
-                    if (parseFloat(data.price) < existing.minPrice) {
-                        existing.minPrice = parseFloat(data.price);
+                    if (!sellerEventsMap.has(eventId)) {
+                        sellerEventsMap.set(eventId, {
+                            id: `event_${eventId}`,
+                            eventId: eventId,
+                            t1: data.t1,
+                            t2: data.t2 || '',
+                            league: data.league || 'Indian Premier League',
+                            eventName: data.eventName || (data.t2 ? `${data.t1} vs ${data.t2}` : data.t1),
+                            commence_time: data.commence_time,
+                            loc: data.loc || 'TBA Stadium',
+                            city: data.city || 'Location TBA',
+                            country: data.country || 'IN',
+                            source: 'Parbet_Seller_Network',
+                            minPrice: parseFloat(data.price),
+                            ticketCount: parseInt(data.quantity, 10) || 1
+                        });
+                    } else {
+                        const existing = sellerEventsMap.get(eventId);
+                        existing.ticketCount += (parseInt(data.quantity, 10) || 1);
+                        if (parseFloat(data.price) < existing.minPrice) {
+                            existing.minPrice = parseFloat(data.price);
+                        }
                     }
+                });
+
+                const newSellerMatches = Array.from(sellerEventsMap.values());
+
+                set(state => {
+                    const combined = [...state.apiMatches, ...newSellerMatches];
+                    const deduplicated = combined.filter((event, index, self) =>
+                        index === self.findIndex((e) => (
+                            e.t1 === event.t1 && e.commence_time === event.commence_time
+                        ))
+                    );
+
+                    const sorted = deduplicated.sort((a, b) => {
+                        if (b.proximityScore !== a.proximityScore) {
+                            return (b.proximityScore || 1) - (a.proximityScore || 1);
+                        }
+                        return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
+                    });
+
+                    const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
+                        .filter(Boolean)
+                        .map(name => ({ name }));
+
+                    return { 
+                        sellerMatches: newSellerMatches,
+                        liveMatches: sorted,
+                        trendingPerformers: performers,
+                        isLoadingMatches: false
+                    };
+                });
+            }, (error) => {
+                console.error("[Parbet Database] Sync Failure:", error.message);
+                
+                // Strict Error Interception for Listener
+                if (error.code === 'resource-exhausted' || error.message.includes('Quota')) {
+                    set({ apiError: 'quota-exceeded', isLoadingMatches: false, isListenerActive: false });
+                } else {
+                    set({ apiError: error.message, isLoadingMatches: false, isListenerActive: false });
                 }
             });
 
-            const newSellerMatches = Array.from(sellerEventsMap.values());
-
-            set(state => {
-                const combined = [...state.apiMatches, ...newSellerMatches];
-                const deduplicated = combined.filter((event, index, self) =>
-                    index === self.findIndex((e) => (
-                        e.t1 === event.t1 && e.commence_time === event.commence_time
-                    ))
-                );
-
-                const sorted = deduplicated.sort((a, b) => {
-                    if (b.proximityScore !== a.proximityScore) {
-                        return (b.proximityScore || 1) - (a.proximityScore || 1);
-                    }
-                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
-                });
-
-                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
-                    .filter(Boolean)
-                    .map(name => ({ name }));
-
-                return { 
-                    sellerMatches: newSellerMatches,
-                    liveMatches: sorted,
-                    trendingPerformers: performers,
-                    isLoadingMatches: false
-                };
-            });
-        }, (error) => {
-            console.error("[Parbet Database] Sync Failure:", error.message);
-            set({ apiError: error.message, isLoadingMatches: false, isListenerActive: false });
-        });
-
-        set({ unsubscribeSellerTickets: unsubscribe });
+            set({ unsubscribeSellerTickets: unsubscribe });
+        } catch (error) {
+            console.error("Failed to init seller ticket listener", error);
+            set({ isLoadingMatches: false, isListenerActive: false });
+        }
     },
 
     fetchHomeBanners: async () => {
@@ -585,7 +646,7 @@ export const useAppStore = create((set, get) => ({
                 set({ homeBanners: [{ id: 'default_1', type: 'hero_banner', title: 'Tata IPL 2026', subtitle: 'Book your tickets now before they sell out.', imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200&auto=format&fit=crop' }] });
             }
         } catch (error) {
-            console.error("Banner fetch failed:", error);
+            console.error("Banner fetch failed gracefully:", error.message);
         }
     },
 
@@ -621,7 +682,7 @@ export const useAppStore = create((set, get) => ({
                 strictLocation: { ...geo, city }
             });
         } catch (error) {
-            console.error("Critical State Failure:", error);
+            console.error("Critical State Failure Intercepted:", error);
             const fallbackCity = cityOverride || localStorage.getItem('parbet_manual_city') || "Global";
             set({ apiError: error.message, isLoadingMatches: false, userCity: fallbackCity });
         }
@@ -635,7 +696,7 @@ export const useAppStore = create((set, get) => ({
             const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             set({ eventListings: listings });
         } catch (error) {
-            console.error("Marketplace fetch error:", error);
+            console.error("Marketplace fetch error gracefully caught:", error);
         }
     },
 
