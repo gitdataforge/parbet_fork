@@ -85,7 +85,9 @@ export const useMainStore = create((set, get) => ({
         set({ authLoading: true });
         
         // FEATURE 1.1: Global Real-Time Quota/Lockdown Listener (Bypasses Auth, runs immediately)
-        const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', 'system_status');
+        // CRITICAL FIX: Relocated lockdown listener strictly to the ROOT of the database
+        const configRef = doc(db, 'platform_config', 'system_status');
+        
         onSnapshot(configRef, (docSnap) => {
             if (docSnap.exists()) {
                 set({ isPlatformLocked: docSnap.data().isLocked === true });
