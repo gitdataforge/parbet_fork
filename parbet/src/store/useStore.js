@@ -52,6 +52,7 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 19: Strict Role-Based Access Control (RBAC) Architecture Fortified
  * FEATURE 20: Global Full-Screen Search & Strict Performer Filters
  * FEATURE 21: High-End Animation & Global Graphics Controller Engine
+ * FEATURE 22: Global DOM Preloader Bridge (React to index.html sync)
  */
 
 export const useAppStore = create((set, get) => ({
@@ -66,6 +67,10 @@ export const useAppStore = create((set, get) => ({
     hasOnboarded: localStorage.getItem('parbet_onboarded') === 'true',
     isAuthenticated: false,
     isAuthModalOpen: false,
+
+    // FEATURE 22: Global DOM Preloader Bridge
+    isGlobalPreloaderActive: true,
+    setGlobalPreloaderActive: (isActive) => set({ isGlobalPreloaderActive: isActive }),
     
     // FEATURE 21: High-End UI, Animation & Graphics Controllers (Real-time, No Mock)
     isPremiumAnimationActive: true,
