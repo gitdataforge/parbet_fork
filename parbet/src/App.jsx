@@ -18,6 +18,9 @@ import Footer from './components/Footer';
 import ProfileLayout from './layouts/ProfileLayout'; 
 import InactivityTimeout from './components/InactivityTimeout'; 
 
+// FEATURE: The Supreme Application Interceptor
+import FirebaseQuotaBlocker from './components/FirebaseQuotaBlocker';
+
 // FEATURE 19: Security Gatekeeper
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -172,7 +175,8 @@ function MainLayout() {
 export default function App() {
     const isMaintenance = false; 
     const { hasOnboarded } = useAppStore();
-    const { initAuth, authLoading } = useMainStore(); // Real-time gatekeeper state
+    // FEATURE: Wire up the global lockdown state
+    const { initAuth, authLoading, isPlatformLocked } = useMainStore(); 
 
     useEffect(() => {
         if (!isMaintenance) {
@@ -206,6 +210,12 @@ export default function App() {
 
         return () => unsubscribe();
     }, []);
+
+    // FEATURE: The Absolute Interceptor. 
+    // If the system_status document triggers a lockdown, immediately abort all routing and render ONLY the quota blocker.
+    if (isPlatformLocked) {
+        return <FirebaseQuotaBlocker />;
+    }
 
     if (isMaintenance) return <Maintenance />;
 

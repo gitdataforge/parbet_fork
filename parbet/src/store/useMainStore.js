@@ -53,6 +53,9 @@ export const useMainStore = create((set, get) => ({
 
     // FEATURE: Global UI State for Fullscreen Modals (E-Tickets & Receipts)
     isFullscreenModalOpen: false,
+    
+    // FEATURE: Global Application Quota Lockdown State
+    isPlatformLocked: false,
 
     // Real-time Ledger Data
     orders: [], // Purchases
@@ -76,10 +79,22 @@ export const useMainStore = create((set, get) => ({
     setFullscreenModal: (isOpen) => set({ isFullscreenModalOpen: isOpen }),
 
     /**
-     * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
+     * FEATURE 1: Secure Authentication Initialization (Gatekeeper) & System Status
      */
     initAuth: async () => {
         set({ authLoading: true });
+        
+        // FEATURE 1.1: Global Real-Time Quota/Lockdown Listener (Bypasses Auth, runs immediately)
+        const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', 'system_status');
+        onSnapshot(configRef, (docSnap) => {
+            if (docSnap.exists()) {
+                set({ isPlatformLocked: docSnap.data().isLocked === true });
+            } else {
+                set({ isPlatformLocked: false }); // Failsafe unlock if document is missing
+            }
+        }, (error) => {
+            console.warn("Global System Config Monitor:", error.message);
+        });
         
         onAuthStateChanged(auth, async (user) => {
             if (user) {
